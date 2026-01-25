@@ -1,0 +1,78 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { useStreamVideoClient } from "@stream-io/video-react-sdk";
+import { CALL_TYPE, CLOSED_CAPTIONS_LANGUAGE } from "@/app/constants/meeting-constants";
+
+function useMeetingCall(callId, userId, onLeave) {
+  const client = useStreamVideoClient();
+  const [call, setCall] = useState(null);
+  const [error, setError] = useState(null);
+  const joinedRef = useRef(false);
+  const leavingRef = useRef(false);
+
+  useEffect(() => {
+    if (!client) return;
+    if (joinedRef.current) return;
+
+    joinedRef.current = true;
+
+    const init = async () => {
+      try {
+        const myCall = client.call(CALL_TYPE, callId);
+
+        await myCall.getOrCreate({
+          data: {
+            created_by_id: userId,
+            members: [{ user_id: userId, role: "call_member" }],
+          },
+        });
+        await myCall.join();
+
+        await myCall.startClosedCaptions({ language: CLOSED_CAPTIONS_LANGUAGE });
+
+        myCall.on("call.session_ended", () => {
+          onLeave?.();
+        });
+
+        setCall(myCall);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+
+    init();
+
+    return () => {
+      if (call && !leavingRef.current) {
+        leavingRef.current = true;
+        call.stopClosedCaptions().catch(() => {});
+        call.leave().catch(() => {});
+      }
+    };
+  }, [client, callId, userId]);
+
+  const handleLeave = async () => {
+    if (leavingRef.current) {
+      onLeave?.();
+      return;
+    }
+
+    leavingRef.current = true;
+
+    try {
+      if (call) {
+        await call.stopClosedCaptions().catch(() => {});
+        await call.leave().catch(() => {});
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      onLeave?.();
+    }
+  };
+
+  return { call, error, handleLeave };
+}
+
+export default useMeetingCall;

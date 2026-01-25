@@ -1,0 +1,7 @@
+{
+  "robot": "<svg viewBox=\"0 0 24 24\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"6\" y=\"5\" width=\"12\" height=\"12\" rx=\"1\" fill=\"currentColor\"/><circle cx=\"9.5\" cy=\"9.5\" r=\"1\" fill=\"white\"/><circle cx=\"14.5\" cy=\"9.5\" r=\"1\" fill=\"white\"/><rect x=\"9\" y=\"13\" width=\"6\" height=\"1\" rx=\"0.5\" fill=\"white\"/><rect x=\"11\" y=\"2\" width=\"2\" height=\"3\" rx=\"0.5\" fill=\"currentColor\"/></svg>",
+  "checkmark": "<svg viewBox=\"0 0 20 20\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z\"/></svg>",
+  "document": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"/></svg>",
+  "microphone": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z\"/></svg>",
+  "plus": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12 4v16m8-8H4\"/></svg>"
+}

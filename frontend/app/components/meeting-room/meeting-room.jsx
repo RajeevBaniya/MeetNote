@@ -9,7 +9,7 @@ import MeetingRoomLoading from "./meeting-room-loading";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
-function MeetingRoom({ callId, onLeave, userId }) {
+const MeetingRoom = ({ callId, onLeave, userId }) => {
   const [showAssistant, setShowAssistant] = useState(false);
   const { call, error, handleLeave } = useMeetingCall(callId, userId, onLeave);
 
@@ -24,7 +24,7 @@ function MeetingRoom({ callId, onLeave, userId }) {
   return (
     <StreamTheme>
       <StreamCall call={call}>
-        <div className="h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white overflow-hidden">
+        <div className="h-screen bg-[#020617] text-slate-100 overflow-hidden">
           <MeetingRoomContent 
             showAssistant={showAssistant}
             setShowAssistant={setShowAssistant}
@@ -34,6 +34,6 @@ function MeetingRoom({ callId, onLeave, userId }) {
       </StreamCall>
     </StreamTheme>
   );
-}
+};
 
 export default MeetingRoom;

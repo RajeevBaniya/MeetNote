@@ -1,6 +1,6 @@
 "use client";
 
-function MeetingRoomLoading() {
+const MeetingRoomLoading = () => {
   return (
     <div className="flex items-center justify-center min-h-screen text-white">
       <div className="text-center">
@@ -9,6 +9,6 @@ function MeetingRoomLoading() {
       </div>
     </div>
   );
-}
+};
 
 export default MeetingRoomLoading;

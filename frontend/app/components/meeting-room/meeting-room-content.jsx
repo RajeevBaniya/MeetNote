@@ -5,7 +5,7 @@ import MeetingContent from "./meeting-content";
 import iconsData from "@/app/components/icons/icons.json";
 import { CallControls } from "@stream-io/video-react-sdk";
 
-function MeetingRoomContent({ showAssistant, setShowAssistant, onLeave }) {
+const MeetingRoomContent = ({ showAssistant, setShowAssistant, onLeave }) => {
   return (
     <div className="h-full flex flex-col px-4 py-4">
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 min-h-0">
@@ -42,6 +42,6 @@ function MeetingRoomContent({ showAssistant, setShowAssistant, onLeave }) {
       </div>
     </div>
   );
-}
+};
 
 export default MeetingRoomContent;

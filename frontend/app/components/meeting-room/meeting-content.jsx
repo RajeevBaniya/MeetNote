@@ -4,7 +4,7 @@ import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import ParticipantGrid from "./participant-grid";
 import ScreenShareView from "./screen-share-view";
 
-function MeetingContent({ showAssistant }) {
+const MeetingContent = ({ showAssistant }) => {
   const { useHasOngoingScreenShare } = useCallStateHooks();
   const hasScreenShare = useHasOngoingScreenShare();
 
@@ -22,6 +22,6 @@ function MeetingContent({ showAssistant }) {
   }
 
   return <ParticipantGrid showAssistant={showAssistant} />;
-}
+};
 
 export default MeetingContent;

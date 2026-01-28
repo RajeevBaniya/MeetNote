@@ -7,7 +7,7 @@ import StreamProvider from "@/app/components/stream-provider";
 import MeetingRoom from "@/app/components/meeting-room/meeting-room";
 import { StreamTheme } from "@stream-io/video-react-sdk";
 
-export default function MeetingPage() {
+const MeetingPage = () => {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -81,4 +81,6 @@ export default function MeetingPage() {
       </StreamTheme>
     </StreamProvider>
   );
-}
+};
+
+export default MeetingPage;

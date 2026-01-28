@@ -4,10 +4,12 @@ export const metadata = {
   title: "MeetNote",
 };
 
-export default function RootLayout({ children }) {
+const RootLayout = ({ children }) => {
   return (
     <html lang="en">
       <body>{children}</body>
     </html>
   );
-}
+};
+
+export default RootLayout;

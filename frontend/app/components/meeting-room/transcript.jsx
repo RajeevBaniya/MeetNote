@@ -5,7 +5,7 @@ import { useCall } from "@stream-io/video-react-sdk";
 import { useChatContext } from "stream-chat-react";
 import iconsData from "@/app/components/icons/icons.json";
 
-export function TranscriptPanel() {
+const TranscriptPanel = () => {
   const { client } = useChatContext();
   const [transcripts, setTranscripts] = useState([]);
   const transcriptEndRef = useRef(null);
@@ -62,7 +62,7 @@ export function TranscriptPanel() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-700 bg-linear-to-r from-gray-800 to-gray-750">
+      <div className="px-6 py-5 border-b border-emerald-900/60 bg-gradient-to-r from-emerald-900/30 to-slate-900/60">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/10 rounded-lg">
@@ -87,7 +87,7 @@ export function TranscriptPanel() {
       </div>
 
       {/* Transcript List */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-gray-850 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-slate-900/80 custom-scrollbar">
         {transcripts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="relative mb-6">
@@ -118,11 +118,11 @@ export function TranscriptPanel() {
               return (
                 <div
                   key={stableKey}
-                  className="group bg-gradient-to-br from-gray-700 to-gray-750 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-600 hover:border-blue-500/50 transform hover:-translate-y-0.5"
+                  className="group rounded-xl border border-emerald-900/60 bg-slate-900/80 p-4 shadow-lg shadow-emerald-900/40 transition-all duration-300 hover:border-emerald-400/70 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] hover:-translate-y-0.5"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-lg ring-2 ring-blue-500/20">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-sm font-bold ring-2 ring-emerald-400/40">
                         {transcript.speaker.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -147,4 +147,6 @@ export function TranscriptPanel() {
       </div>
     </div>
   );
-}
+};
+
+export { TranscriptPanel };

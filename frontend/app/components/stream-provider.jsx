@@ -6,7 +6,7 @@ import { useStreamClients } from "@/app/hooks/use-stream-clients";
 
 const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 
-export default function StreamProvider({ children, user, token }) {
+const StreamProvider = ({ children, user, token }) => {
   const { videoClient, chatClient } = useStreamClients({ apiKey, user, token });
 
   if (!videoClient || !chatClient) {
@@ -25,4 +25,6 @@ export default function StreamProvider({ children, user, token }) {
       <Chat client={chatClient}>{children}</Chat>
     </StreamVideo>
   );
-}
+};
+
+export default StreamProvider;

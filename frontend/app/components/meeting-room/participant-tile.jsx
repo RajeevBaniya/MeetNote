@@ -3,7 +3,7 @@
 import { ParticipantView } from "@stream-io/video-react-sdk";
 import iconsData from "@/app/components/icons/icons.json";
 
-function ParticipantTile({ participant, isAssistant = false }) {
+const ParticipantTile = ({ participant, isAssistant = false }) => {
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden border border-gray-700 group">
       <div className="absolute inset-0 w-full h-full participant-video-container">
@@ -26,6 +26,6 @@ function ParticipantTile({ participant, isAssistant = false }) {
       <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-0" />
     </div>
   );
-}
+};
 
 export default ParticipantTile;

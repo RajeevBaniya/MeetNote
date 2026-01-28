@@ -3,7 +3,7 @@
 import { useCallStateHooks, ParticipantView } from "@stream-io/video-react-sdk";
 import { hasScreenShare } from "@stream-io/video-client";
 
-function ScreenShareView() {
+const ScreenShareView = () => {
   const { useParticipants, useHasOngoingScreenShare } = useCallStateHooks();
   const participants = useParticipants();
   const hasOngoingScreenShare = useHasOngoingScreenShare();
@@ -33,6 +33,6 @@ function ScreenShareView() {
       </div>
     </div>
   );
-}
+};
 
 export default ScreenShareView;

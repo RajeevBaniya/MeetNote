@@ -5,7 +5,7 @@ import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import ParticipantTile from "./participant-tile";
 import { filterAssistant, sortParticipants, isAssistantParticipant } from "@/app/utils/participant-helpers";
 
-function ParticipantGrid({ showAssistant = false, isCompact = false }) {
+const ParticipantGrid = ({ showAssistant = false, isCompact = false }) => {
   const call = useCall();
   const { useParticipants } = useCallStateHooks();
   const allParticipants = useParticipants();
@@ -84,6 +84,6 @@ function ParticipantGrid({ showAssistant = false, isCompact = false }) {
       </div>
     </div>
   );
-}
+};
 
 export default ParticipantGrid;

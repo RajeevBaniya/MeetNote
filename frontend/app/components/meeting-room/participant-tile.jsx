@@ -5,12 +5,11 @@ import iconsData from "@/app/components/icons/icons.json";
 
 const ParticipantTile = ({ participant, isAssistant = false }) => {
   return (
-    <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden border border-gray-700 group">
-      <div className="absolute inset-0 w-full h-full participant-video-container">
+    <div className="relative w-full h-full min-w-0 min-h-0 bg-[#020617] rounded-none overflow-hidden border-0 border-slate-700 group">
+      <div className="absolute inset-0 w-full h-full min-w-full min-h-full participant-video-container">
         <ParticipantView participant={participant} />
       </div>
 
-      {/* Assistant Badge Only - Stream.io handles name display */}
       {isAssistant && (
         <div className="absolute bottom-3 left-3 z-10">
           <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">

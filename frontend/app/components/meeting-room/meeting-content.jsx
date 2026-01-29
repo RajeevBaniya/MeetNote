@@ -10,18 +10,22 @@ const MeetingContent = ({ showAssistant }) => {
 
   if (hasScreenShare) {
     return (
-      <div className="w-full h-full flex gap-3">
-        <div className="flex-1 min-w-0 rounded-lg overflow-hidden">
+      <div className="w-full h-full flex gap-3 min-h-0 min-w-0">
+        <div className="flex-1 min-w-0 min-h-0 rounded-lg overflow-hidden">
           <ScreenShareView />
         </div>
-        <div className="w-56 shrink-0 rounded-lg overflow-hidden">
+        <div className="w-56 shrink-0 min-h-0 rounded-lg overflow-hidden">
           <ParticipantGrid showAssistant={showAssistant} isCompact={true} />
         </div>
       </div>
     );
   }
 
-  return <ParticipantGrid showAssistant={showAssistant} />;
+  return (
+    <div className="w-full h-full min-h-0 min-w-0">
+      <ParticipantGrid showAssistant={showAssistant} />
+    </div>
+  );
 };
 
 export default MeetingContent;

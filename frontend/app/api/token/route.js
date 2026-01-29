@@ -16,7 +16,6 @@ export async function POST(request) {
 
     const serverClient = new StreamClient(apiKey, apiSecret);
 
-    // Create/upsert the user first
     const newUser = {
       id: userId,
       role: "admin",
@@ -24,7 +23,6 @@ export async function POST(request) {
     };
     await serverClient.upsertUsers([newUser]);
 
-    // Generate token valid for 24 hours
     const validity = 24 * 60 * 60;
     const token = serverClient.generateUserToken({
       user_id: userId,

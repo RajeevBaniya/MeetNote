@@ -2,11 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useCall } from "@stream-io/video-react-sdk";
-import { useChatContext } from "stream-chat-react";
 import iconsData from "@/app/components/icons/icons.json";
 
 const TranscriptPanel = () => {
-  const { client } = useChatContext();
   const [transcripts, setTranscripts] = useState([]);
   const transcriptEndRef = useRef(null);
   const call = useCall();
@@ -16,18 +14,12 @@ const TranscriptPanel = () => {
   }, [transcripts]);
 
   useEffect(() => {
-    if (!call || !client) {
-      return;
-    }
-
-    const callId = process.env.NEXT_PUBLIC_CALL_ID;
-    const channel = client.channel("messaging", callId);
-
-    channel.watch();
+    if (!call) return;
 
     const handleClosedCaption = (event) => {
       if (event.closed_caption) {
         const newTranscript = {
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           text: event.closed_caption.text,
           speaker:
             event.closed_caption.user?.name ||
@@ -41,28 +33,16 @@ const TranscriptPanel = () => {
       }
     };
 
-    const handleNewMessage = (event) => {
-      const message = event.message;
-
-      if (message?.user?.id !== "meeting-assistant-bot") {
-        return;
-      }
-    };
-
     call.on("call.closed_caption", handleClosedCaption);
-
-    channel.on("message.new", handleNewMessage);
 
     return () => {
       call.off("call.closed_caption", handleClosedCaption);
-      channel.off("message.new", handleNewMessage);
     };
-  }, [call, client]);
+  }, [call]);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-emerald-900/60 bg-gradient-to-r from-emerald-900/30 to-slate-900/60">
+      <div className="px-6 py-5 border-b border-emerald-900/60 bg-linear-to-r from-emerald-900/30 to-slate-900/60">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/10 rounded-lg">
@@ -86,7 +66,6 @@ const TranscriptPanel = () => {
         </div>
       </div>
 
-      {/* Transcript List */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-slate-900/80 custom-scrollbar">
         {transcripts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
@@ -113,34 +92,31 @@ const TranscriptPanel = () => {
           </div>
         ) : (
           <>
-            {transcripts.map((transcript) => {
-              const stableKey = `${transcript.timestamp}-${transcript.speaker}-${transcript.text.substring(0, 20)}`;
-              return (
-                <div
-                  key={stableKey}
-                  className="group rounded-xl border border-emerald-900/60 bg-slate-900/80 p-4 shadow-lg shadow-emerald-900/40 transition-all duration-300 hover:border-emerald-400/70 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] hover:-translate-y-0.5"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-sm font-bold ring-2 ring-emerald-400/40">
-                        {transcript.speaker.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <span className="font-semibold text-blue-400 text-sm">
-                          {transcript.speaker}
-                        </span>
-                        <p className="text-xs text-gray-400 font-mono mt-0.5">
-                          {transcript.timestamp}
-                        </p>
-                      </div>
+            {transcripts.map((transcript) => (
+              <div
+                key={transcript.id}
+                className="group rounded-xl border border-emerald-900/60 bg-slate-900/80 p-4 shadow-lg shadow-emerald-900/40 transition-all duration-300 hover:border-emerald-400/70 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] hover:-translate-y-0.5"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-sm font-bold ring-2 ring-emerald-400/40">
+                      {transcript.speaker.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-blue-400 text-sm">
+                        {transcript.speaker}
+                      </span>
+                      <p className="text-xs text-gray-400 font-mono mt-0.5">
+                        {transcript.timestamp}
+                      </p>
                     </div>
                   </div>
-                  <p className="text-gray-100 leading-relaxed text-sm pl-13">
-                    {transcript.text}
-                  </p>
                 </div>
-              );
-            })}
+                <p className="text-gray-100 leading-relaxed text-sm pl-13">
+                  {transcript.text}
+                </p>
+              </div>
+            ))}
             <div ref={transcriptEndRef} />
           </>
         )}
@@ -149,4 +125,4 @@ const TranscriptPanel = () => {
   );
 };
 
-export { TranscriptPanel };
+export default TranscriptPanel;

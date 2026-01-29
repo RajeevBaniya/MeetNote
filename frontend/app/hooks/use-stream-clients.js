@@ -1,19 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { StreamVideoClient } from "@stream-io/video-react-sdk";
-import { StreamChat } from "stream-chat";
 
 export function useStreamClients({ apiKey, user, token }) {
   const [videoClient, setVideoClient] = useState(null);
-  const [chatClient, setChatClient] = useState(null);
+  const clientRef = useRef(null);
 
   useEffect(() => {
     if (!user || !token || !apiKey) return;
 
     let isMounted = true;
 
-    const initClients = async () => {
+    const initClient = async () => {
       try {
-        // Initialize Video Client
         const tokenProvider = () => Promise.resolve(token);
         const myVideoClient = new StreamVideoClient({
           apiKey,
@@ -21,32 +19,26 @@ export function useStreamClients({ apiKey, user, token }) {
           tokenProvider,
         });
 
-        // Initialize Chat Client
-        const myChatClient = StreamChat.getInstance(apiKey);
-        await myChatClient.connectUser(user, token);
-
+        clientRef.current = myVideoClient;
         if (isMounted) {
           setVideoClient(myVideoClient);
-          setChatClient(myChatClient);
         }
       } catch (error) {
         console.error("Client initialization error:", error);
       }
     };
 
-    initClients();
+    initClient();
 
     return () => {
       isMounted = false;
-      // Cleanup only in production
-      if (videoClient) {
-        videoClient.disconnectUser().catch(console.error);
-      }
-      if (chatClient) {
-        chatClient.disconnectUser().catch(console.error);
+      const client = clientRef.current;
+      clientRef.current = null;
+      if (client) {
+        client.disconnectUser().catch(console.error);
       }
     };
   }, [apiKey, user, token]);
 
-  return { videoClient, chatClient };
+  return { videoClient };
 }

@@ -48,7 +48,7 @@ const MeetingPage = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+      <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">
         <div className="p-6 bg-red-900/20 border border-red-500 rounded-lg">
           <p className="text-red-500 font-bold text-lg mb-2">Error</p>
           <p>{error}</p>
@@ -65,10 +65,10 @@ const MeetingPage = () => {
 
   if (!token || !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+      <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-lg">Connecting…</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500 mx-auto" />
+          <p className="mt-4 text-lg text-slate-300">Connecting…</p>
         </div>
       </div>
     );

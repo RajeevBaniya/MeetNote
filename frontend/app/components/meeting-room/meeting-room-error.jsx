@@ -2,8 +2,8 @@
 
 const MeetingRoomError = ({ error }) => {
   return (
-    <div className="flex items-center justify-center min-h-screen text-white">
-      <p>Error: {error}</p>
+    <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">
+      <p className="text-slate-300">Error: {error}</p>
     </div>
   );
 };

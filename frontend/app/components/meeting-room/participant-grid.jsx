@@ -21,10 +21,10 @@ const ParticipantGrid = ({ showAssistant = false, isCompact = false }) => {
 
   if (!participants || participants.length === 0) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-lg">
+      <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#020617] rounded-none min-h-0 min-w-0">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Waiting for participants...</p>
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Waiting for participants...</p>
         </div>
       </div>
     );
@@ -32,14 +32,8 @@ const ParticipantGrid = ({ showAssistant = false, isCompact = false }) => {
 
   const participantCount = participants.length;
 
-  // Determine grid layout based on participant count and compact mode
   const getGridClass = () => {
-    if (isCompact) {
-      // Compact mode for sidebar (screen sharing active) - always vertical one by one
-      return "grid-cols-1";
-    }
-    
-    // Normal mode (no screen sharing)
+    if (isCompact) return "grid-cols-1";
     if (participantCount === 1) return "grid-cols-1";
     if (participantCount === 2) return "grid-cols-1 sm:grid-cols-2";
     if (participantCount <= 4) return "grid-cols-2";
@@ -52,10 +46,9 @@ const ParticipantGrid = ({ showAssistant = false, isCompact = false }) => {
 
 
   if (isCompact) {
-    // Vertical scrollable list for screen sharing sidebar
     return (
-      <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+      <div className="absolute inset-0 w-full h-full bg-[#020617] rounded-none overflow-hidden flex flex-col min-h-0 min-w-0">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar min-h-0">
           {sortedParticipants.map((participant) => (
             <div key={participant.sessionId || participant.userId} className="h-32 shrink-0">
               <ParticipantTile 
@@ -69,12 +62,23 @@ const ParticipantGrid = ({ showAssistant = false, isCompact = false }) => {
     );
   }
 
-  // Normal grid layout (no screen sharing)
+  if (participantCount === 1) {
+    const participant = sortedParticipants[0];
+    return (
+      <div className="absolute inset-0 w-full h-full bg-[#020617] rounded-none overflow-hidden min-h-0 min-w-0">
+        <ParticipantTile 
+          participant={participant} 
+          isAssistant={isAssistantParticipant(participant)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full h-full p-4 bg-gray-900 rounded-lg overflow-hidden">
-      <div className={`grid ${getGridClass()} gap-3 h-full w-full`}>
+    <div className="absolute inset-0 w-full h-full p-0 bg-[#020617] rounded-none overflow-hidden min-h-0 min-w-0 flex">
+      <div className={`grid ${getGridClass()} gap-2 w-full h-full min-h-0 min-w-0`}>
         {sortedParticipants.map((participant) => (
-          <div key={participant.sessionId || participant.userId} className="min-h-0">
+          <div key={participant.sessionId || participant.userId} className="min-h-0 min-w-0 w-full h-full">
             <ParticipantTile 
               participant={participant} 
               isAssistant={isAssistantParticipant(participant)}

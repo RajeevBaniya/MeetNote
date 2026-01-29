@@ -24,7 +24,7 @@ const MeetingRoom = ({ callId, onLeave, userId }) => {
   return (
     <StreamTheme>
       <StreamCall call={call}>
-        <div className="h-screen bg-[#020617] text-slate-100 overflow-hidden">
+        <div className="fixed inset-0 w-screen min-w-screen h-dvh min-h-dvh bg-[#020617] text-slate-100 overflow-hidden flex flex-col">
           <MeetingRoomContent 
             showAssistant={showAssistant}
             setShowAssistant={setShowAssistant}

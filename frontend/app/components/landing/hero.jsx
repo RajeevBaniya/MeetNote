@@ -8,18 +8,17 @@ const HeroSection = () => {
       <div className="mx-auto flex w-full max-w-6xl items-center px-4 py-8 sm:px-6 sm:py-12 lg:max-w-7xl lg:py-16 xl:px-10">
         <div className="flex w-full flex-col gap-10 lg:flex-row lg:items-center">
           <div className="max-w-3xl text-center xl:max-w-4xl lg:text-left">
-            <p
-              className="text-sm font-medium text-emerald-400"
-              id="product"
-            >
+            <p className="text-sm font-bold text-emerald-400" id="product">
               MeetNote
             </p>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl lg:text-6xl xl:text-7xl">
               Video meetings with live transcripts and clear summaries.
             </h1>
             <p className="mt-5 mx-auto max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg lg:mx-0">
-              MeetNote helps your team stay focused during the call and aligned after it
-              ends. Capture decisions, action items and context without extra notes.
+              <span className="font-semibold text-emerald-400">MeetNote</span>{" "}
+              helps your team stay focused during the call and aligned after it
+              ends. Capture decisions, action items and context without extra
+              notes.
             </p>
 
             <div className="mt-8 flex flex-row flex-wrap items-center justify-center gap-3 lg:justify-start">
@@ -47,6 +46,7 @@ const HeroSection = () => {
                 width={1087}
                 height={645}
                 className="h-auto w-full rounded-2xl object-contain"
+                sizes="(min-width: 1280px) 520px, (min-width: 1024px) 460px, (min-width: 768px) 420px, 90vw"
                 priority
               />
             </div>
@@ -58,4 +58,3 @@ const HeroSection = () => {
 };
 
 export default HeroSection;
-

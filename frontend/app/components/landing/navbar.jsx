@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { FiVideo } from "react-icons/fi";
 
 const NAV_LINKS = [
@@ -8,6 +11,28 @@ const NAV_LINKS = [
 ];
 
 const Navbar = () => {
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const isScrolled = window.scrollY > 10;
+      setHasScrolled((previous) =>
+        previous === isScrolled ? previous : isScrolled,
+      );
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const logoTextClassName = hasScrolled
+    ? "text-base font-semibold tracking-tight text-emerald-400"
+    : "text-base font-semibold tracking-tight text-white";
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/20 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
@@ -15,10 +40,8 @@ const Navbar = () => {
           href="/"
           className="inline-flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         >
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
-            <FiVideo className="h-4 w-4 text-emerald-400" />
-          </span>
-          <span className="text-base font-semibold tracking-tight">MeetNote</span>
+          <FiVideo className="h-5 w-5 text-emerald-400" />
+          <span className={logoTextClassName}>MeetNote</span>
         </Link>
 
         <div className="flex items-center gap-3">
@@ -34,19 +57,19 @@ const Navbar = () => {
               </button>
             ))}
             <details className="relative">
-              <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1 font-medium text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2ಬಂಧ focus-visible:ring-white/60">
+              <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1 font-medium text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
                 <span>Meet</span>
                 <span aria-hidden="true">▾</span>
               </summary>
               <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-neutral-950 p-2 shadow-xl ring-1 ring-white/10">
                 <Link
-                  href="/meeting/join"
+                  href="/meeting/join?mode=host"
                   className="block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
                 >
                   Host a meeting
                 </Link>
                 <Link
-                  href="/meeting/join"
+                  href="/meeting/join?mode=join"
                   className="mt-1 block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
                 >
                   Join a meeting
@@ -75,13 +98,13 @@ const Navbar = () => {
                   Meet
                 </p>
                 <Link
-                  href="/meeting/join"
+                  href="/meeting/join?mode=host"
                   className="block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
                 >
                   Host a meeting
                 </Link>
                 <Link
-                  href="/meeting/join"
+                  href="/meeting/join?mode=join"
                   className="mt-1 block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
                 >
                   Join a meeting
@@ -89,15 +112,6 @@ const Navbar = () => {
               </div>
             </div>
           </details>
-
-          <button
-            type="button"
-            disabled
-            title="Sign in will be available soon."
-            className="hidden cursor-not-allowed rounded-lg px-3 py-2 text-sm font-medium text-white/70 ring-1 ring-white/15 transition sm:inline-flex"
-          >
-            Sign In
-          </button>
         </div>
       </div>
     </header>
@@ -105,4 +119,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

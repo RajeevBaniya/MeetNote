@@ -1,0 +1,30 @@
+# Secrets (root or any subfolder)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python (root-level or stray)
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Node (root-level or stray)
+node_modules/
+.pnp/
+.next/
+out/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

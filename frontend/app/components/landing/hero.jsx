@@ -1,7 +1,24 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useAuth } from "@/app/hooks/use-auth";
+import { useRouter } from "next/navigation";
 
-const HeroSection = () => {
+const HeroSection = ({ onOpenAuth }) => {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      router.push("/meeting/join?mode=host");
+    } else if (onOpenAuth) {
+      onOpenAuth("signup");
+    } else {
+      router.push("/?auth=signup");
+    }
+  };
+
   return (
     <section className="relative flex w-full items-center overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.25),transparent_55%)]" />
@@ -24,10 +41,10 @@ const HeroSection = () => {
             <div className="mt-8 flex flex-row flex-wrap items-center justify-center gap-3 lg:justify-start">
               <button
                 type="button"
-                disabled
-                className="inline-flex items-center justify-center rounded-lg bg-emerald-600/20 px-5 py-3 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-500/40 cursor-not-allowed"
+                onClick={handleGetStarted}
+                className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white ring-1 ring-emerald-500 transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
-                Try Now
+                {isAuthenticated ? "Start Meeting" : "Get Started"}
               </button>
               <Link
                 href="#product"

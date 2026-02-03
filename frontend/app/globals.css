@@ -49,12 +49,10 @@ body {
   height: 100% !important;
 }
 
-/* Ensure Stream.io's default participant name is visible */
 .str-video__participant-details {
   z-index: 20;
 }
 
-/* Custom scrollbar for participant list */
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
@@ -77,7 +75,6 @@ body {
   background-color: rgba(156, 163, 175, 0.7);
 }
 
-/* Meeting view: full viewport, responsive on all screen sizes (incl. 24"+) */
 html.meeting-page,
 html.meeting-page body {
   margin: 0;
@@ -90,12 +87,10 @@ html.meeting-page body {
   background: #020617;
 }
 
-/* Avoid horizontal scroll from 100vw when scrollbar is present */
 html.meeting-page body {
   overflow-x: hidden;
 }
 
-/* Override Stream SDK default gray-blue backgrounds in meeting */
 html.meeting-page .str-video {
   --str-video__background-color0: #020617;
   --str-video__background-color1: #020617;
@@ -114,4 +109,18 @@ html.meeting-page .str-video__call .str-video {
   min-width: 100% !important;
   height: 100% !important;
   min-height: 100% !important;
+}
+
+@media screen and (min-width: 1024px) {
+  html.meeting-page body {
+    overflow: hidden;
+  }
+}
+
+@supports (height: 100dvh) {
+  html.meeting-page,
+  html.meeting-page body {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
 }

@@ -18,7 +18,7 @@ export default function MeetingLayout({ children }) {
   }, [pathname]);
 
   return (
-    <div className="fixed inset-0 w-screen min-w-screen h-dvh min-h-dvh overflow-hidden bg-[#020617]">
+    <div className="fixed inset-0 w-full h-full overflow-hidden bg-[#020617]">
       {children}
     </div>
   );

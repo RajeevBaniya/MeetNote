@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { FiVideo } from "react-icons/fi";
+import { useAuth } from "@/app/hooks/use-auth";
 
 const NAV_LINKS = [
   { id: "about", label: "About" },
@@ -10,8 +12,11 @@ const NAV_LINKS = [
   { id: "contact", label: "Contact" },
 ];
 
-const Navbar = () => {
+const Navbar = ({ onOpenAuth }) => {
   const [hasScrolled, setHasScrolled] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,6 +37,14 @@ const Navbar = () => {
   const logoTextClassName = hasScrolled
     ? "text-base font-semibold tracking-tight text-emerald-400"
     : "text-base font-semibold tracking-tight text-white";
+
+  const handleAuthClick = (mode) => {
+    if (pathname === "/" && onOpenAuth) {
+      onOpenAuth(mode);
+    } else {
+      router.push(`/?auth=${mode}`);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/20 backdrop-blur">
@@ -76,6 +89,23 @@ const Navbar = () => {
                 </Link>
               </div>
             </details>
+            {isAuthenticated ? (
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="rounded-md px-2 py-1 font-medium text-red-400 transition hover:text-red-300"
+              >
+                Log out
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleAuthClick("signup")}
+                className="rounded-md px-2 py-1 font-medium text-emerald-400 transition hover:text-emerald-300"
+              >
+                Sign up
+              </button>
+            )}
           </nav>
 
           <details className="relative sm:hidden">
@@ -83,6 +113,23 @@ const Navbar = () => {
               Menu
             </summary>
             <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-neutral-950 p-2 shadow-xl ring-1 ring-white/10">
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  className="block w-full text-left rounded-lg px-3 py-2 text-sm text-red-400 transition hover:bg-red-400/20"
+                >
+                  Log out
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleAuthClick("signup")}
+                  className="block w-full text-left rounded-lg px-3 py-2 text-sm text-emerald-400 transition hover:bg-emerald-300/20"
+                >
+                  Sign up
+                </button>
+              )}
               {NAV_LINKS.map((item) => (
                 <button
                   key={item.id}

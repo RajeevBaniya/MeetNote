@@ -1,39 +1,127 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/app/hooks/use-auth";
+import MeetingInfoModal from "@/app/components/meeting-room/meeting-info-modal";
 
 const JoinMeetingPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { jwt, loading: authLoading, restoringAuth } = useAuth();
   const mode = searchParams.get("mode") || "join";
   const isHostMode = mode === "host";
+
+  useEffect(() => {
+    if (authLoading || restoringAuth) return;
+    if (!jwt) {
+      router.replace("/?auth=login&reason=meeting");
+    }
+  }, [jwt, authLoading, restoringAuth, router]);
 
   const [username, setUsername] = useState("");
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingDescription, setMeetingDescription] = useState("");
   const [meetingId, setMeetingId] = useState("");
   const [meetingPasscode, setMeetingPasscode] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [createdMeeting, setCreatedMeeting] = useState(null);
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     const name = username.trim() === "" ? "anonymous" : username.trim();
-    const defaultCallId = process.env.NEXT_PUBLIC_CALL_ID || "demo-meeting-room";
-    const meetingIdValue = isHostMode
-      ? defaultCallId
-      : (meetingId.trim() || defaultCallId);
-    router.push(`/meeting/${meetingIdValue}?name=${encodeURIComponent(name)}`);
+
+    if (isHostMode) {
+      setCreating(true);
+      setCreateError(null);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) {
+        setCreateError("API URL not configured");
+        setCreating(false);
+        return;
+      }
+      const base = apiUrl.replace(/\/$/, "");
+      try {
+        const res = await fetch(`${base}/meetings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ title: meetingTitle.trim() || null }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setCreateError(data.detail || "Failed to create meeting");
+          setCreating(false);
+          return;
+        }
+        const { id, passcode } = data;
+        setCreatedMeeting({ id, passcode, name });
+        setCreating(false);
+      } catch (err) {
+        setCreateError(err.message || "Failed to create meeting");
+        setCreating(false);
+      }
+      return;
+    }
+
+    const joinId = meetingId.trim();
+    if (!joinId) {
+      setCreateError("Meeting ID is required");
+      return;
+    }
+    router.push(`/meeting/${joinId}?name=${encodeURIComponent(name)}`);
   };
 
   const handleClose = () => {
     router.push("/");
   };
 
+  const handleJoinCreatedMeeting = () => {
+    if (createdMeeting) {
+      router.push(`/meeting/${createdMeeting.id}?name=${encodeURIComponent(createdMeeting.name)}`);
+    }
+  };
+
   const formTitle = isHostMode ? "Meeting details" : "Enter meeting";
   const buttonText = isHostMode ? "Create meeting" : "Join meeting";
 
+  if (authLoading || restoringAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#020617] text-slate-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500 mx-auto" />
+          <p className="mt-4 text-lg text-slate-300">
+            {restoringAuth ? "Restoring session…" : "Loading…"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!jwt) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#020617] text-slate-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500 mx-auto" />
+          <p className="mt-4 text-lg text-slate-300">Redirecting…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-[#020617] via-[#020617] to-[#022c22] px-4 sm:px-6 lg:px-10 xl:px-16 text-slate-100">
+    <>
+      {createdMeeting ? (
+        <MeetingInfoModal
+          meetingId={createdMeeting.id}
+          passcode={createdMeeting.passcode}
+          onJoin={handleJoinCreatedMeeting}
+        />
+      ) : null}
+      <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-[#020617] via-[#020617] to-[#022c22] px-4 sm:px-6 lg:px-10 xl:px-16 text-slate-100">
       <button
         type="button"
         aria-label="Go back to home"
@@ -109,16 +197,21 @@ const JoinMeetingPage = () => {
               )}
             </div>
 
+            {createError ? (
+              <p className="text-sm text-red-400">{createError}</p>
+            ) : null}
             <button
               onClick={handleJoin}
-              className="mt-5 w-full rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-slate-50 shadow-lg transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              disabled={creating}
+              className="mt-5 w-full rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-slate-50 shadow-lg transition hover:bg-emerald-500 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
             >
-              {buttonText}
+              {creating ? "Creating…" : buttonText}
             </button>
           </div>
         </div>
       </div>
     </div>
+    </>
   );
 };
 

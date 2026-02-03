@@ -52,27 +52,7 @@ function useMeetingCall(callId, userId, onLeave) {
     };
   }, [client, callId, userId]);
 
-  const handleLeave = async () => {
-    if (leavingRef.current) {
-      onLeave?.();
-      return;
-    }
-
-    leavingRef.current = true;
-
-    try {
-      if (call) {
-        await call.stopClosedCaptions().catch(() => {});
-        await call.leave().catch(() => {});
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      onLeave?.();
-    }
-  };
-
-  return { call, error, handleLeave };
+  return { call, error };
 }
 
 export default useMeetingCall;

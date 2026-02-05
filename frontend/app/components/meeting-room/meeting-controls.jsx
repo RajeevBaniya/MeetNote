@@ -3,7 +3,13 @@
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import { useState } from "react";
 
-const MeetingControls = ({ onLeave }) => {
+const MeetingControls = ({
+  onLeave,
+  onOpenParticipants,
+  participantCount = 0,
+  isHost = false,
+  onEndMeeting,
+}) => {
   const call = useCall();
   const { useMicrophoneState, useCameraState, useScreenShareState, useHasOngoingScreenShare } = useCallStateHooks();
   const { microphone, isMute: isMicMuted } = useMicrophoneState();
@@ -11,6 +17,7 @@ const MeetingControls = ({ onLeave }) => {
   const { screenShare } = useScreenShareState();
   const isScreenSharing = useHasOngoingScreenShare();
   const [isToggling, setIsToggling] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
 
   const handleToggleMic = async () => {
     if (!call || isToggling) return;
@@ -42,7 +49,16 @@ const MeetingControls = ({ onLeave }) => {
     try {
       await screenShare.toggle();
     } catch (err) {
-      console.error("Failed to toggle screen share:", err);
+      const msg = typeof err?.message === "string" ? err.message.toLowerCase() : "";
+      const causeMsg = typeof err?.cause?.message === "string" ? err.cause.message.toLowerCase() : "";
+      const isCancelledOrDenied =
+        err?.name === "NotAllowedError" ||
+        err?.cause?.name === "NotAllowedError" ||
+        msg.includes("permission denied") ||
+        causeMsg.includes("permission denied");
+      if (!isCancelledOrDenied) {
+        console.error("Failed to toggle screen share:", err);
+      }
     } finally {
       setIsToggling(false);
     }
@@ -56,6 +72,22 @@ const MeetingControls = ({ onLeave }) => {
     } catch (err) {
       console.error("Failed to leave call:", err);
       onLeave?.();
+    }
+  };
+
+  const handleEndMeeting = async () => {
+    if (!call || !onEndMeeting || isEnding) return;
+    setIsEnding(true);
+    try {
+      const ok = await onEndMeeting();
+      if (ok) {
+        await call.leave();
+        onLeave?.();
+      }
+    } catch (err) {
+      console.error("Failed to end meeting:", err);
+    } finally {
+      setIsEnding(false);
     }
   };
 
@@ -187,6 +219,63 @@ const MeetingControls = ({ onLeave }) => {
         </div>
       </button>
 
+      <button
+        type="button"
+        onClick={() => onOpenParticipants?.()}
+        className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors bg-gray-700 hover:bg-gray-600 text-gray-300"
+        title="Participants"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className="w-4 h-4 sm:w-5 sm:h-5"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M6 6.75h.75v.75H6v-.75zM6 12h.75v.75H6V12zm0 5.25h.75v.75H6v-.75z"
+          />
+        </svg>
+        {participantCount > 0 ? (
+          <span className="absolute -top-0.5 -right-0.5 bg-slate-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] sm:min-w-[20px] sm:h-5 flex items-center justify-center px-1">
+            {participantCount > 99 ? "99+" : participantCount}
+          </span>
+        ) : null}
+      </button>
+
+      {isHost && onEndMeeting ? (
+        <button
+          onClick={handleEndMeeting}
+          disabled={isEnding}
+          className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors hover:bg-red-600/90 disabled:opacity-50"
+          title="End meeting"
+        >
+          <div className="w-full h-full rounded-full flex items-center justify-center bg-red-600">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-4 h-4 sm:w-5 sm:h-5 text-white"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </div>
+        </button>
+      ) : null}
       <button
         onClick={handleLeave}
         className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors hover:bg-red-500/20 disabled:opacity-50"

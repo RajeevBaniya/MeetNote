@@ -4,12 +4,14 @@ import { useEffect, useState, useRef } from "react";
 import { useStreamVideoClient } from "@stream-io/video-react-sdk";
 import { CALL_TYPE, CLOSED_CAPTIONS_LANGUAGE } from "@/app/constants/meeting-constants";
 
-function useMeetingCall(callId, userId, onLeave) {
+function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
   const client = useStreamVideoClient();
   const [call, setCall] = useState(null);
   const [error, setError] = useState(null);
   const joinedRef = useRef(false);
   const leavingRef = useRef(false);
+  const onSessionEndedRef = useRef(onSessionEnded);
+  onSessionEndedRef.current = onSessionEnded;
 
   useEffect(() => {
     if (!client) return;
@@ -32,7 +34,8 @@ function useMeetingCall(callId, userId, onLeave) {
         await myCall.startClosedCaptions({ language: CLOSED_CAPTIONS_LANGUAGE });
 
         myCall.on("call.session_ended", () => {
-          onLeave?.();
+          const fn = onSessionEndedRef.current ?? onLeave;
+          fn?.();
         });
 
         setCall(myCall);

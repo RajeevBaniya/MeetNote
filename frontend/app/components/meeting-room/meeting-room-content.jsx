@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import TranscriptPanel from "./transcript";
 import MeetingContent from "./meeting-content";
 import MeetingControls from "./meeting-controls";
@@ -11,9 +12,26 @@ const MeetingRoomContent = ({
   isHost,
   pendingCount,
   onOpenWaitingRoom,
+  onOpenParticipants,
   currentUserId,
   onLeave,
+  callId,
+  jwt,
 }) => {
+  const { useParticipants } = useCallStateHooks();
+  const participants = useParticipants() ?? [];
+  const participantCount = participants.length;
+
+  const onEndMeeting = async () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl || !callId || !jwt) return false;
+    const res = await fetch(`${apiUrl}/meetings/${callId}/end`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    return res.ok;
+  };
+
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-[#020617]">
       <div className="flex-1 flex flex-col px-2 py-2 sm:px-4 sm:py-4 md:px-6 md:py-4 lg:px-10 lg:py-6 min-h-0 overflow-hidden">
@@ -49,7 +67,13 @@ const MeetingRoomContent = ({
             />
           </button>
 
-          <MeetingControls onLeave={onLeave} />
+          <MeetingControls
+            onLeave={onLeave}
+            onOpenParticipants={onOpenParticipants}
+            participantCount={participantCount}
+            isHost={isHost}
+            onEndMeeting={onEndMeeting}
+          />
 
           {isHost ? (
             <button

@@ -51,6 +51,9 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwt}`,
         },
+        body: JSON.stringify({
+          display_name: displayName != null ? String(displayName).trim() : "",
+        }),
       });
 
       if (cancelled || !mountedRef.current) return;

@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
 import StreamProvider from "@/app/components/stream-provider";
 import MeetingRoom from "@/app/components/meeting-room/meeting-room";
@@ -9,11 +9,32 @@ import { StreamTheme } from "@stream-io/video-react-sdk";
 import { useAuth } from "@/app/hooks/use-auth";
 import { useStreamTokenFromBackend } from "@/app/hooks/use-stream-token";
 
+const REDIRECT_DELAY_MS = 2500;
+
+function MeetingEndedOverlay({ removedByHost, onRedirect }) {
+  useEffect(() => {
+    const t = setTimeout(onRedirect, REDIRECT_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [onRedirect]);
+
+  const message = removedByHost
+    ? "You were removed by the host."
+    : "This meeting has ended.";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617] text-slate-100">
+      <p className="text-lg text-slate-300">{message}</p>
+    </div>
+  );
+}
+
 const MeetingPage = () => {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user: authUser, jwt, loading: authLoading, restoringAuth, isAuthenticated } = useAuth();
+  const [meetingEnded, setMeetingEnded] = useState(false);
+  const [removedByHost, setRemovedByHost] = useState(false);
 
   const callId = params.id;
   const queryName = searchParams.get("name");
@@ -45,9 +66,29 @@ const MeetingPage = () => {
     displayName
   );
 
-  const handleLeave = () => {
+  const handleLeave = useCallback(() => {
     router.push("/");
-  };
+  }, [router]);
+
+  const handleSessionEnded = useCallback(async () => {
+    let removed = false;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl && callId && jwt) {
+      try {
+        const r = await fetch(`${apiUrl}/meetings/${callId}/check-removed`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+        if (r.ok) {
+          const d = await r.json();
+          removed = d.removed === true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    setRemovedByHost(removed);
+    setMeetingEnded(true);
+  }, [callId, jwt]);
 
   if (authLoading || restoringAuth) {
     return (
@@ -118,16 +159,22 @@ const MeetingPage = () => {
   }
 
   return (
-    <StreamProvider user={user} token={token}>
-      <StreamTheme>
-        <MeetingRoom
-          callId={callId}
-          onLeave={handleLeave}
-          userId={user.id}
-          jwt={jwt}
-        />
-      </StreamTheme>
-    </StreamProvider>
+    <>
+      {meetingEnded ? (
+        <MeetingEndedOverlay removedByHost={removedByHost} onRedirect={handleLeave} />
+      ) : null}
+      <StreamProvider user={user} token={token}>
+        <StreamTheme>
+          <MeetingRoom
+            callId={callId}
+            onLeave={handleLeave}
+            onSessionEnded={handleSessionEnded}
+            userId={user.id}
+            jwt={jwt}
+          />
+        </StreamTheme>
+      </StreamProvider>
+    </>
   );
 };
 

@@ -5,8 +5,8 @@ import { useStreamClients } from "@/app/hooks/use-stream-clients";
 
 const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 
-const StreamProvider = ({ children, user, token }) => {
-  const { videoClient } = useStreamClients({ apiKey, user, token });
+const StreamProvider = ({ children, user, getToken }) => {
+  const { videoClient } = useStreamClients({ apiKey, user, getToken });
 
   if (!videoClient) {
     return (

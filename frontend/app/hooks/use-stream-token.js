@@ -7,11 +7,12 @@ function buildUrl(baseUrl, meetingId) {
   return `${base}/meetings/${meetingId}/stream-token`;
 }
 
-export function useStreamTokenFromBackend(meetingId, jwt, displayName) {
+export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [expiresInSeconds, setExpiresInSeconds] = useState(null);
   const timeoutRef = useRef(null);
   const mountedRef = useRef(true);
 
@@ -53,6 +54,7 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName) {
         },
         body: JSON.stringify({
           display_name: displayName != null ? String(displayName).trim() : "",
+          passcode: passcode != null ? String(passcode).trim() : undefined,
         }),
       });
 
@@ -65,12 +67,38 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName) {
           id: data.user_id,
           name: displayName || data.user_id,
         });
+        setExpiresInSeconds(
+          typeof data.expires_in_seconds === "number" ? data.expires_in_seconds : null
+        );
         setError(null);
         setStatus("ready");
         return;
       }
 
       if (res.status === 403) {
+        const text = await res.text();
+        let detail = "";
+        try {
+          const parsed = JSON.parse(text);
+          detail = (parsed.detail || "").toLowerCase();
+        } catch {
+          detail = text.toLowerCase();
+        }
+        if (detail.includes("removed")) {
+          setError("You were removed from this meeting");
+          setStatus("error");
+          return;
+        }
+         if (detail.includes("passcode required")) {
+          setError("Passcode required");
+          setStatus("error");
+          return;
+        }
+        if (detail.includes("incorrect passcode")) {
+          setError("Incorrect passcode");
+          setStatus("error");
+          return;
+        }
         setStatus("waiting_approval");
         setError(null);
         timeoutRef.current = setTimeout(fetchToken, POLL_INTERVAL_MS);
@@ -93,7 +121,7 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName) {
         timeoutRef.current = null;
       }
     };
-  }, [meetingId, jwt, displayName]);
+  }, [meetingId, jwt, displayName, passcode]);
 
-  return { token, user, error, status };
+  return { token, user, error, status, expiresInSeconds };
 }

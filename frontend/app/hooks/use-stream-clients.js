@@ -1,30 +1,36 @@
 import { useState, useEffect, useRef } from "react";
 import { StreamVideoClient } from "@stream-io/video-react-sdk";
 
-export function useStreamClients({ apiKey, user, token }) {
+export function useStreamClients({ apiKey, user, getToken }) {
   const [videoClient, setVideoClient] = useState(null);
   const clientRef = useRef(null);
+  const getTokenRef = useRef(getToken);
 
   useEffect(() => {
-    if (!user || !token || !apiKey) return;
+    getTokenRef.current = getToken;
+  });
+
+  useEffect(() => {
+    if (!user || !apiKey || typeof getToken !== "function") return;
 
     let isMounted = true;
 
-    const initClient = async () => {
+    const tokenProvider = () => {
+      const t = getTokenRef.current ? getTokenRef.current() : null;
+      return Promise.resolve(t != null ? t : "");
+    };
+
+    const initClient = () => {
       try {
-        const tokenProvider = () => Promise.resolve(token);
         const myVideoClient = new StreamVideoClient({
           apiKey,
           user,
           tokenProvider,
         });
-
         clientRef.current = myVideoClient;
-        if (isMounted) {
-          setVideoClient(myVideoClient);
-        }
-      } catch (error) {
-        console.error("Client initialization error:", error);
+        if (isMounted) setVideoClient(myVideoClient);
+      } catch (err) {
+        console.error("Client initialization error:", err);
       }
     };
 
@@ -34,11 +40,9 @@ export function useStreamClients({ apiKey, user, token }) {
       isMounted = false;
       const client = clientRef.current;
       clientRef.current = null;
-      if (client) {
-        client.disconnectUser().catch(console.error);
-      }
+      if (client) client.disconnectUser().catch(() => {});
     };
-  }, [apiKey, user, token]);
+  }, [apiKey, user, getToken]);
 
   return { videoClient };
 }

@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
-const ParticipantsPanel = ({ onClose, currentUserId, isHost, callId, jwt }) => {
+const ParticipantsPanel = ({
+  onClose,
+  currentUserId,
+  isHost,
+  callId,
+  jwt,
+  raisedHandUserIds = [],
+  embedded = false,
+}) => {
   const { useParticipants, useLocalParticipant } = useCallStateHooks();
   const participants = useParticipants() ?? [];
   const localParticipant = useLocalParticipant();
@@ -11,19 +19,23 @@ const ParticipantsPanel = ({ onClose, currentUserId, isHost, callId, jwt }) => {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const canModerate = Boolean(isHost && apiUrl && callId && jwt);
+  const raisedSet = new Set(raisedHandUserIds ?? []);
 
   const removeParticipant = async (participantUserId) => {
     if (!canModerate || actioningId) return;
     setActioningId(participantUserId);
     try {
-      const res = await fetch(`${apiUrl}/meetings/${callId}/remove-participant`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
+      const res = await fetch(
+        `${apiUrl}/meetings/${callId}/remove-participant`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ user_id: participantUserId }),
         },
-        body: JSON.stringify({ user_id: participantUserId }),
-      });
+      );
       if (res.ok) {
         onClose?.();
       }
@@ -54,17 +66,226 @@ const ParticipantsPanel = ({ onClose, currentUserId, isHost, callId, jwt }) => {
   };
 
   useEffect(() => {
+    if (embedded) return;
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose?.();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, embedded]);
 
   const hasVideoTrack = (p) => {
     const tracks = p.publishedTracks ?? [];
     return tracks.includes("videoTrack") || tracks.includes("video");
   };
+
+  const listContent = (
+    <ul className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar min-h-0">
+      {participants.length === 0 ? (
+        <li className="text-sm text-slate-400 py-4">
+          No participants in this call
+        </li>
+      ) : (
+        participants.map((p) => {
+          const isLocal = localParticipant?.sessionId === p.sessionId;
+          const showHostBadge =
+            Boolean(isHost) &&
+            Boolean(currentUserId) &&
+            p.userId === currentUserId;
+          const displayName = p.name || p.userId || "Unknown";
+          const micMuted = p.isMuted === true;
+          const cameraOn = hasVideoTrack(p);
+
+          return (
+            <li
+              key={p.sessionId ?? p.userId}
+              className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/50 border border-slate-700"
+            >
+              <div className="flex flex-col gap-1 min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className="truncate text-slate-200 font-medium"
+                    title={displayName}
+                  >
+                    {displayName}
+                  </span>
+                  {isLocal ? (
+                    <span className="text-xs text-slate-400 shrink-0">
+                      (You)
+                    </span>
+                  ) : null}
+                  {showHostBadge ? (
+                    <span className="text-xs font-medium text-emerald-400 shrink-0">
+                      Host
+                    </span>
+                  ) : null}
+                  {p.userId && raisedSet.has(p.userId) ? (
+                    <span
+                      className="text-amber-400 shrink-0"
+                      title="Hand raised"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 1.5 0v2.716a5.499 5.499 0 0 1-.43 2.103 5.99 5.99 0 0 1 2.43 2.103 5.499 5.499 0 0 1-.43-2.103V2.75a.75.75 0 0 1 1.5 0v6.375a4.5 4.5 0 0 1-1.5 3.375 9 9 0 0 1-6.939 2.437A9.001 9.001 0 0 1 6.633 10.25z"
+                        />
+                      </svg>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-3 text-slate-400">
+                  <span
+                    className="flex items-center gap-1"
+                    title={micMuted ? "Muted" : "Unmuted"}
+                  >
+                    {micMuted ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                        className="w-4 h-4 text-red-400"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 5l14 14"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                        className="w-4 h-4 text-green-400"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                        />
+                      </svg>
+                    )}
+                    <span className="text-xs">{micMuted ? "Muted" : "On"}</span>
+                  </span>
+                  <span
+                    className="flex items-center gap-1"
+                    title={cameraOn ? "Camera on" : "Camera off"}
+                  >
+                    {cameraOn ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                        className="w-4 h-4 text-green-400"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                        className="w-4 h-4 text-red-400"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 5l14 14"
+                        />
+                      </svg>
+                    )}
+                    <span className="text-xs">{cameraOn ? "On" : "Off"}</span>
+                  </span>
+                </div>
+              </div>
+              {canModerate && !isLocal ? (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => muteParticipant(p.userId)}
+                    disabled={actioningId != null}
+                    className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+                    title="Mute"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
+                      className="w-4 h-4"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeParticipant(p.userId)}
+                    disabled={actioningId != null}
+                    className="p-1.5 rounded text-red-400 hover:text-red-200 hover:bg-slate-700 disabled:opacity-50"
+                    title="Remove"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
+                      className="w-4 h-4"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          );
+        })
+      )}
+    </ul>
+  );
+
+  if (embedded) {
+    return listContent;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -80,164 +301,7 @@ const ParticipantsPanel = ({ onClose, currentUserId, isHost, callId, jwt }) => {
             ×
           </button>
         </div>
-
-        <ul className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar min-h-0">
-          {participants.length === 0 ? (
-            <li className="text-sm text-slate-400 py-4">No participants in this call</li>
-          ) : (
-            participants.map((p) => {
-              const isLocal = localParticipant?.sessionId === p.sessionId;
-              const showHostBadge =
-                Boolean(isHost) && Boolean(currentUserId) && p.userId === currentUserId;
-              const displayName = p.name || p.userId || "Unknown";
-              const micMuted = p.isMuted === true;
-              const cameraOn = hasVideoTrack(p);
-
-              return (
-                <li
-                  key={p.sessionId ?? p.userId}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/50 border border-slate-700"
-                >
-                  <div className="flex flex-col gap-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="truncate text-slate-200 font-medium" title={displayName}>
-                        {displayName}
-                      </span>
-                      {isLocal ? (
-                        <span className="text-xs text-slate-400 shrink-0">(You)</span>
-                      ) : null}
-                      {showHostBadge ? (
-                        <span className="text-xs font-medium text-emerald-400 shrink-0">Host</span>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-3 text-slate-400">
-                      <span
-                        className="flex items-center gap-1"
-                        title={micMuted ? "Muted" : "Unmuted"}
-                      >
-                        {micMuted ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4 text-red-400"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                            />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 5l14 14" />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4 text-green-400"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                            />
-                          </svg>
-                        )}
-                        <span className="text-xs">{micMuted ? "Muted" : "On"}</span>
-                      </span>
-                      <span
-                        className="flex items-center gap-1"
-                        title={cameraOn ? "Camera on" : "Camera off"}
-                      >
-                        {cameraOn ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4 text-green-400"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-4 h-4 text-red-400"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 5l14 14" />
-                          </svg>
-                        )}
-                        <span className="text-xs">{cameraOn ? "On" : "Off"}</span>
-                      </span>
-                    </div>
-                  </div>
-                  {canModerate && !isLocal ? (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => muteParticipant(p.userId)}
-                        disabled={actioningId != null}
-                        className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-50"
-                        title="Mute"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                          className="w-4 h-4"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeParticipant(p.userId)}
-                        disabled={actioningId != null}
-                        className="p-1.5 rounded text-red-400 hover:text-red-200 hover:bg-slate-700 disabled:opacity-50"
-                        title="Remove"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                          className="w-4 h-4"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })
-          )}
-        </ul>
+        {listContent}
       </div>
     </div>
   );

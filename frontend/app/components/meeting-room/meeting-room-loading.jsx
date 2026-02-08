@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 const MeetingRoomLoading = () => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">

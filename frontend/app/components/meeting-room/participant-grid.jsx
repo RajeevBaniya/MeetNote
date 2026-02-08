@@ -14,11 +14,12 @@ const ParticipantGrid = ({
   isCompact = false,
   currentUserId,
   isHost,
+  raisedHandUserIds = new Set(),
 }) => {
   const call = useCall();
   const { useParticipants } = useCallStateHooks();
   const allParticipants = useParticipants();
-  
+
   const participants = useMemo(() => {
     if (!allParticipants) return [];
     return filterAssistant(allParticipants, showAssistant);
@@ -62,12 +63,14 @@ const ParticipantGrid = ({
             const key = participant.sessionId || participant.userId;
             const showHostBadge =
               Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
+            const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
             return (
               <div key={key} className="h-32 shrink-0">
                 <ParticipantTile
                   participant={participant}
                   isAssistant={isAssistantParticipant(participant)}
                   isHost={showHostBadge}
+                  isHandRaised={isHandRaised}
                 />
               </div>
             );
@@ -81,12 +84,14 @@ const ParticipantGrid = ({
     const participant = sortedParticipants[0];
     const showHostBadge =
       Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
+    const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
     return (
       <div className="absolute inset-0 w-full h-full bg-[#020617] overflow-hidden">
         <ParticipantTile
           participant={participant}
           isAssistant={isAssistantParticipant(participant)}
           isHost={showHostBadge}
+          isHandRaised={isHandRaised}
         />
       </div>
     );
@@ -99,12 +104,14 @@ const ParticipantGrid = ({
           const key = participant.sessionId || participant.userId;
           const showHostBadge =
             Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
+          const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
           return (
             <div key={key} className="min-h-0 min-w-0 w-full aspect-video">
               <ParticipantTile
                 participant={participant}
                 isAssistant={isAssistantParticipant(participant)}
                 isHost={showHostBadge}
+                isHandRaised={isHandRaised}
               />
             </div>
           );

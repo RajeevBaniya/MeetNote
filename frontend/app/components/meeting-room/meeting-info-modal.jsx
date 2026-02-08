@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const MeetingInfoModal = ({ meetingId, passcode, onJoin }) => {
+const MeetingCreatedModal = ({ meetingId, passcode, onJoin }) => {
   const [copied, setCopied] = useState(null);
 
   const copyToClipboard = (text, label) => {
@@ -74,4 +74,4 @@ const MeetingInfoModal = ({ meetingId, passcode, onJoin }) => {
   );
 };
 
-export default MeetingInfoModal;
+export default MeetingCreatedModal;

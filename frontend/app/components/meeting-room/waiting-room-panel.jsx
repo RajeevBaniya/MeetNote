@@ -1,6 +1,13 @@
 "use client";
 
-const WaitingRoomModal = ({ pendingUserIds, disconnected, onClose, sendAction }) => {
+import React from "react";
+
+const WaitingRoomModal = ({
+  pendingUserIds,
+  disconnected,
+  onClose,
+  sendAction,
+}) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-xl bg-slate-800 border border-slate-600 p-6 shadow-2xl">

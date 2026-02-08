@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/hooks/use-auth";
-import MeetingInfoModal from "@/app/components/meeting-room/meeting-info-modal";
+import MeetingCreatedModal from "@/app/components/meeting-room/meeting-info-modal";
 
 const JoinMeetingPage = () => {
   const router = useRouter();
@@ -69,10 +69,18 @@ const JoinMeetingPage = () => {
 
     const joinId = meetingId.trim();
     if (!joinId) {
-      setCreateError("Meeting ID is required");
+      setCreateError("Please enter the meeting ID.");
       return;
     }
-    router.push(`/meeting/${joinId}?name=${encodeURIComponent(name)}`);
+    const passcode = meetingPasscode.trim();
+    if (!passcode) {
+      setCreateError("Please enter the passcode.");
+      return;
+    }
+    const search = new URLSearchParams();
+    search.set("name", name);
+    search.set("code", passcode);
+    router.push(`/meeting/${joinId}?${search.toString()}`);
   };
 
   const handleClose = () => {
@@ -93,9 +101,7 @@ const JoinMeetingPage = () => {
       <div className="flex min-h-screen items-center justify-center bg-[#020617] text-slate-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500 mx-auto" />
-          <p className="mt-4 text-lg text-slate-300">
-            {restoringAuth ? "Restoring session…" : "Loading…"}
-          </p>
+          <p className="mt-4 text-lg text-slate-300">Checking sign-in…</p>
         </div>
       </div>
     );
@@ -106,7 +112,7 @@ const JoinMeetingPage = () => {
       <div className="flex min-h-screen items-center justify-center bg-[#020617] text-slate-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500 mx-auto" />
-          <p className="mt-4 text-lg text-slate-300">Redirecting…</p>
+          <p className="mt-4 text-lg text-slate-300">Redirecting to sign-in…</p>
         </div>
       </div>
     );
@@ -115,7 +121,7 @@ const JoinMeetingPage = () => {
   return (
     <>
       {createdMeeting ? (
-        <MeetingInfoModal
+        <MeetingCreatedModal
           meetingId={createdMeeting.id}
           passcode={createdMeeting.passcode}
           onJoin={handleJoinCreatedMeeting}
@@ -187,7 +193,7 @@ const JoinMeetingPage = () => {
                   />
                   <input
                     className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none ring-1 ring-transparent transition focus:ring-emerald-500"
-                    placeholder="Meeting passcode (optional)"
+                    placeholder="Meeting passcode"
                     value={meetingPasscode}
                     onChange={(event) =>
                       setMeetingPasscode(event.target.value)

@@ -1,19 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { FiVideo } from "react-icons/fi";
 import { useAuth } from "@/app/hooks/use-auth";
 
-const NAV_LINKS = [
-  { id: "about", label: "About" },
-  { id: "pricing", label: "Pricing" },
-  { id: "contact", label: "Contact" },
-];
-
 const Navbar = ({ onOpenAuth }) => {
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [meetOpen, setMeetOpen] = useState(false);
+  const meetRef = useRef(null);
   const { isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -33,6 +29,18 @@ const Navbar = ({ onOpenAuth }) => {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (meetRef.current && !meetRef.current.contains(event.target)) {
+        setMeetOpen(false);
+      }
+    };
+    if (meetOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [meetOpen]);
 
   const logoTextClassName = hasScrolled
     ? "text-base font-semibold tracking-tight text-emerald-400"
@@ -59,36 +67,44 @@ const Navbar = ({ onOpenAuth }) => {
 
         <div className="flex items-center gap-3">
           <nav className="hidden items-center gap-6 text-sm text-white/80 sm:flex">
-            {NAV_LINKS.map((item) => (
+            <div className="relative" ref={meetRef}>
               <button
-                key={item.id}
                 type="button"
-                disabled
-                className="rounded-md px-2 py-1 text-white/70 cursor-default"
+                onClick={() => setMeetOpen((prev) => !prev)}
+                className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1 font-medium text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                aria-expanded={meetOpen}
+                aria-haspopup="true"
               >
-                {item.label}
-              </button>
-            ))}
-            <details className="relative">
-              <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1 font-medium text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
                 <span>Meet</span>
                 <span aria-hidden="true">▾</span>
-              </summary>
-              <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-neutral-950 p-2 shadow-xl ring-1 ring-white/10">
-                <Link
-                  href="/meeting/join?mode=host"
-                  className="block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-                >
-                  Host a meeting
-                </Link>
-                <Link
-                  href="/meeting/join?mode=join"
-                  className="mt-1 block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-                >
-                  Join a meeting
-                </Link>
-              </div>
-            </details>
+              </button>
+              {meetOpen ? (
+                <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-neutral-950 p-2 shadow-xl ring-1 ring-white/10">
+                  <Link
+                    href="/meeting/join?mode=host"
+                    className="block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+                    onClick={() => setMeetOpen(false)}
+                  >
+                    Host a meeting
+                  </Link>
+                  <Link
+                    href="/meeting/join?mode=join"
+                    className="mt-1 block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+                    onClick={() => setMeetOpen(false)}
+                  >
+                    Join a meeting
+                  </Link>
+                </div>
+              ) : null}
+            </div>
+            {isAuthenticated ? (
+              <Link
+                href="/meetings"
+                className="rounded-md px-2 py-1 font-medium text-white/85 transition hover:text-white"
+              >
+                My meetings
+              </Link>
+            ) : null}
             {isAuthenticated ? (
               <button
                 type="button"
@@ -130,16 +146,6 @@ const Navbar = ({ onOpenAuth }) => {
                   Sign up
                 </button>
               )}
-              {NAV_LINKS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  disabled
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm text-white/70 cursor-default"
-                >
-                  {item.label}
-                </button>
-              ))}
               <div className="mt-1 rounded-lg bg-white/5 p-1">
                 <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/40">
                   Meet
@@ -156,6 +162,14 @@ const Navbar = ({ onOpenAuth }) => {
                 >
                   Join a meeting
                 </Link>
+                {isAuthenticated ? (
+                  <Link
+                    href="/meetings"
+                    className="mt-1 block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+                  >
+                    My meetings
+                  </Link>
+                ) : null}
               </div>
             </div>
           </details>

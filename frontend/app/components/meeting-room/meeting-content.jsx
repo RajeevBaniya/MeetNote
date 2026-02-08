@@ -4,9 +4,10 @@ import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import ParticipantGrid from "./participant-grid";
 import ScreenShareView from "./screen-share-view";
 
-const MeetingContent = ({ showAssistant, currentUserId, isHost }) => {
+const MeetingContent = ({ showAssistant, currentUserId, isHost, raisedHandUserIds = [] }) => {
   const { useHasOngoingScreenShare } = useCallStateHooks();
   const hasScreenShare = useHasOngoingScreenShare();
+  const raisedSet = new Set(raisedHandUserIds);
 
   if (hasScreenShare) {
     return (
@@ -20,6 +21,7 @@ const MeetingContent = ({ showAssistant, currentUserId, isHost }) => {
             isCompact={true}
             currentUserId={currentUserId}
             isHost={isHost}
+            raisedHandUserIds={raisedSet}
           />
         </div>
       </div>
@@ -32,6 +34,7 @@ const MeetingContent = ({ showAssistant, currentUserId, isHost }) => {
         showAssistant={showAssistant}
         currentUserId={currentUserId}
         isHost={isHost}
+        raisedHandUserIds={raisedSet}
       />
     </div>
   );

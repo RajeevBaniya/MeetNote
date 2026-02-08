@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
 import useMeetingCall from "@/app/hooks/use-meeting-call";
 import { useWaitingRoom } from "@/app/hooks/use-waiting-room";
@@ -8,17 +8,25 @@ import MeetingRoomContent from "./meeting-room-content";
 import MeetingRoomError from "./meeting-room-error";
 import MeetingRoomLoading from "./meeting-room-loading";
 import WaitingRoomModal from "./waiting-room-panel";
-import ParticipantsPanel from "./participants-panel";
+import ConnectionStateBanner from "./connection-state-banner";
+import RecordingBanner from "./recording-banner";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
-const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, jwt }) => {
+const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) => {
   const [showAssistant, setShowAssistant] = useState(false);
   const [waitingRoomOpen, setWaitingRoomOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
 
   const { call, error } = useMeetingCall(callId, userId, onLeave, onSessionEnded);
-  const { pendingUserIds, isHost, disconnected, sendAction } = useWaitingRoom(callId, jwt);
+  const { pendingUserIds, disconnected, sendAction } = useWaitingRoom(callId, jwt);
+  const isHost = Boolean(hostId && userId && String(hostId) === String(userId));
+
+  const handleLeave = useCallback(() => {
+    setWaitingRoomOpen(false);
+    setParticipantsOpen(false);
+    onLeave?.();
+  }, [onLeave]);
 
   if (error) {
     return <MeetingRoomError error={error} />;
@@ -32,6 +40,8 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, jwt }) => {
     <StreamTheme>
       <StreamCall call={call}>
         <div className="fixed inset-0 w-full h-full bg-[#020617] text-slate-100 overflow-hidden">
+          <ConnectionStateBanner />
+          <RecordingBanner />
           <MeetingRoomContent
             showAssistant={showAssistant}
             setShowAssistant={setShowAssistant}
@@ -39,6 +49,8 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, jwt }) => {
             pendingCount={pendingUserIds.length}
             onOpenWaitingRoom={() => setWaitingRoomOpen(true)}
             onOpenParticipants={() => setParticipantsOpen(true)}
+            onCloseParticipants={() => setParticipantsOpen(false)}
+            participantsOpen={participantsOpen}
             currentUserId={userId}
             onLeave={onLeave}
             callId={callId}
@@ -50,15 +62,6 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, jwt }) => {
               disconnected={disconnected}
               onClose={() => setWaitingRoomOpen(false)}
               sendAction={sendAction}
-            />
-          ) : null}
-          {participantsOpen ? (
-            <ParticipantsPanel
-              onClose={() => setParticipantsOpen(false)}
-              currentUserId={userId}
-              isHost={isHost}
-              callId={callId}
-              jwt={jwt}
             />
           ) : null}
         </div>

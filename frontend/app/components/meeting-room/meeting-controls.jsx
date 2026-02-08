@@ -2,6 +2,7 @@
 
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import { useState } from "react";
+import LeaveConfirmModal from "./leave-confirm-modal";
 
 const MeetingControls = ({
   onLeave,
@@ -9,15 +10,27 @@ const MeetingControls = ({
   participantCount = 0,
   isHost = false,
   onEndMeeting,
+  raisedHandCount = 0,
+  onOpenRaisedHands,
+  onRaiseHand,
+  onLowerHand,
+  isHandRaised = false,
+  onLeaveClick,
+  showLeaveConfirmModal = false,
+  setShowLeaveConfirmModal,
+  callId,
+  jwt,
 }) => {
   const call = useCall();
-  const { useMicrophoneState, useCameraState, useScreenShareState, useHasOngoingScreenShare } = useCallStateHooks();
+  const { useMicrophoneState, useCameraState, useScreenShareState, useHasOngoingScreenShare, useIsCallRecordingInProgress } = useCallStateHooks();
   const { microphone, isMute: isMicMuted } = useMicrophoneState();
   const { camera, isMute: isCameraOff } = useCameraState();
   const { screenShare } = useScreenShareState();
   const isScreenSharing = useHasOngoingScreenShare();
+  const isRecording = useIsCallRecordingInProgress();
   const [isToggling, setIsToggling] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
+  const [isRecordingAction, setIsRecordingAction] = useState(false);
 
   const handleToggleMic = async () => {
     if (!call || isToggling) return;
@@ -88,6 +101,64 @@ const MeetingControls = ({
       console.error("Failed to end meeting:", err);
     } finally {
       setIsEnding(false);
+    }
+  };
+
+  const handleLeaveButtonClick = () => {
+    if (isHost && onLeaveClick) {
+      onLeaveClick();
+    } else {
+      handleLeave();
+    }
+  };
+
+  const handleLeaveOnlyFromModal = () => {
+    setShowLeaveConfirmModal?.(false);
+    handleLeave();
+  };
+
+  const handleEndForEveryoneFromModal = () => {
+    setShowLeaveConfirmModal?.(false);
+    handleEndMeeting();
+  };
+
+  const handleStartRecording = async () => {
+    if (!callId || !jwt || isRecordingAction) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return;
+    setIsRecordingAction(true);
+    try {
+      const res = await fetch(`${apiUrl}/meetings/${callId}/recording/start`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      if (!res.ok) {
+        console.error("Failed to start recording:", res.status);
+      }
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+    } finally {
+      setIsRecordingAction(false);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    if (!callId || !jwt || isRecordingAction) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return;
+    setIsRecordingAction(true);
+    try {
+      const res = await fetch(`${apiUrl}/meetings/${callId}/recording/stop`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      if (!res.ok) {
+        console.error("Failed to stop recording:", res.status);
+      }
+    } catch (err) {
+      console.error("Failed to stop recording:", err);
+    } finally {
+      setIsRecordingAction(false);
     }
   };
 
@@ -251,6 +322,99 @@ const MeetingControls = ({
         ) : null}
       </button>
 
+      {!isHost && (onRaiseHand || onLowerHand) ? (
+        <button
+          type="button"
+          onClick={isHandRaised ? onLowerHand : onRaiseHand}
+          className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors ${
+            isHandRaised ? "bg-amber-500 hover:bg-amber-600" : "bg-gray-700 hover:bg-gray-600"
+          } text-white`}
+          title={isHandRaised ? "Lower hand" : "Raise hand"}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-4 h-4 sm:w-5 sm:h-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 1.5 0v2.716a5.499 5.499 0 0 1-.43 2.103 5.99 5.99 0 0 1 2.43 2.103 5.499 5.499 0 0 1-.43-2.103V2.75a.75.75 0 0 1 1.5 0v2.716a5.499 5.499 0 0 1-.43 2.103 5.99 5.99 0 0 1 2.43 2.103 5.499 5.499 0 0 1-.43-2.103V2.75a.75.75 0 0 1 1.5 0v6.375a4.5 4.5 0 0 1-1.5 3.375 9 9 0 0 1-6.939 2.437A9.001 9.001 0 0 1 6.633 10.25z"
+            />
+          </svg>
+        </button>
+      ) : null}
+
+      {isHost && onOpenRaisedHands ? (
+        <button
+          type="button"
+          onClick={onOpenRaisedHands}
+          className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors bg-gray-700 hover:bg-gray-600 text-amber-400"
+          title="Raised hands"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-4 h-4 sm:w-5 sm:h-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 1.5 0v2.716a5.499 5.499 0 0 1-.43 2.103 5.99 5.99 0 0 1 2.43 2.103 5.499 5.499 0 0 1-.43-2.103V2.75a.75.75 0 0 1 1.5 0v6.375a4.5 4.5 0 0 1-1.5 3.375 9 9 0 0 1-6.939 2.437A9.001 9.001 0 0 1 6.633 10.25z"
+            />
+          </svg>
+          {raisedHandCount > 0 ? (
+            <span className="absolute -top-0.5 -right-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] sm:min-w-[20px] sm:h-5 flex items-center justify-center px-1">
+              {raisedHandCount > 99 ? "99+" : raisedHandCount}
+            </span>
+          ) : null}
+        </button>
+      ) : null}
+
+      {isHost && callId && jwt ? (
+        isRecording ? (
+          <button
+            type="button"
+            onClick={handleStopRecording}
+            disabled={isRecordingAction}
+            className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            title="Stop recording"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              className="w-4 h-4 sm:w-5 sm:h-5"
+            >
+              <rect x="6" y="6" width="12" height="12" rx="1" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleStartRecording}
+            disabled={isRecordingAction}
+            className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors bg-gray-700 hover:bg-gray-600 text-white disabled:opacity-50"
+            title="Start recording"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              className="w-4 h-4 sm:w-5 sm:h-5"
+            >
+              <circle cx="12" cy="12" r="6" />
+            </svg>
+          </button>
+        )
+      ) : null}
+
       {isHost && onEndMeeting ? (
         <button
           onClick={handleEndMeeting}
@@ -277,7 +441,7 @@ const MeetingControls = ({
         </button>
       ) : null}
       <button
-        onClick={handleLeave}
+        onClick={handleLeaveButtonClick}
         className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors hover:bg-red-500/20 disabled:opacity-50"
         title="Leave Meeting"
       >
@@ -298,6 +462,14 @@ const MeetingControls = ({
           </svg>
         </div>
       </button>
+
+      {showLeaveConfirmModal ? (
+        <LeaveConfirmModal
+          onClose={() => setShowLeaveConfirmModal?.(false)}
+          onLeaveOnly={handleLeaveOnlyFromModal}
+          onEndForEveryone={handleEndForEveryoneFromModal}
+        />
+      ) : null}
     </div>
   );
 };

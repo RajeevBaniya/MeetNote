@@ -1,9 +1,13 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import TranscriptPanel from "./transcript";
 import MeetingContent from "./meeting-content";
 import MeetingControls from "./meeting-controls";
+import RaisedHandsModal from "./raised-hands-modal";
+import ParticipantsAndChatPanel from "./participants-and-chat-panel";
+import useRaisedHands from "@/app/hooks/use-raised-hands";
 import iconsData from "@/app/components/icons/icons.json";
 
 const MeetingRoomContent = ({
@@ -13,6 +17,8 @@ const MeetingRoomContent = ({
   pendingCount,
   onOpenWaitingRoom,
   onOpenParticipants,
+  onCloseParticipants,
+  participantsOpen,
   currentUserId,
   onLeave,
   callId,
@@ -21,6 +27,24 @@ const MeetingRoomContent = ({
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants() ?? [];
   const participantCount = participants.length;
+
+  const {
+    raisedHandUserIds,
+    raisedHandCount,
+    raiseHand,
+    lowerHand,
+    isHandRaised,
+  } = useRaisedHands(currentUserId);
+
+  const [showRaisedHandsModal, setShowRaisedHandsModal] = useState(false);
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
+
+  const handleLeave = useCallback(() => {
+    setShowRaisedHandsModal(false);
+    setShowLeaveConfirmModal(false);
+    lowerHand();
+    onLeave?.();
+  }, [onLeave, lowerHand]);
 
   const onEndMeeting = async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -41,6 +65,7 @@ const MeetingRoomContent = ({
               showAssistant={showAssistant}
               currentUserId={currentUserId}
               isHost={isHost}
+              raisedHandUserIds={raisedHandUserIds}
             />
           </div>
 
@@ -68,12 +93,40 @@ const MeetingRoomContent = ({
           </button>
 
           <MeetingControls
-            onLeave={onLeave}
+            onLeave={handleLeave}
             onOpenParticipants={onOpenParticipants}
             participantCount={participantCount}
             isHost={isHost}
             onEndMeeting={onEndMeeting}
+            raisedHandCount={raisedHandCount}
+            onOpenRaisedHands={() => setShowRaisedHandsModal(true)}
+            onRaiseHand={raiseHand}
+            onLowerHand={lowerHand}
+            isHandRaised={isHandRaised}
+            onLeaveClick={isHost ? () => setShowLeaveConfirmModal(true) : undefined}
+            showLeaveConfirmModal={showLeaveConfirmModal}
+            setShowLeaveConfirmModal={setShowLeaveConfirmModal}
+            callId={callId}
+            jwt={jwt}
           />
+
+          {showRaisedHandsModal ? (
+            <RaisedHandsModal
+              onClose={() => setShowRaisedHandsModal(false)}
+              raisedHandUserIds={raisedHandUserIds}
+            />
+          ) : null}
+
+          {participantsOpen ? (
+            <ParticipantsAndChatPanel
+              onClose={onCloseParticipants}
+              currentUserId={currentUserId}
+              isHost={isHost}
+              callId={callId}
+              jwt={jwt}
+              raisedHandUserIds={raisedHandUserIds}
+            />
+          ) : null}
 
           {isHost ? (
             <button

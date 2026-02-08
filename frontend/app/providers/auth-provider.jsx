@@ -99,7 +99,7 @@ export function AuthProvider({ children }) {
   );
 
   const register = useCallback(
-    async (email, password) => {
+    async (email, password, name = null) => {
       setLoading(true);
       setError(null);
       const base = apiBase();
@@ -109,10 +109,13 @@ export function AuthProvider({ children }) {
         return false;
       }
       try {
+        const trimmedName =
+          name != null && String(name).trim() !== "" ? String(name).trim() : null;
+        const body = trimmedName ? { email, password, name: trimmedName } : { email, password };
         const res = await fetch(`${base}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
         if (!res.ok) {

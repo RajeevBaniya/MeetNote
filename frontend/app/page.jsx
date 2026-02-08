@@ -17,7 +17,7 @@ const HomePage = () => {
     if (authParam === "login" || authParam === "signup") {
       const message =
         reasonParam === "meeting"
-          ? "Please sign in or sign up to create or join a meeting."
+          ? "Sign in to join or create a meeting."
           : null;
       setAuthModal({ mode: authParam, message });
     }

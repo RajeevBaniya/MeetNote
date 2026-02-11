@@ -22,14 +22,7 @@ function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
     const init = async () => {
       try {
         const myCall = client.call(CALL_TYPE, callId);
-
-        await myCall.getOrCreate({
-          data: {
-            created_by_id: userId,
-            members: [{ user_id: userId, role: "call_member" }],
-          },
-        });
-        await myCall.join();
+        await myCall.join({ create: true });
 
         await myCall.startClosedCaptions({ language: CLOSED_CAPTIONS_LANGUAGE });
 

@@ -6,8 +6,10 @@ import TranscriptPanel from "./transcript";
 import MeetingContent from "./meeting-content";
 import MeetingControls from "./meeting-controls";
 import RaisedHandsModal from "./raised-hands-modal";
-import ParticipantsAndChatPanel from "./participants-and-chat-panel";
+import ParticipantsOverlay from "./participants-overlay";
+import ChatOverlay from "./chat-overlay";
 import useRaisedHands from "@/app/hooks/use-raised-hands";
+import { useMeetingChat } from "@/app/hooks/use-meeting-chat";
 import iconsData from "@/app/components/icons/icons.json";
 
 const MeetingRoomContent = ({
@@ -38,6 +40,16 @@ const MeetingRoomContent = ({
 
   const [showRaisedHandsModal, setShowRaisedHandsModal] = useState(false);
   const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const {
+    messages,
+    connected,
+    connectionError,
+    sendMessage,
+    unreadCount,
+    markChatRead,
+  } = useMeetingChat(callId, jwt, chatOpen);
 
   const handleLeave = useCallback(() => {
     setShowRaisedHandsModal(false);
@@ -45,6 +57,15 @@ const MeetingRoomContent = ({
     lowerHand();
     onLeave?.();
   }, [onLeave, lowerHand]);
+
+  const handleOpenChat = useCallback(() => {
+    setChatOpen(true);
+    markChatRead();
+  }, [markChatRead]);
+
+  const handleCloseChat = useCallback(() => {
+    setChatOpen(false);
+  }, []);
 
   const onEndMeeting = async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -78,13 +99,29 @@ const MeetingRoomContent = ({
       <div className="flex justify-center items-center shrink-0 pb-1 sm:pb-2">
         <div className="w-full bg-[#020617] px-2 py-1.5 sm:px-4 sm:py-1.5 md:px-6 md:py-2 border-t border-slate-800/80 flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap justify-center">
           <button
-            onClick={() => setShowAssistant(!showAssistant)}
+            onClick={async () => {
+              const next = !showAssistant;
+              setShowAssistant(next);
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+              if (apiUrl && callId && jwt) {
+                try {
+                  await fetch(`${apiUrl}/meetings/${callId}/assistant-preference`, {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${jwt}`,
+                    },
+                    body: JSON.stringify({ enabled: next }),
+                  });
+                } catch (_) {}
+              }
+            }}
             className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors ${
               showAssistant
                 ? "bg-green-500 hover:bg-green-600 text-white"
                 : "bg-gray-700 hover:bg-gray-600 text-gray-300"
             }`}
-            title={showAssistant ? "Hide Assistant" : "Show Assistant"}
+            title={showAssistant ? "Assistant on (click to turn off)" : "Assistant off (click to turn on, then say Hey Assistant)"}
           >
             <span
               className="w-4 h-4 sm:w-5 sm:h-5"
@@ -108,6 +145,8 @@ const MeetingRoomContent = ({
             setShowLeaveConfirmModal={setShowLeaveConfirmModal}
             callId={callId}
             jwt={jwt}
+            onOpenChat={handleOpenChat}
+            chatUnreadCount={unreadCount}
           />
 
           {showRaisedHandsModal ? (
@@ -118,13 +157,25 @@ const MeetingRoomContent = ({
           ) : null}
 
           {participantsOpen ? (
-            <ParticipantsAndChatPanel
+            <ParticipantsOverlay
               onClose={onCloseParticipants}
               currentUserId={currentUserId}
               isHost={isHost}
               callId={callId}
               jwt={jwt}
               raisedHandUserIds={raisedHandUserIds}
+            />
+          ) : null}
+
+          {chatOpen ? (
+            <ChatOverlay
+              onClose={handleCloseChat}
+              messages={messages}
+              onSendMessage={sendMessage}
+              connectionError={connectionError}
+              connected={connected}
+              inputDisabled={Boolean(connectionError)}
+              currentUserId={currentUserId}
             />
           ) : null}
 

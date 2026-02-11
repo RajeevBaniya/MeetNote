@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
 import useMeetingCall from "@/app/hooks/use-meeting-call";
 import { useWaitingRoom } from "@/app/hooks/use-waiting-room";
@@ -14,13 +14,27 @@ import RecordingBanner from "./recording-banner";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
 const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) => {
-  const [showAssistant, setShowAssistant] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(true);
   const [waitingRoomOpen, setWaitingRoomOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
 
   const { call, error } = useMeetingCall(callId, userId, onLeave, onSessionEnded);
   const { pendingUserIds, disconnected, sendAction } = useWaitingRoom(callId, jwt);
   const isHost = Boolean(hostId && userId && String(hostId) === String(userId));
+
+  useEffect(() => {
+    if (!callId || !jwt) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return;
+    fetch(`${apiUrl}/meetings/${callId}/assistant-preference`, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.enabled === "boolean") setShowAssistant(data.enabled);
+      })
+      .catch(() => {});
+  }, [callId, jwt]);
 
   const handleLeave = useCallback(() => {
     setWaitingRoomOpen(false);

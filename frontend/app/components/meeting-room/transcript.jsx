@@ -4,6 +4,20 @@ import { useEffect, useState, useRef } from "react";
 import { useCall } from "@stream-io/video-react-sdk";
 import iconsData from "@/app/components/icons/icons.json";
 
+/** Live Transcript is human-only. These identities are never shown as transcript speakers. */
+const ASSISTANT_USER_IDS = ["system:assistant", "meeting-assistant-bot"];
+const ASSISTANT_DISPLAY_NAMES = ["Assistant"];
+
+function isAssistantCaption(user) {
+  if (!user) return false;
+  const id = user.id ?? "";
+  const name = user.name ?? "";
+  return (
+    ASSISTANT_USER_IDS.some((aid) => id === aid) ||
+    ASSISTANT_DISPLAY_NAMES.some((n) => name === n)
+  );
+}
+
 const TranscriptPanel = () => {
   const [transcripts, setTranscripts] = useState([]);
   const transcriptEndRef = useRef(null);
@@ -17,20 +31,20 @@ const TranscriptPanel = () => {
     if (!call) return;
 
     const handleClosedCaption = (event) => {
-      if (event.closed_caption) {
-        const newTranscript = {
-          id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          text: event.closed_caption.text,
-          speaker:
-            event.closed_caption.user?.name ||
-            event.closed_caption.user?.id ||
-            "Unknown",
-          timestamp: new Date(
-            event.closed_caption.start_time
-          ).toLocaleTimeString(),
-        };
-        setTranscripts((prev) => [...prev, newTranscript]);
-      }
+      if (!event.closed_caption) return;
+      if (isAssistantCaption(event.closed_caption.user)) return;
+      const newTranscript = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        text: event.closed_caption.text,
+        speaker:
+          event.closed_caption.user?.name ||
+          event.closed_caption.user?.id ||
+          "Unknown",
+        timestamp: new Date(
+          event.closed_caption.start_time
+        ).toLocaleTimeString(),
+      };
+      setTranscripts((prev) => [...prev, newTranscript]);
     };
 
     call.on("call.closed_caption", handleClosedCaption);

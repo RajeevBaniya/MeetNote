@@ -98,7 +98,7 @@ const JoinMeetingPage = () => {
 
   if (authLoading || restoringAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#020617] text-slate-100">
+      <div className="flex min-h-screen items-center justify-center bg-[#0f1419] text-slate-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500 mx-auto" />
           <p className="mt-4 text-lg text-slate-300">Checking sign-in…</p>
@@ -109,7 +109,7 @@ const JoinMeetingPage = () => {
 
   if (!jwt) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#020617] text-slate-100">
+      <div className="flex min-h-screen items-center justify-center bg-[#0f1419] text-slate-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500 mx-auto" />
           <p className="mt-4 text-lg text-slate-300">Redirecting to sign-in…</p>
@@ -127,7 +127,8 @@ const JoinMeetingPage = () => {
           onJoin={handleJoinCreatedMeeting}
         />
       ) : null}
-      <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-[#020617] via-[#020617] to-[#022c22] px-4 sm:px-6 lg:px-10 xl:px-16 text-slate-100">
+      <div className="relative flex min-h-screen items-center justify-center bg-[#0f1419] px-4 sm:px-6 lg:px-10 xl:px-16 text-slate-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.25),transparent_55%)]" />
       <button
         type="button"
         aria-label="Go back to home"

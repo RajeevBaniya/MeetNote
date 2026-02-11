@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/hooks/use-auth";
 import Navbar from "@/app/components/landing/navbar";
+import MeetingInsights from "../meeting-insights";
 
 function RecordingSection({ recordings }) {
   const first = Array.isArray(recordings) && recordings.length > 0 ? recordings[0] : null;
@@ -71,7 +72,7 @@ const pageBackground = (
 
 const ENDED_BANNER_MESSAGE = "This meeting has ended. You were redirected here from the call.";
 
-function SummaryContent({ meeting, recordings, transcriptSegments, onBack, onOpenAuth, showEndedBanner }) {
+function SummaryContent({ meeting, recordings, transcriptSegments, onBack, onOpenAuth, showEndedBanner, jwt }) {
   const title = meeting?.title ? String(meeting.title).trim() : "Meeting";
 
   return (
@@ -98,6 +99,7 @@ function SummaryContent({ meeting, recordings, transcriptSegments, onBack, onOpe
         </div>
 
         <div className="space-y-6">
+          <MeetingInsights meetingId={meeting.id} jwt={jwt} meeting={meeting} />
           <section className="rounded-xl border border-slate-700/60 bg-slate-800/40 px-4 py-4 sm:px-5 sm:py-4">
             <h2 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">
               Recording
@@ -325,6 +327,7 @@ export default function SummaryPage() {
       onBack={handleBack}
       onOpenAuth={openAuth}
       showEndedBanner={showEndedBanner}
+      jwt={jwt}
     />
   );
 }

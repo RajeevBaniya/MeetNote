@@ -27,6 +27,16 @@ function closeReasonToMessage(code, reason) {
   return "Connection closed.";
 }
 
+const ASSISTANT_USER_ID = "system:assistant";
+const ASSISTANT_DISPLAY_NAME = "Assistant";
+
+function isAssistantMessage(message) {
+  if (!message) return false;
+  const id = typeof message.user_id === "string" ? message.user_id : "";
+  const name = typeof message.display_name === "string" ? message.display_name : "";
+  return id === ASSISTANT_USER_ID || name === ASSISTANT_DISPLAY_NAME;
+}
+
 export function useMeetingChat(meetingId, jwt, isChatTabVisible = false) {
   const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
@@ -94,12 +104,17 @@ export function useMeetingChat(meetingId, jwt, isChatTabVisible = false) {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "history" && Array.isArray(data.messages)) {
-          setMessages(data.messages);
+          setMessages(data.messages.filter((message) => !isAssistantMessage(message)));
           return;
         }
         if (data.type === "chat_message") {
+          if (isAssistantMessage(data)) {
+            return;
+          }
           setMessages((prev) => [...prev, data]);
-          if (!isChatVisibleRef.current) setUnreadCount((c) => c + 1);
+          if (!isChatVisibleRef.current) {
+            setUnreadCount((count) => count + 1);
+          }
         }
       } catch {
         // ignore

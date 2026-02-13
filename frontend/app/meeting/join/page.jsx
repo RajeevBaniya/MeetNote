@@ -23,11 +23,24 @@ const JoinMeetingPage = () => {
   const [username, setUsername] = useState("");
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingDescription, setMeetingDescription] = useState("");
+  const [scheduledAtLocal, setScheduledAtLocal] = useState("");
   const [meetingId, setMeetingId] = useState("");
   const [meetingPasscode, setMeetingPasscode] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
   const [createdMeeting, setCreatedMeeting] = useState(null);
+
+  const formatJoinCode = (value) => {
+    const digits = value.replace(/\D/g, "").slice(0, 12);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 8) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+    return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8)}`;
+  };
+
+  const handleMeetingIdChange = (event) => {
+    const formatted = formatJoinCode(event.target.value);
+    setMeetingId(formatted);
+  };
 
   const handleJoin = async () => {
     const name = username.trim() === "" ? "anonymous" : username.trim();
@@ -43,13 +56,23 @@ const JoinMeetingPage = () => {
       }
       const base = apiUrl.replace(/\/$/, "");
       try {
+        let scheduled_start_at = null;
+        if (scheduledAtLocal) {
+          const localDate = new Date(scheduledAtLocal);
+          if (!Number.isNaN(localDate.getTime())) {
+            scheduled_start_at = localDate.toISOString();
+          }
+        }
         const res = await fetch(`${base}/meetings`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${jwt}`,
           },
-          body: JSON.stringify({ title: meetingTitle.trim() || null }),
+          body: JSON.stringify({
+            title: meetingTitle.trim() || null,
+            scheduled_start_at,
+          }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -57,8 +80,8 @@ const JoinMeetingPage = () => {
           setCreating(false);
           return;
         }
-        const { id, passcode } = data;
-        setCreatedMeeting({ id, passcode, name });
+        const { id, join_code, passcode } = data;
+        setCreatedMeeting({ id, join_code, passcode, name });
         setCreating(false);
       } catch (err) {
         setCreateError(err.message || "Failed to create meeting");
@@ -67,9 +90,9 @@ const JoinMeetingPage = () => {
       return;
     }
 
-    const joinId = meetingId.trim();
-    if (!joinId) {
-      setCreateError("Please enter the meeting ID.");
+    const cleanedCode = meetingId.replace(/\D/g, "");
+    if (!cleanedCode || cleanedCode.length !== 12) {
+      setCreateError("Please enter a valid 12-digit meeting code.");
       return;
     }
     const passcode = meetingPasscode.trim();
@@ -77,10 +100,36 @@ const JoinMeetingPage = () => {
       setCreateError("Please enter the passcode.");
       return;
     }
-    const search = new URLSearchParams();
-    search.set("name", name);
-    search.set("code", passcode);
-    router.push(`/meeting/${joinId}?${search.toString()}`);
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) {
+      setCreateError("API URL not configured");
+      return;
+    }
+    const base = apiUrl.replace(/\/$/, "");
+    try {
+      const res = await fetch(`${base}/meetings/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({
+          join_code: cleanedCode,
+          passcode: passcode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateError(data.detail || "Failed to join meeting");
+        return;
+      }
+      const search = new URLSearchParams();
+      search.set("name", name);
+      search.set("code", passcode);
+      router.push(`/meeting/${data.meeting_id}?${search.toString()}`);
+    } catch (err) {
+      setCreateError(err.message || "Failed to join meeting");
+    }
   };
 
   const handleClose = () => {
@@ -123,6 +172,7 @@ const JoinMeetingPage = () => {
       {createdMeeting ? (
         <MeetingCreatedModal
           meetingId={createdMeeting.id}
+          joinCode={createdMeeting.join_code}
           passcode={createdMeeting.passcode}
           onJoin={handleJoinCreatedMeeting}
         />
@@ -183,14 +233,23 @@ const JoinMeetingPage = () => {
                       setMeetingDescription(event.target.value)
                     }
                   />
+                  <input
+                    type="datetime-local"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none ring-1 ring-transparent transition focus:ring-emerald-500"
+                    value={scheduledAtLocal}
+                    onChange={(event) => setScheduledAtLocal(event.target.value)}
+                  />
                 </>
               ) : (
                 <>
                   <input
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none ring-1 ring-transparent transition focus:ring-emerald-500"
-                    placeholder="Meeting ID"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9\s]*"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none ring-1 ring-transparent transition focus:ring-emerald-500 font-mono"
+                    placeholder="1234 5678 9012"
                     value={meetingId}
-                    onChange={(event) => setMeetingId(event.target.value)}
+                    onChange={handleMeetingIdChange}
                   />
                   <input
                     className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none ring-1 ring-transparent transition focus:ring-emerald-500"

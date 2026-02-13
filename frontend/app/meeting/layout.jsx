@@ -7,7 +7,8 @@ export default function MeetingLayout({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const isCallPage = pathname?.startsWith("/meeting/") && !pathname?.endsWith("/join");
+    const isCallPage =
+      pathname?.startsWith("/meeting/") && !pathname?.endsWith("/join");
     const html = document.documentElement;
     if (isCallPage) {
       html.classList.add("meeting-page");

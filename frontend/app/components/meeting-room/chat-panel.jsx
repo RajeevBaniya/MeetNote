@@ -12,6 +12,16 @@ function formatTime(ts) {
   }
 }
 
+const ASSISTANT_USER_ID = "system:assistant";
+const ASSISTANT_DISPLAY_NAME = "Assistant";
+
+function isAssistantMessage(message) {
+  if (!message) return false;
+  const id = typeof message.user_id === "string" ? message.user_id : "";
+  const name = typeof message.display_name === "string" ? message.display_name : "";
+  return id === ASSISTANT_USER_ID || name === ASSISTANT_DISPLAY_NAME;
+}
+
 const ChatPanel = ({
   messages,
   onSendMessage,
@@ -23,11 +33,15 @@ const ChatPanel = ({
   const listRef = useRef(null);
   const inputRef = useRef(null);
 
+  const visibleMessages = Array.isArray(messages)
+    ? messages.filter((msg) => !isAssistantMessage(msg))
+    : [];
+
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  }, [visibleMessages]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -60,10 +74,10 @@ const ChatPanel = ({
         ref={listRef}
         className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar min-h-0"
       >
-        {messages.length === 0 && !connectionError ? (
+        {visibleMessages.length === 0 && !connectionError ? (
           <li className="text-sm text-slate-500 py-4">No messages yet.</li>
         ) : (
-          messages.map((msg, index) => {
+          visibleMessages.map((msg, index) => {
             const isOwn = currentUserId && msg.user_id === String(currentUserId);
             const name = msg.display_name || msg.user_id || "Someone";
             const time = formatTime(msg.timestamp);

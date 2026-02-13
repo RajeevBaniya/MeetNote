@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 
-const MeetingCreatedModal = ({ meetingId, passcode, onJoin }) => {
+const MeetingCreatedModal = ({ meetingId, joinCode, passcode, onJoin }) => {
   const [copied, setCopied] = useState(null);
+
+  const formatJoinCode = (code) => {
+    if (!code) return "";
+    const digits = code.replace(/\D/g, "").slice(0, 12);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 8) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+    return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8)}`;
+  };
 
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -11,6 +19,8 @@ const MeetingCreatedModal = ({ meetingId, passcode, onJoin }) => {
       setTimeout(() => setCopied(null), 2000);
     });
   };
+
+  const formattedJoinCode = formatJoinCode(joinCode);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -24,20 +34,20 @@ const MeetingCreatedModal = ({ meetingId, passcode, onJoin }) => {
         
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-xs text-slate-400 mb-2">Meeting ID</label>
+            <label className="block text-xs text-slate-400 mb-2">Meeting Code</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                value={meetingId}
+                value={formattedJoinCode}
                 readOnly
                 className="flex-1 px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 text-sm font-mono"
               />
               <button
                 type="button"
-                onClick={() => copyToClipboard(meetingId, "id")}
+                onClick={() => copyToClipboard(joinCode?.replace(/\D/g, "") || "", "code")}
                 className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition"
               >
-                {copied === "id" ? "Copied!" : "Copy"}
+                {copied === "code" ? "Copied!" : "Copy"}
               </button>
             </div>
           </div>

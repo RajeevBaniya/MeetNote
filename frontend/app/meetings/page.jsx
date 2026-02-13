@@ -7,8 +7,9 @@ import { useAuth } from "@/app/hooks/use-auth";
 import Navbar from "@/app/components/landing/navbar";
 
 function MeetingCard({ meeting, actionLabel, actionHref, isActive }) {
-  const created = meeting.created_at
-    ? new Date(meeting.created_at).toLocaleDateString(undefined, {
+  const timestamp = meeting.scheduled_start_at || meeting.created_at;
+  const created = timestamp
+    ? new Date(timestamp).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -64,13 +65,19 @@ function EmptySection({ message, ctaLabel, ctaHref }) {
 }
 
 export default function MyMeetingsPage() {
-  const { jwt, loading: authLoading, restoringAuth, isAuthenticated } = useAuth();
+  const {
+    jwt,
+    loading: authLoading,
+    restoringAuth,
+    isAuthenticated,
+  } = useAuth();
   const router = useRouter();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const [loading, setLoading] = useState(() => Boolean(apiUrl));
   const [error, setError] = useState(() =>
-    apiUrl ? null : "NEXT_PUBLIC_API_URL not set"
+    apiUrl ? null : "NEXT_PUBLIC_API_URL not set",
   );
+  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
   const [activeMeetings, setActiveMeetings] = useState([]);
   const [endedMeetings, setEndedMeetings] = useState([]);
 
@@ -105,6 +112,7 @@ export default function MyMeetingsPage() {
       })
       .then((data) => {
         if (cancelled || !data) return;
+        setUpcomingMeetings(Array.isArray(data.upcoming) ? data.upcoming : []);
         setActiveMeetings(Array.isArray(data.active) ? data.active : []);
         setEndedMeetings(Array.isArray(data.ended) ? data.ended : []);
       })
@@ -187,6 +195,72 @@ export default function MyMeetingsPage() {
           <div className="space-y-10">
             <section>
               <h2 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">
+                Upcoming
+              </h2>
+              <p className="mb-4 text-lg font-medium text-slate-100">
+                Meetings scheduled for later
+              </p>
+              {upcomingMeetings.length === 0 ? (
+                <EmptySection message="You don’t have any upcoming meetings." />
+              ) : (
+                <ul className="space-y-3">
+                  {upcomingMeetings.map((meeting) => {
+                    const scheduled = meeting.scheduled_start_at
+                      ? new Date(meeting.scheduled_start_at).toLocaleString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )
+                      : "";
+                    const base = apiUrl ? apiUrl.replace(/\/$/, "") : "";
+                    const icsHref = base
+                      ? `${base}/meetings/${meeting.id}/ics`
+                      : null;
+                    return (
+                      <li key={meeting.id}>
+                        <div className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border px-4 py-4 sm:px-5 sm:py-4 border-slate-700/60 bg-slate-800/40 hover:border-slate-600">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-slate-100">
+                              {meeting.title || "Untitled meeting"}
+                            </p>
+                            {scheduled ? (
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                Scheduled for {scheduled}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-700 text-slate-300 opacity-70 cursor-not-allowed"
+                            >
+                              Not started
+                            </button>
+                            {icsHref ? (
+                              <a
+                                href={icsHref}
+                                className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500"
+                              >
+                                Download ICS
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <h2 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">
                 Active
               </h2>
               <p className="mb-4 text-lg font-medium text-slate-100">
@@ -222,9 +296,7 @@ export default function MyMeetingsPage() {
                 Past meetings and summaries
               </p>
               {endedMeetings.length === 0 ? (
-                <EmptySection
-                  message="No ended meetings yet. Summaries will appear here after you end a meeting."
-                />
+                <EmptySection message="No ended meetings yet. Summaries will appear here after you end a meeting." />
               ) : (
                 <ul className="space-y-3">
                   {endedMeetings.map((meeting) => (

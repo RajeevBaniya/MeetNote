@@ -20,8 +20,11 @@ function isAssistantCaption(user) {
 
 const TranscriptPanel = () => {
   const [transcripts, setTranscripts] = useState([]);
+  const [showSummaryInfo, setShowSummaryInfo] = useState(false);
   const transcriptEndRef = useRef(null);
   const call = useCall();
+
+  const getTranscriptSnapshot = () => transcripts;
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -54,6 +57,14 @@ const TranscriptPanel = () => {
     };
   }, [call]);
 
+  const handleSummarizeClick = () => {
+    const snapshot = getTranscriptSnapshot();
+    // Dev-only: inspect current transcript snapshot.
+    // eslint-disable-next-line no-console
+    console.log("Transcript snapshot (for future summarization):", snapshot);
+    setShowSummaryInfo(true);
+  };
+
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
       <div className="shrink-0 px-2 py-2 sm:px-3 sm:py-3 md:px-4 md:py-4 border-b border-emerald-900/60 bg-gradient-to-r from-emerald-900/30 to-slate-900/60">
@@ -74,7 +85,7 @@ const TranscriptPanel = () => {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-[10px] sm:text-xs text-green-500 font-medium">Live</span>
           </div>
         </div>
@@ -134,6 +145,21 @@ const TranscriptPanel = () => {
             <div ref={transcriptEndRef} />
           </>
         )}
+      </div>
+
+      <div className="shrink-0 border-t border-slate-700/50 px-3 py-3 bg-slate-900/90">
+        {showSummaryInfo ? (
+          <div className="mb-2 rounded-md bg-slate-800/80 px-3 py-2 text-[11px] sm:text-xs text-emerald-100">
+            Live summarization will be available soon.
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={handleSummarizeClick}
+          className="w-full inline-flex items-center justify-center rounded-lg bg-emerald-600 py-2 px-4 text-sm font-semibold text-white ring-1 ring-emerald-500 transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+        >
+          Summarize Meeting
+        </button>
       </div>
     </div>
   );

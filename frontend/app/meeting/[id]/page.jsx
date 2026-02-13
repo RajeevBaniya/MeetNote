@@ -74,6 +74,8 @@ const MeetingPage = () => {
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [removedByHost, setRemovedByHost] = useState(false);
   const [meetingFetchStatus, setMeetingFetchStatus] = useState("loading");
+  const [scheduledStartAt, setScheduledStartAt] = useState(null);
+  const [meetingLoaded, setMeetingLoaded] = useState(false);
 
   const callId = params.id;
   const queryName = searchParams.get("name");
@@ -101,11 +103,16 @@ const MeetingPage = () => {
 
   const passcode = (searchParams.get("code") || "").trim() || null;
 
+  const earlyJoinAllowed =
+    !scheduledStartAt ||
+    (new Date(scheduledStartAt).getTime() - Date.now()) / 1000 <= 60;
+
   const { token, user, error, status, expiresInSeconds } = useStreamTokenFromBackend(
-    callId,
+    meetingLoaded ? callId : null,
     jwt,
     displayName,
-    passcode
+    passcode,
+    earlyJoinAllowed
   );
 
   const tokenRef = useRef(null);
@@ -209,6 +216,8 @@ const MeetingPage = () => {
           return;
         }
         setHostId(data.host_id);
+        setScheduledStartAt(data.scheduled_start_at || null);
+        setMeetingLoaded(true);
         setMeetingFetchStatus("found");
       })
       .catch(() => {
@@ -284,6 +293,27 @@ const MeetingPage = () => {
   if (meetingFetchStatus === "ended") {
     return (
       <LoadingScreen message={LOADING_MESSAGE_REDIRECT_SUMMARY} />
+    );
+  }
+
+  const scheduledFuture =
+    scheduledStartAt &&
+    (new Date(scheduledStartAt).getTime() - Date.now()) / 1000 > 60;
+
+  if (scheduledFuture) {
+    const localTime = new Date(scheduledStartAt).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return (
+      <ErrorCard
+        title="Meeting not started yet"
+        message={`This meeting is scheduled for ${localTime}. You can join when it starts.`}
+        onBack={() => router.push("/")}
+      />
     );
   }
 

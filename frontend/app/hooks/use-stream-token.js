@@ -7,7 +7,7 @@ function buildUrl(baseUrl, meetingId) {
   return `${base}/meetings/${meetingId}/stream-token`;
 }
 
-export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode) {
+export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode, enabled = true) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -25,7 +25,7 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode)
   }, []);
 
   useEffect(() => {
-    if (!meetingId || !jwt) {
+    if (!enabled || !meetingId || !jwt) {
       if (!jwt && meetingId) {
         setError("Not authenticated");
         setStatus("error");
@@ -121,7 +121,7 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode)
         timeoutRef.current = null;
       }
     };
-  }, [meetingId, jwt, displayName, passcode]);
+  }, [meetingId, jwt, displayName, passcode, enabled]);
 
   return { token, user, error, status, expiresInSeconds };
 }

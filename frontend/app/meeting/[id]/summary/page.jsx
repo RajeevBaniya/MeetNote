@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/app/hooks/use-auth";
+import { useAuth } from "@/app/lib/use-auth";
 import Navbar from "@/app/components/landing/navbar";
 import MeetingInsights from "../meeting-insights";
 
@@ -137,7 +137,7 @@ function SummaryContent({ meeting, recordings, transcriptSegments, onBack, onOpe
   );
 }
 
-export default function SummaryPage() {
+function SummaryPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -331,3 +331,17 @@ export default function SummaryPage() {
     />
   );
 }
+
+function SummaryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0f1419] text-slate-100 flex items-center justify-center" />
+      }
+    >
+      <SummaryPageContent />
+    </Suspense>
+  );
+}
+
+export default SummaryPage;

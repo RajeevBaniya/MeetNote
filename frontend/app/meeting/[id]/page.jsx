@@ -1,13 +1,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
 import StreamProvider from "@/app/components/stream-provider";
 import MeetingRoom from "@/app/components/meeting-room/meeting-room";
 import { StreamTheme } from "@stream-io/video-react-sdk";
-import { useAuth } from "@/app/hooks/use-auth";
-import { useStreamTokenFromBackend } from "@/app/hooks/use-stream-token";
+import { useAuth } from "@/app/lib/use-auth";
+import { useStreamTokenFromBackend } from "@/app/lib/use-stream-token";
 
 const REDIRECT_DELAY_MS = 2500;
 const REFRESH_SAFETY_SECONDS = 300;
@@ -66,7 +66,7 @@ function ErrorCard({ title, message, onBack }) {
   );
 }
 
-const MeetingPage = () => {
+function MeetingPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -406,6 +406,20 @@ const MeetingPage = () => {
       </StreamProvider>
     </>
   );
-};
+}
+
+function MeetingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-500" />
+        </div>
+      }
+    >
+      <MeetingPageContent />
+    </Suspense>
+  );
+}
 
 export default MeetingPage;

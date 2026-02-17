@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/app/components/landing/navbar";
-import HeroSection from "@/app/components/landing/hero";
+import HeroSection from "@/app/components/landing/hero/index";
 import AuthModal from "@/app/components/auth/auth-modal";
 
-const HomePage = () => {
+function HomeContent() {
   const searchParams = useSearchParams();
   const [authModal, setAuthModal] = useState(null);
 
@@ -42,6 +42,18 @@ const HomePage = () => {
       ) : null}
     </div>
   );
-};
+}
+
+function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen flex-col overflow-hidden bg-[#0f1419] text-slate-100" />
+      }
+    >
+      <HomeContent />
+    </Suspense>
+  );
+}
 
 export default HomePage;

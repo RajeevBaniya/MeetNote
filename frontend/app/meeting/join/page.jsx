@@ -1,12 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/app/hooks/use-auth";
+import { useAuth } from "@/app/lib/use-auth";
 import MeetingCreatedModal from "@/app/components/meeting-room/meeting-info-modal";
 
-const JoinMeetingPage = () => {
+function JoinMeetingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { jwt, loading: authLoading, restoringAuth } = useAuth();
@@ -279,6 +279,18 @@ const JoinMeetingPage = () => {
     </div>
     </>
   );
-};
+}
+
+function JoinMeetingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0f1419] text-slate-100 flex items-center justify-center" />
+      }
+    >
+      <JoinMeetingContent />
+    </Suspense>
+  );
+}
 
 export default JoinMeetingPage;

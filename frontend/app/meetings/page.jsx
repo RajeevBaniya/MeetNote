@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/hooks/use-auth";
+import { useAuth } from "@/app/lib/use-auth";
 import Navbar from "@/app/components/landing/navbar";
 
 function MeetingCard({ meeting, actionLabel, actionHref, isActive }) {

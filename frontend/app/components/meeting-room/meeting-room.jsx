@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
-import useMeetingCall from "@/app/hooks/use-meeting-call";
-import { useWaitingRoom } from "@/app/hooks/use-waiting-room";
+import useMeetingCall from "@/app/lib/use-meeting-call";
+import { useWaitingRoom } from "@/app/lib/use-waiting-room";
 import MeetingRoomContent from "./meeting-room-content";
 import MeetingRoomError from "./meeting-room-error";
 import MeetingRoomLoading from "./meeting-room-loading";

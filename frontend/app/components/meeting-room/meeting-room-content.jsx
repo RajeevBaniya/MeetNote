@@ -8,8 +8,8 @@ import MeetingControls from "./meeting-controls";
 import RaisedHandsModal from "./raised-hands-modal";
 import ParticipantsOverlay from "./participants-overlay";
 import ChatOverlay from "./chat-overlay";
-import useRaisedHands from "@/app/hooks/use-raised-hands";
-import { useMeetingChat } from "@/app/hooks/use-meeting-chat";
+import useRaisedHands from "@/app/lib/use-raised-hands";
+import { useMeetingChat } from "@/app/lib/use-meeting-chat";
 import iconsData from "@/app/components/icons/icons.json";
 
 const MeetingRoomContent = ({

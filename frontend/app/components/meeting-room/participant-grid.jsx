@@ -7,7 +7,7 @@ import {
   filterAssistant,
   sortParticipants,
   isAssistantParticipant,
-} from "@/app/utils/participant-helpers";
+} from "@/app/lib/participant-helpers";
 
 const ParticipantGrid = ({
   showAssistant = false,

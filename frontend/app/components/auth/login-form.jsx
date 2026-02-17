@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/app/hooks/use-auth";
+import { useAuth } from "@/app/lib/use-auth";
 import PasswordField from "@/app/components/auth/password-field";
 
 const LoginForm = ({ onSuccess, onSwitchMode, message }) => {

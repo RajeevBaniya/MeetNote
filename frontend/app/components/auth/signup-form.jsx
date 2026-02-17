@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/app/hooks/use-auth";
+import { useAuth } from "@/app/lib/use-auth";
 import PasswordField from "@/app/components/auth/password-field";
 
 const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
@@ -27,7 +27,10 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
       ) : null}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="signup-email" className="block text-sm text-slate-400 mb-1">
+          <label
+            htmlFor="signup-email"
+            className="block text-sm text-slate-400 mb-1"
+          >
             Email
           </label>
           <input
@@ -41,7 +44,10 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
         </div>
 
         <div>
-          <label htmlFor="signup-name" className="block text-sm text-slate-400 mb-1">
+          <label
+            htmlFor="signup-name"
+            className="block text-sm text-slate-400 mb-1"
+          >
             Display name <span className="text-slate-500">(optional)</span>
           </label>
           <input
@@ -49,7 +55,6 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
             type="text"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="How you'll appear in meetings"
             maxLength={255}
             className="w-full px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500"
           />
@@ -62,9 +67,7 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
           onChange={(event) => setPassword(event.target.value)}
         />
 
-        {error ? (
-          <p className="text-sm text-red-400">{error}</p>
-        ) : null}
+        {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
         <button
           type="submit"
@@ -93,4 +96,3 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
 };
 
 export default SignupForm;
-

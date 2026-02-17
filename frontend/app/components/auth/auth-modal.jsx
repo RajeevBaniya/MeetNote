@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/hooks/use-auth";
+import { useAuth } from "@/app/lib/use-auth";
 import LoginForm from "@/app/components/auth/login-form";
 import SignupForm from "@/app/components/auth/signup-form";
 

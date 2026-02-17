@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useStreamVideoClient } from "@stream-io/video-react-sdk";
-import { CALL_TYPE, CLOSED_CAPTIONS_LANGUAGE } from "@/app/constants/meeting-constants";
+import { CALL_TYPE, CLOSED_CAPTIONS_LANGUAGE } from "@/app/lib/meeting-constants";
 
 function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
   const client = useStreamVideoClient();

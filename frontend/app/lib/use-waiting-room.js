@@ -32,7 +32,6 @@ export function useWaitingRoom(meetingId, jwt) {
     if (!meetingId || !jwt) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) return;
-
     gotPendingListRef.current = false;
     setIsHost(false);
     setDisconnected(false);
@@ -57,15 +56,11 @@ export function useWaitingRoom(meetingId, jwt) {
     ws.onclose = () => {
       wsRef.current = null;
       if (!mountedRef.current) return;
-      if (gotPendingListRef.current) {
-        setDisconnected(true);
-      }
+      if (gotPendingListRef.current) setDisconnected(true);
     };
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-      }
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
       wsRef.current = null;
     };
   }, [meetingId, jwt]);

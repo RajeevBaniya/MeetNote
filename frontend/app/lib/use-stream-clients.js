@@ -1,5 +1,41 @@
 import { useState, useEffect, useRef } from "react";
-import { StreamVideoClient } from "@stream-io/video-react-sdk";
+import {
+  StreamVideoClient,
+  videoLoggerSystem,
+  logToConsole,
+} from "@stream-io/video-react-sdk";
+
+function isPermissionDeniedError(err) {
+  if (!err || typeof err !== "object") return false;
+  const name = err.name || err?.cause?.name || "";
+  const msg = String(err.message || err?.cause?.message || "").toLowerCase();
+  return (
+    name === "NotAllowedError" || msg.includes("permission denied by user")
+  );
+}
+
+function configureDevicesLogger() {
+  if (typeof window === "undefined") return;
+  try {
+    videoLoggerSystem.configureLoggers({
+      devices: {
+        sink(logLevel, message, ...rest) {
+          if (
+            logLevel === "error" &&
+            typeof message === "string" &&
+            message.includes("Failed to get screen share stream") &&
+            rest.length > 0
+          ) {
+            if (isPermissionDeniedError(rest[0])) return;
+          }
+          logToConsole(logLevel, message, ...rest);
+        },
+      },
+    });
+  } catch {}
+}
+
+configureDevicesLogger();
 
 export function useStreamClients({ apiKey, user, getToken }) {
   const [videoClient, setVideoClient] = useState(null);

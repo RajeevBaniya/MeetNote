@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { FiVideo } from "react-icons/fi";
-import { useAuth } from "@/app/hooks/use-auth";
+import { useAuth } from "@/app/lib/use-auth";
 
 const Navbar = ({ onOpenAuth }) => {
   const [hasScrolled, setHasScrolled] = useState(false);

@@ -38,7 +38,6 @@ from app.modules.stream_tokens.service import (
     stop_stream_recording,
 )
 from app.state.client import get_redis
-from app.modules.waiting_room.websocket import close_waiting_room_connections
 from app.modules.chat.websocket import close_chat_connections, close_chat_connections_for_user
 
 
@@ -179,7 +178,6 @@ async def post_end_meeting(
         )
     except Exception:
         logger.exception("end_stream_call_failed meeting_id=%s", meeting_id)
-    await close_waiting_room_connections(meeting_id)
     await close_chat_connections(meeting_id)
     await publish_meeting_ended(meeting_id)
     return EndMeetingOut()

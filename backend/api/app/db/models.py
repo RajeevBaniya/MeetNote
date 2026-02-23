@@ -62,3 +62,8 @@ class Meeting(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    host_joined: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )

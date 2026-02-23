@@ -22,9 +22,14 @@ from app.modules.meetings.router import router as meetings_router
 from app.modules.meetings.events import publish_meeting_snapshot
 from app.modules.stream_tokens.router import router as stream_tokens_router
 from app.modules.chat.router import router as chat_router
-from app.modules.waiting_room.websocket import waiting_room_websocket
 from app.modules.chat.websocket import chat_websocket
 from app.state.client import close_redis, get_redis
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
 
 CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
@@ -39,6 +44,12 @@ async def run_db_migrations() -> None:
                 text(
                     "ALTER TABLE meetings "
                     "ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ NULL"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE meetings "
+                    "ADD COLUMN IF NOT EXISTS host_joined BOOLEAN NOT NULL DEFAULT FALSE"
                 )
             )
     except Exception:
@@ -103,7 +114,6 @@ app.include_router(meetings_router)
 app.include_router(join_router)
 app.include_router(stream_tokens_router)
 app.include_router(chat_router)
-app.websocket("/ws/meetings/{meeting_id}/waiting-room")(waiting_room_websocket)
 app.websocket("/ws/meetings/{meeting_id}/chat")(chat_websocket)
 
 

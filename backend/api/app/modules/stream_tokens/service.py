@@ -15,10 +15,6 @@ STREAM_TOKEN_EXPIRY_SECONDS = 3600
 STREAM_VIDEO_BASE = "https://video.stream-io-api.com/api/v2/video"
 
 
-def _approved_users_key(meeting_id: UUID) -> str:
-    return f"meeting:{meeting_id}:approved_users"
-
-
 def _removed_users_key(meeting_id: UUID) -> str:
     return f"meeting:{meeting_id}:removed_users"
 
@@ -31,17 +27,6 @@ async def add_removed_user(redis: Redis, meeting_id: UUID, user_id: UUID) -> Non
 async def is_user_removed(redis: Redis, meeting_id: UUID, user_id: UUID) -> bool:
     key = _removed_users_key(meeting_id)
     return await redis.sismember(key, str(user_id))
-
-
-async def is_user_approved(redis: Redis, meeting_id: UUID, user_id: UUID) -> bool:
-    key = _approved_users_key(meeting_id)
-    raw = await redis.lrange(key, 0, -1)
-    uid = str(user_id)
-    for x in raw:
-        val = x if isinstance(x, str) else x.decode()
-        if val == uid:
-            return True
-    return False
 
 
 def create_stream_token(user_id: UUID, name: str | None = None) -> str:

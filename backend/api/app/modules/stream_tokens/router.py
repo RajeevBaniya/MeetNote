@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_stream_token
@@ -14,7 +13,6 @@ from app.modules.stream_tokens.schemas import StreamTokenIn, StreamTokenOut
 from app.modules.stream_tokens.service import (
     STREAM_TOKEN_EXPIRY_SECONDS,
     create_stream_token,
-    is_user_approved,
     is_user_removed,
 )
 from app.state.client import get_redis
@@ -66,10 +64,6 @@ async def stream_token(
             detail="Service temporarily unavailable",
         )
     if removed:
-        logger.info(
-            "stream_token_denied",
-            extra={"reason": "removed_from_meeting", "meeting_id": str(meeting_id)},
-        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You were removed from this meeting",
@@ -79,42 +73,26 @@ async def stream_token(
         if body and isinstance(body.passcode, str):
             raw_passcode = body.passcode.strip()
         if not raw_passcode:
-            logger.info(
-                "stream_token_denied",
-                extra={"reason": "missing_passcode", "meeting_id": str(meeting_id)},
-            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Passcode required",
             )
         if meeting.passcode != raw_passcode:
-            logger.info(
-                "stream_token_denied",
-                extra={"reason": "invalid_passcode", "meeting_id": str(meeting_id)},
-            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Incorrect passcode",
             )
-        try:
-            approved = await is_user_approved(redis, meeting_id, user_id)
-        except Exception:
+        if not meeting.host_joined:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Service temporarily unavailable",
-            )
-        if not approved:
-            logger.info(
-                "stream_token_denied",
-                extra={"reason": "not_approved", "meeting_id": str(meeting_id)},
-            )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not approved to join this meeting",
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Meeting has not been started by host yet.",
             )
     display_name = None
     if body and body.display_name and isinstance(body.display_name, str):
         display_name = body.display_name.strip() or None
+    if is_host and not meeting.host_joined:
+        meeting.host_joined = True
+        await session.commit()
     token = create_stream_token(user_id, name=display_name)
     return StreamTokenOut(
         token=token,

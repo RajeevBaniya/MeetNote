@@ -13,7 +13,7 @@ from app.modules.chat.service import (
     get_user_display_name,
 )
 from app.modules.meetings.service import get_meeting_by_id
-from app.modules.stream_tokens.service import is_user_approved, is_user_removed
+from app.modules.stream_tokens.service import is_user_removed
 from app.state.client import get_redis
 
 WS_CLOSE_UNAUTHORIZED = 4401
@@ -123,12 +123,6 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
     if removed:
         await websocket.close(code=WS_CLOSE_FORBIDDEN, reason="You were removed from this meeting")
         return
-    is_host = meeting.host_id == user_id
-    if not is_host:
-        approved = await is_user_approved(redis, meeting_id, user_id)
-        if not approved:
-            await websocket.close(code=WS_CLOSE_FORBIDDEN, reason="Not approved to join this meeting")
-            return
     _register(meeting_id, websocket, user_id)
     try:
         recent = await get_recent_messages(redis, meeting_id)

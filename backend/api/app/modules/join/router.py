@@ -3,14 +3,12 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_meeting_join
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.join.schemas import JoinMeetingIn, JoinMeetingOut
-from app.modules.join.service import enqueue_join_request
 from app.modules.meetings.service import get_meeting_by_id, get_meeting_by_join_code
 from app.modules.stream_tokens.service import is_user_removed
 from app.state.client import get_redis
@@ -109,15 +107,8 @@ async def join_meeting(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You were removed from this meeting",
         )
-    try:
-        await enqueue_join_request(redis, meeting_id, user_id)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service temporarily unavailable",
-        )
     return JoinMeetingOut(
-        status="pending",
+        status="joined",
         meeting_id=meeting_id,
         user_id=user_id,
     )

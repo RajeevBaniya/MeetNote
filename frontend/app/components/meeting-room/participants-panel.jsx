@@ -80,9 +80,9 @@ const ParticipantsPanel = ({
   };
 
   const listContent = (
-    <ul className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar min-h-0">
+    <ul className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 custom-scrollbar min-h-0">
       {participants.length === 0 ? (
-        <li className="text-sm text-slate-400 py-4">
+        <li className="text-sm text-slate-400 py-8 text-center">
           No participants in this call
         </li>
       ) : (
@@ -99,29 +99,29 @@ const ParticipantsPanel = ({
           return (
             <li
               key={p.sessionId ?? p.userId}
-              className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/50 border border-slate-700"
+              className="flex items-center gap-3 p-3 sm:p-4 rounded-xl bg-slate-800/60 border border-slate-700/50 hover:bg-slate-800/80 hover:border-slate-600/70 transition-all duration-200 shadow-sm"
             >
-              <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
-                    className="truncate text-slate-200 font-medium"
+                    className="truncate text-slate-100 font-semibold text-sm sm:text-base"
                     title={displayName}
                   >
                     {displayName}
                   </span>
                   {isLocal ? (
-                    <span className="text-xs text-slate-400 shrink-0">
-                      (You)
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-medium shrink-0">
+                      You
                     </span>
                   ) : null}
                   {showHostBadge ? (
-                    <span className="text-xs font-medium text-emerald-400 shrink-0">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium shrink-0">
                       Host
                     </span>
                   ) : null}
                   {p.userId && raisedSet.has(p.userId) ? (
                     <span
-                      className="text-amber-400 shrink-0"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 shrink-0"
                       title="Hand raised"
                     >
                       <svg
@@ -130,7 +130,7 @@ const ParticipantsPanel = ({
                         viewBox="0 0 24 24"
                         strokeWidth={2}
                         stroke="currentColor"
-                        className="w-4 h-4"
+                        className="w-3.5 h-3.5"
                       >
                         <path
                           strokeLinecap="round"
@@ -138,12 +138,15 @@ const ParticipantsPanel = ({
                           d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 1.5 0v2.716a5.499 5.499 0 0 1-.43 2.103 5.99 5.99 0 0 1 2.43 2.103 5.499 5.499 0 0 1-.43-2.103V2.75a.75.75 0 0 1 1.5 0v6.375a4.5 4.5 0 0 1-1.5 3.375 9 9 0 0 1-6.939 2.437A9.001 9.001 0 0 1 6.633 10.25z"
                         />
                       </svg>
+                      <span className="text-xs font-medium">Raised</span>
                     </span>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-3 text-slate-400">
                   <span
-                    className="flex items-center gap-1"
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${
+                      micMuted ? "bg-red-500/10" : "bg-green-500/10"
+                    }`}
                     title={micMuted ? "Muted" : "Unmuted"}
                   >
                     {micMuted ? (
@@ -182,10 +185,14 @@ const ParticipantsPanel = ({
                         />
                       </svg>
                     )}
-                    <span className="text-xs">{micMuted ? "Muted" : "On"}</span>
+                    <span className={`text-xs font-medium ${micMuted ? "text-red-400" : "text-green-400"}`}>
+                      {micMuted ? "Muted" : "Mic"}
+                    </span>
                   </span>
                   <span
-                    className="flex items-center gap-1"
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${
+                      cameraOn ? "bg-green-500/10" : "bg-red-500/10"
+                    }`}
                     title={cameraOn ? "Camera on" : "Camera off"}
                   >
                     {cameraOn ? (
@@ -224,18 +231,20 @@ const ParticipantsPanel = ({
                         />
                       </svg>
                     )}
-                    <span className="text-xs">{cameraOn ? "On" : "Off"}</span>
+                    <span className={`text-xs font-medium ${cameraOn ? "text-green-400" : "text-red-400"}`}>
+                      {cameraOn ? "Cam" : "Off"}
+                    </span>
                   </span>
                 </div>
               </div>
               {canModerate && !isLocal ? (
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => muteParticipant(p.userId)}
                     disabled={actioningId != null}
-                    className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-50"
-                    title="Mute"
+                    className="p-2 rounded-lg bg-slate-700/50 text-slate-300 hover:text-slate-100 hover:bg-slate-700 disabled:opacity-50 transition-all duration-200"
+                    title="Mute participant"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -256,8 +265,8 @@ const ParticipantsPanel = ({
                     type="button"
                     onClick={() => removeParticipant(p.userId)}
                     disabled={actioningId != null}
-                    className="p-1.5 rounded text-red-400 hover:text-red-200 hover:bg-slate-700 disabled:opacity-50"
-                    title="Remove"
+                    className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:text-red-300 hover:bg-red-500/20 disabled:opacity-50 transition-all duration-200"
+                    title="Remove participant"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"

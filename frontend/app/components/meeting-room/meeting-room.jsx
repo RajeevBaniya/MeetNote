@@ -3,11 +3,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
 import useMeetingCall from "@/app/lib/use-meeting-call";
-import { useWaitingRoom } from "@/app/lib/use-waiting-room";
 import MeetingRoomContent from "./meeting-room-content";
 import MeetingRoomError from "./meeting-room-error";
 import MeetingRoomLoading from "./meeting-room-loading";
-import WaitingRoomModal from "./waiting-room-panel";
 import ConnectionStateBanner from "./connection-state-banner";
 import RecordingBanner from "./recording-banner";
 
@@ -15,12 +13,15 @@ import "@stream-io/video-react-sdk/dist/css/styles.css";
 
 const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) => {
   const [showAssistant, setShowAssistant] = useState(true);
-  const [waitingRoomOpen, setWaitingRoomOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
+  const [currentHostId, setCurrentHostId] = useState(hostId || null);
 
-  const { call, error } = useMeetingCall(callId, userId, onLeave, onSessionEnded);
-  const { pendingUserIds, disconnected, sendAction } = useWaitingRoom(callId, jwt);
-  const isHost = Boolean(hostId && userId && String(hostId) === String(userId));
+  const { call, error, hasLeftRef } = useMeetingCall(callId, userId, onLeave, onSessionEnded);
+  const isHost = Boolean(currentHostId && userId && String(currentHostId) === String(userId));
+
+  useEffect(() => {
+    setCurrentHostId(hostId || null);
+  }, [hostId]);
 
   useEffect(() => {
     if (!callId || !jwt) return;
@@ -37,10 +38,20 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) =
   }, [callId, jwt]);
 
   const handleLeave = useCallback(() => {
-    setWaitingRoomOpen(false);
     setParticipantsOpen(false);
     onLeave?.();
   }, [onLeave]);
+
+  const handleHostChanged = useCallback(
+    (incomingHostId) => {
+      if (!incomingHostId) return;
+      const next = String(incomingHostId);
+      const current = currentHostId != null ? String(currentHostId) : null;
+      if (current === next) return;
+      setCurrentHostId(incomingHostId);
+    },
+    [currentHostId],
+  );
 
   if (error) {
     return <MeetingRoomError error={error} />;
@@ -60,8 +71,9 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) =
             showAssistant={showAssistant}
             setShowAssistant={setShowAssistant}
             isHost={isHost}
-            pendingCount={pendingUserIds.length}
-            onOpenWaitingRoom={() => setWaitingRoomOpen(true)}
+            setCurrentHostId={handleHostChanged}
+            pendingCount={0}
+            onOpenWaitingRoom={undefined}
             onOpenParticipants={() => setParticipantsOpen(true)}
             onCloseParticipants={() => setParticipantsOpen(false)}
             participantsOpen={participantsOpen}
@@ -69,15 +81,8 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) =
             onLeave={onLeave}
             callId={callId}
             jwt={jwt}
+            hasLeftRef={hasLeftRef}
           />
-          {waitingRoomOpen && isHost ? (
-            <WaitingRoomModal
-              pendingUserIds={pendingUserIds}
-              disconnected={disconnected}
-              onClose={() => setWaitingRoomOpen(false)}
-              sendAction={sendAction}
-            />
-          ) : null}
         </div>
       </StreamCall>
     </StreamTheme>

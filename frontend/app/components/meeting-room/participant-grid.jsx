@@ -12,6 +12,7 @@ import {
 const ParticipantGrid = ({
   showAssistant = false,
   isCompact = false,
+  isStrip = false,
   currentUserId,
   isHost,
   raisedHandUserIds = new Set(),
@@ -55,17 +56,40 @@ const ParticipantGrid = ({
   };
 
 
+  if (isStrip) {
+    return (
+      <div className="w-full h-full bg-[#020617] flex flex-row items-stretch gap-2 overflow-x-auto overflow-y-hidden px-3 py-2 custom-scrollbar">
+        {sortedParticipants.map((participant) => {
+          const key = participant.sessionId || participant.userId;
+          const showHostBadge =
+            Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
+          const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
+          return (
+            <div key={key} className="relative h-full aspect-video shrink-0 rounded-lg overflow-hidden border border-slate-700/40">
+              <ParticipantTile
+                participant={participant}
+                isAssistant={isAssistantParticipant(participant)}
+                isHost={showHostBadge}
+                isHandRaised={isHandRaised}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   if (isCompact) {
     return (
       <div className="absolute inset-0 w-full h-full bg-[#020617] rounded-none overflow-hidden flex flex-col min-h-0 min-w-0">
-        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar min-h-0">
+        <div className="flex-1 overflow-y-auto p-1.5 space-y-1.5 custom-scrollbar min-h-0">
           {sortedParticipants.map((participant) => {
             const key = participant.sessionId || participant.userId;
             const showHostBadge =
               Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
             const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
             return (
-              <div key={key} className="h-32 shrink-0">
+              <div key={key} className="w-full aspect-video shrink-0 rounded-lg overflow-hidden">
                 <ParticipantTile
                   participant={participant}
                   isAssistant={isAssistantParticipant(participant)}

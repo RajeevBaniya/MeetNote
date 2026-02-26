@@ -11,18 +11,18 @@ const MeetingContent = ({ showAssistant, currentUserId, isHost, raisedHandUserId
 
   if (hasScreenShare) {
     return (
-      <div className="w-full h-full flex gap-3 min-h-0 min-w-0">
-        <div className="flex-1 min-w-0 min-h-0 rounded-lg overflow-hidden">
-          <ScreenShareView />
-        </div>
-        <div className="w-56 shrink-0 min-h-0 rounded-lg overflow-hidden">
+      <div className="absolute inset-0 w-full h-full flex flex-col min-h-0 min-w-0">
+        <div className="h-[118px] sm:h-[128px] md:h-[138px] xl:h-[148px] shrink-0 border-b border-slate-700/60 bg-[#020617]">
           <ParticipantGrid
             showAssistant={showAssistant}
-            isCompact={true}
+            isStrip={true}
             currentUserId={currentUserId}
             isHost={isHost}
             raisedHandUserIds={raisedSet}
           />
+        </div>
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+          <ScreenShareView />
         </div>
       </div>
     );

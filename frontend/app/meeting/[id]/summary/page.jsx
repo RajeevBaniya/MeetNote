@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/lib/use-auth";
 import Navbar from "@/app/components/landing/navbar";
 import MeetingInsights from "../meeting-insights";
+import MeetingSummariesSection from "./meeting-summaries-section";
 
 function RecordingSection({ recordings }) {
   const first = Array.isArray(recordings) && recordings.length > 0 ? recordings[0] : null;
@@ -72,7 +72,7 @@ const pageBackground = (
 
 const ENDED_BANNER_MESSAGE = "This meeting has ended. You were redirected here from the call.";
 
-function SummaryContent({ meeting, recordings, transcriptSegments, onBack, onOpenAuth, showEndedBanner, jwt }) {
+function SummaryContent({ meeting, recordings, transcriptSegments, onOpenAuth, showEndedBanner, jwt }) {
   const title = meeting?.title ? String(meeting.title).trim() : "Meeting";
 
   return (
@@ -100,6 +100,7 @@ function SummaryContent({ meeting, recordings, transcriptSegments, onBack, onOpe
 
         <div className="space-y-6">
           <MeetingInsights meetingId={meeting.id} jwt={jwt} meeting={meeting} />
+          <MeetingSummariesSection meetingId={meeting.id} />
           <section className="rounded-xl border border-slate-700/60 bg-slate-800/40 px-4 py-4 sm:px-5 sm:py-4">
             <h2 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">
               Recording
@@ -115,22 +116,6 @@ function SummaryContent({ meeting, recordings, transcriptSegments, onBack, onOpe
             <p className="mb-3 text-slate-100">Meeting transcript</p>
             <TranscriptSection segments={transcriptSegments} />
           </section>
-        </div>
-
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1419]"
-          >
-            Back to home
-          </button>
-          <Link
-            href="/meetings"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-800/60 px-5 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-700/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1419]"
-          >
-            My meetings
-          </Link>
         </div>
       </main>
     </div>
@@ -324,7 +309,6 @@ function SummaryPageContent() {
       meeting={meeting}
       recordings={recordings}
       transcriptSegments={transcriptSegments}
-      onBack={handleBack}
       onOpenAuth={openAuth}
       showEndedBanner={showEndedBanner}
       jwt={jwt}

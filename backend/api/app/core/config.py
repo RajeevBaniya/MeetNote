@@ -44,6 +44,25 @@ def get_stream_api_secret() -> str:
     return secret.strip()
 
 
+def get_stream_webhook_secret() -> str:
+    secret = os.getenv("STREAM_WEBHOOK_SECRET")
+    if not secret or not secret.strip():
+        raise ValueError("STREAM_WEBHOOK_SECRET is required")
+    return secret.strip()
+
+
+def get_groq_chunk_api_key() -> str:
+    key = os.getenv("GROQ_API_KEY_CHUNK")
+    if not key or not key.strip():
+        raise ValueError("GROQ_API_KEY_CHUNK is required")
+    return key.strip()
+
+
+def get_groq_chunk_model() -> str:
+    model = os.getenv("GROQ_CHUNK_MODEL", "llama-3.1-8b-instant")
+    return model.strip() or "llama-3.1-8b-instant"
+
+
 def get_rate_limit_requests() -> int:
     raw = os.getenv("RATE_LIMIT_REQUESTS", "60")
     try:

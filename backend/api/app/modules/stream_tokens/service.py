@@ -338,3 +338,47 @@ async def get_stream_transcript_segments(
             }
         )
     return segments
+
+
+async def query_stream_call_members(
+    call_type: str,
+    call_id: str,
+    acting_user_id: UUID,
+) -> list[dict]:
+    api_key = get_stream_api_key()
+    token = _create_server_token(acting_user_id)
+    url = f"{STREAM_VIDEO_BASE}/call/members"
+    params = {"api_key": api_key}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "stream-auth-type": "jwt",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "id": call_id,
+        "type": call_type,
+        "limit": 100,
+        "sort": [{"field": "created_at", "direction": 1}],
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.post(url, params=params, headers=headers, json=payload)
+        if resp.status_code >= 400:
+            logger.warning(
+                "stream_query_call_members_failed",
+                extra={"call_id": call_id, "status": resp.status_code, "body": resp.text},
+            )
+            return []
+        data = resp.json()
+    members = data.get("members") if isinstance(data, dict) else None
+    if not isinstance(members, list):
+        return []
+    out: list[dict] = []
+    for m in members:
+        if not isinstance(m, dict):
+            continue
+        user = m.get("user") if isinstance(m.get("user"), dict) else {}
+        uid = user.get("id") or m.get("user_id")
+        if not uid or not isinstance(uid, str):
+            continue
+        out.append({"user_id": uid})
+    return out

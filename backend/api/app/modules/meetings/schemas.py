@@ -12,6 +12,8 @@ class CreateMeetingIn(BaseModel):
 class MeetingOut(BaseModel):
     id: UUID
     host_id: UUID
+    original_host_id: UUID
+    current_host_id: UUID
     title: str
     join_code: str
     passcode: str

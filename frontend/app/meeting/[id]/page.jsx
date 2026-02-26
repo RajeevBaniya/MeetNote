@@ -8,6 +8,7 @@ import MeetingRoom from "@/app/components/meeting-room/meeting-room";
 import { StreamTheme } from "@stream-io/video-react-sdk";
 import { useAuth } from "@/app/lib/use-auth";
 import { useStreamTokenFromBackend } from "@/app/lib/use-stream-token";
+import { checkLeavingForSummarizeAndRedirect } from "@/app/lib/use-leave-and-summarize";
 
 const REDIRECT_DELAY_MS = 2500;
 const REFRESH_SAFETY_SECONDS = 300;
@@ -215,7 +216,7 @@ function MeetingPageContent() {
           setMeetingFetchStatus("ended");
           return;
         }
-        setHostId(data.host_id);
+        setHostId(data.current_host_id || data.host_id);
         setScheduledStartAt(data.scheduled_start_at || null);
         setMeetingLoaded(true);
         setMeetingFetchStatus("found");
@@ -239,6 +240,8 @@ function MeetingPageContent() {
   }, [router]);
 
   const handleSessionEnded = useCallback(async () => {
+    if (checkLeavingForSummarizeAndRedirect(router, callId)) return;
+
     let removed = false;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (apiUrl && callId && jwt) {
@@ -317,6 +320,30 @@ function MeetingPageContent() {
     );
   }
 
+  if (status === "scheduled") {
+    const message = error || "This meeting is scheduled and has not started yet.";
+    return (
+      <ErrorCard
+        title="Meeting not started yet"
+        message={message}
+        onBack={() => router.push("/")}
+      />
+    );
+  }
+
+  if (status === "host_not_started") {
+    const message =
+      error ||
+      "This meeting has not been started by the host yet. Please wait for the host to join and try again.";
+    return (
+      <ErrorCard
+        title="Waiting for host"
+        message={message}
+        onBack={() => router.push("/")}
+      />
+    );
+  }
+
   if (error && status === "error") {
     const text = typeof error === "string" ? error : String(error);
     const lower = text.toLowerCase();
@@ -362,22 +389,6 @@ function MeetingPageContent() {
         message={message}
         onBack={() => router.push("/")}
       />
-    );
-  }
-
-  if (status === "waiting_approval") {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-amber-500 mx-auto" />
-          <p className="mt-4 text-lg text-slate-300 font-medium">
-            Waiting for host approval
-          </p>
-          <p className="mt-2 text-sm text-slate-500">
-            The host will let you in shortly. We will retry automatically.
-          </p>
-        </div>
-      </div>
     );
   }
 

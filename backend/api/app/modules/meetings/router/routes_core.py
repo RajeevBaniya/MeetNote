@@ -38,6 +38,7 @@ from app.modules.stream_tokens.service import (
     stop_stream_recording,
 )
 from app.state.client import get_redis
+from app.modules.transcripts.service import expire_transcript_keys
 from app.modules.chat.websocket import close_chat_connections, close_chat_connections_for_user
 
 
@@ -166,7 +167,7 @@ async def post_end_meeting(
         await stop_stream_recording(
             STREAM_CALL_TYPE,
             str(meeting_id),
-            meeting.host_id,
+            user_id,
         )
     except Exception:
         logger.debug("stop_stream_recording_on_end_ignored meeting_id=%s", meeting_id)
@@ -174,11 +175,19 @@ async def post_end_meeting(
         await end_stream_call(
             STREAM_CALL_TYPE,
             str(meeting_id),
-            meeting.host_id,
+            user_id,
         )
     except Exception:
         logger.exception("end_stream_call_failed meeting_id=%s", meeting_id)
     await close_chat_connections(meeting_id)
+    try:
+        redis = await get_redis()
+        await expire_transcript_keys(redis, meeting_id)
+        assistant_key = f"assistant_enabled:{meeting_id}"
+        removed_users_key = f"meeting:{meeting_id}:removed_users"
+        await redis.delete(assistant_key, removed_users_key)
+    except Exception:
+        logger.debug("expire_transcript_keys_failed meeting_id=%s", meeting_id)
     await publish_meeting_ended(meeting_id)
     return EndMeetingOut()
 
@@ -202,13 +211,13 @@ async def post_remove_participant(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Meeting is inactive",
         )
-    if meeting.host_id != user_id:
+    if meeting.current_host_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the host can remove participants",
         )
     target_id = body.user_id
-    if meeting.host_id == target_id:
+    if meeting.current_host_id == target_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Host cannot remove themselves this way",
@@ -229,7 +238,7 @@ async def post_remove_participant(
         await kick_stream_user(
             STREAM_CALL_TYPE,
             str(meeting_id),
-            meeting.host_id,
+            user_id,
             target_id,
         )
     except Exception:
@@ -255,7 +264,7 @@ async def post_mute_participant(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Meeting is inactive",
         )
-    if meeting.host_id != user_id:
+    if meeting.current_host_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the host can mute participants",
@@ -265,7 +274,7 @@ async def post_mute_participant(
         await mute_stream_user(
             STREAM_CALL_TYPE,
             str(meeting_id),
-            meeting.host_id,
+            user_id,
             target_id,
         )
     except Exception:

@@ -39,7 +39,7 @@ async def post_start_recording(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Meeting is inactive",
         )
-    if meeting.host_id != user_id:
+    if meeting.current_host_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the host can start recording",
@@ -48,7 +48,7 @@ async def post_start_recording(
         await start_stream_recording(
             STREAM_CALL_TYPE,
             str(meeting_id),
-            meeting.host_id,
+            user_id,
         )
     except Exception:
         logger.exception("start_stream_recording_failed meeting_id=%s", meeting_id)
@@ -77,7 +77,7 @@ async def post_stop_recording(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Meeting is inactive",
         )
-    if meeting.host_id != user_id:
+    if meeting.current_host_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the host can stop recording",
@@ -86,7 +86,7 @@ async def post_stop_recording(
         await stop_stream_recording(
             STREAM_CALL_TYPE,
             str(meeting_id),
-            meeting.host_id,
+            user_id,
         )
     except Exception:
         logger.exception("stop_stream_recording_failed meeting_id=%s", meeting_id)

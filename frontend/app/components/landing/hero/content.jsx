@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useAuth } from "@/app/lib/use-auth";
 import { useRouter } from "next/navigation";
 
@@ -11,6 +10,16 @@ function Content({ onOpenAuth }) {
   const handleGetStarted = () => {
     if (isAuthenticated) {
       router.push("/meeting/join?mode=host");
+    } else if (onOpenAuth) {
+      onOpenAuth("signup");
+    } else {
+      router.push("/?auth=signup");
+    }
+  };
+
+  const handleExploreFeatures = () => {
+    if (isAuthenticated) {
+      router.push("/features");
     } else if (onOpenAuth) {
       onOpenAuth("signup");
     } else {
@@ -40,12 +49,13 @@ function Content({ onOpenAuth }) {
         >
           {isAuthenticated ? "Start Meeting" : "Get Started"}
         </button>
-        <Link
-          href="#product"
+        <button
+          type="button"
+          onClick={handleExploreFeatures}
           className="inline-flex items-center justify-center rounded-lg bg-slate-800 px-5 py-3 text-sm font-semibold text-slate-100 ring-1 ring-slate-700 transition hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
         >
           Explore features
-        </Link>
+        </button>
       </div>
     </div>
   );

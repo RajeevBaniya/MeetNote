@@ -38,6 +38,7 @@ function Card({ isCardHovered, isCardClicked, onHoverChange, onCardClick }) {
             sizes="(min-width: 1280px) 520px, (min-width: 1024px) 460px, (min-width: 768px) 420px, 90vw"
             priority
           />
+          <div className={`hero-card-image-overlay ${isStraight ? "hero-card-image-overlay-bright" : ""}`} />
         </div>
       </div>
       <div className={`hero-card-ray ${rayClass}`} />

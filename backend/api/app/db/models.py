@@ -41,6 +41,16 @@ class Meeting(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
+    original_host_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    current_host_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     title: Mapped[str] = mapped_column(Text, default="", nullable=False)
     join_code: Mapped[str] = mapped_column(String(12), unique=True, nullable=False, index=True)
     passcode: Mapped[str] = mapped_column(String(6), nullable=False)

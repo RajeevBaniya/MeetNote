@@ -32,7 +32,7 @@ async def get_meeting_analytics(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    if meeting.host_id != user_id:
+    if meeting.current_host_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the host can view analytics for this meeting",
@@ -66,7 +66,7 @@ async def get_meeting_analytics(
         uid = msg.get("user_id")
         if isinstance(uid, str) and uid.strip():
             participant_ids.add(uid.strip())
-    participant_ids.add(str(meeting.host_id))
+    participant_ids.add(str(meeting.original_host_id))
     participants_count = len(participant_ids)
     try:
         recordings = await list_stream_recordings(

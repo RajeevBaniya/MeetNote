@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -6,12 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 
-from app.core.config import (
-    get_database_url,
-    get_jwt_secret,
-    get_stream_api_key,
-    get_stream_api_secret,
-)
+from app.core.config import get_database_url, get_jwt_secret
 from app.core.redis import get_redis_url
 from app.db.base import engine
 from app.db.models import Meeting
@@ -23,6 +19,9 @@ from app.modules.meetings.events import publish_meeting_snapshot
 from app.modules.stream_tokens.router import router as stream_tokens_router
 from app.modules.chat.router import router as chat_router
 from app.modules.chat.websocket import chat_websocket
+from app.modules.transcripts.webhook import router as transcript_webhook_router
+from app.modules.transcripts.websocket import transcript_websocket
+from app.modules.transcripts.worker import run_transcript_worker
 from app.state.client import close_redis, get_redis
 
 
@@ -52,16 +51,53 @@ async def run_db_migrations() -> None:
                     "ADD COLUMN IF NOT EXISTS host_joined BOOLEAN NOT NULL DEFAULT FALSE"
                 )
             )
+            await conn.execute(
+                text(
+                    "ALTER TABLE meetings "
+                    "ADD COLUMN IF NOT EXISTS original_host_id UUID NULL"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE meetings "
+                    "ADD COLUMN IF NOT EXISTS current_host_id UUID NULL"
+                )
+            )
+            await conn.execute(
+                text(
+                    "UPDATE meetings "
+                    "SET original_host_id = host_id "
+                    "WHERE original_host_id IS NULL"
+                )
+            )
+            await conn.execute(
+                text(
+                    "UPDATE meetings "
+                    "SET current_host_id = host_id "
+                    "WHERE current_host_id IS NULL"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE meetings "
+                    "ALTER COLUMN original_host_id SET NOT NULL"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE meetings "
+                    "ALTER COLUMN current_host_id SET NOT NULL"
+                )
+            )
     except Exception:
         pass
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    worker_task: asyncio.Task | None = None
     get_database_url()
     get_jwt_secret()
-    get_stream_api_key()
-    get_stream_api_secret()
     if not get_redis_url():
         raise ValueError("REDIS_URL is required")
     await run_db_migrations()
@@ -73,9 +109,16 @@ async def lifespan(app: FastAPI):
             meetings = list(result.scalars().all())
         if meetings:
             await publish_meeting_snapshot([m.id for m in meetings])
+        worker_task = asyncio.create_task(run_transcript_worker())
     except Exception:
         logging.debug("meeting_snapshot_startup_failed", exc_info=True)
     yield
+    if worker_task is not None:
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
     await close_redis()
 
 
@@ -114,7 +157,9 @@ app.include_router(meetings_router)
 app.include_router(join_router)
 app.include_router(stream_tokens_router)
 app.include_router(chat_router)
+app.include_router(transcript_webhook_router)
 app.websocket("/ws/meetings/{meeting_id}/chat")(chat_websocket)
+app.websocket("/ws/meetings/{meeting_id}/transcript")(transcript_websocket)
 
 
 @app.get("/health")

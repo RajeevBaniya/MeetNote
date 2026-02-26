@@ -37,7 +37,7 @@ function isAssistantMessage(message) {
   return id === ASSISTANT_USER_ID || name === ASSISTANT_DISPLAY_NAME;
 }
 
-export function useMeetingChat(meetingId, jwt, isChatTabVisible = false) {
+export function useMeetingChat(meetingId, jwt, isChatTabVisible = false, onHostChanged) {
   const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
@@ -105,6 +105,22 @@ export function useMeetingChat(meetingId, jwt, isChatTabVisible = false) {
         const data = JSON.parse(event.data);
         if (data.type === "history" && Array.isArray(data.messages)) {
           setMessages(data.messages.filter((message) => !isAssistantMessage(message)));
+          return;
+        }
+        if (data.type === "initial_state" && typeof data.current_host_id === "string") {
+          try {
+            onHostChanged?.(data.current_host_id);
+          } catch {
+            // ignore
+          }
+          return;
+        }
+        if (data.type === "host_changed" && typeof data.new_host_id === "string") {
+          try {
+            onHostChanged?.(data.new_host_id);
+          } catch {
+            // ignore
+          }
           return;
         }
         if (data.type === "chat_message") {

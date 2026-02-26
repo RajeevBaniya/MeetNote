@@ -10,6 +10,8 @@ function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
   const [error, setError] = useState(null);
   const joinedRef = useRef(false);
   const leavingRef = useRef(false);
+  const hasLeftRef = useRef(false);
+  const callRef = useRef(null);
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
@@ -22,7 +24,17 @@ function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
     const init = async () => {
       try {
         const myCall = client.call(CALL_TYPE, callId);
-        await myCall.join({ create: true });
+        await myCall.join({
+          create: true,
+          data: {
+            settings_override: {
+              screensharing: {
+                enabled: true,
+                access_request_enabled: false,
+              },
+            },
+          },
+        });
 
         await myCall.startClosedCaptions({ language: CLOSED_CAPTIONS_LANGUAGE });
 
@@ -31,24 +43,32 @@ function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
           fn?.();
         });
 
+        callRef.current = myCall;
         setCall(myCall);
       } catch (err) {
-        setError(err.message);
+        const message =
+          (err && typeof err.message === "string" && err.message) ||
+          "We couldn’t connect to the meeting. Please refresh and try again.";
+        setError(message);
       }
     };
 
-    init();
+    init().catch(() => {
+      setError("We couldn’t connect to the meeting. Please refresh and try again.");
+    });
 
     return () => {
-      if (call && !leavingRef.current) {
+      if (hasLeftRef.current) return;
+      const c = callRef.current;
+      if (c && !leavingRef.current) {
         leavingRef.current = true;
-        call.stopClosedCaptions().catch(() => {});
-        call.leave().catch(() => {});
+        c.stopClosedCaptions().catch(() => {});
+        c.leave().catch(() => {});
       }
     };
   }, [client, callId, userId]);
 
-  return { call, error };
+  return { call, error, hasLeftRef };
 }
 
 export default useMeetingCall;

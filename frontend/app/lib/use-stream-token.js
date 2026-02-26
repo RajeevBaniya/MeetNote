@@ -75,6 +75,24 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode,
         return;
       }
 
+      if (res.status === 409) {
+        const text = await res.text();
+        let message = "Meeting has not been started by host yet.";
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed.detail === "string" && parsed.detail.trim()) {
+            message = parsed.detail;
+          }
+        } catch {
+          if (text && text.trim()) {
+            message = text;
+          }
+        }
+        setError(message);
+        setStatus("host_not_started");
+        return;
+      }
+
       if (res.status === 403) {
         const text = await res.text();
         let detail = "";
@@ -89,7 +107,7 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode,
           setStatus("error");
           return;
         }
-         if (detail.includes("passcode required")) {
+        if (detail.includes("passcode required")) {
           setError("Passcode required");
           setStatus("error");
           return;
@@ -99,9 +117,13 @@ export function useStreamTokenFromBackend(meetingId, jwt, displayName, passcode,
           setStatus("error");
           return;
         }
-        setStatus("waiting_approval");
-        setError(null);
-        timeoutRef.current = setTimeout(fetchToken, POLL_INTERVAL_MS);
+        if (detail.includes("scheduled") && detail.includes("has not started")) {
+          setError("This meeting is scheduled and has not started yet.");
+          setStatus("scheduled");
+          return;
+        }
+        setError(text || "You are not allowed to join this meeting.");
+        setStatus("error");
         return;
       }
 

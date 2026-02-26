@@ -61,7 +61,7 @@ async def put_assistant_preference(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Meeting is not active",
         )
-    if meeting.host_id != user_id:
+    if meeting.current_host_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the host can change assistant preference",

@@ -13,6 +13,7 @@ import httpx
 from dotenv import load_dotenv
 from jose import jwt
 from redis.asyncio import Redis
+import re
 
 from vision_agents.core import agents
 from vision_agents.core.edge.types import User
@@ -71,7 +72,7 @@ class AgentConstants:
     MIN_TRANSCRIPT_LENGTH: int = 50
     MAX_QUESTION_LENGTH: int = 200
     MAX_HISTORY_LENGTH: int = 500
-    RECENT_TRANSCRIPT_LIMIT: int = 10
+    RECENT_TRANSCRIPT_LIMIT: int = 50
 
 
 class ActivationPhrase(str, Enum):
@@ -390,6 +391,7 @@ class AssistantCore:
         for phrase in deactivation_phrases:
             if phrase in text_lower:
                 self.assistant_active = False
+                self.pending_question = None
                 return True
         
         return False
@@ -459,6 +461,20 @@ class AssistantCore:
         if not history:
             return "I do not have enough context from this meeting yet."
         
+        history_lower = history.lower()
+        question_lower = question.lower()
+        
+        words = re.findall(r"\\w+", question_lower)
+        stop_words = {
+            "the", "is", "are", "was", "were", "what", "where", "who", "when", "how",
+            "a", "an", "of", "for", "in", "to", "about", "this", "that", "did", "do",
+            "we", "you", "i", "and", "or", "on", "at", "from", "our", "your", "meeting"
+        }
+        keywords = [w for w in words if w not in stop_words]
+        
+        if keywords and not any(k in history_lower for k in keywords):
+            return "That was not discussed in this meeting."
+        
         short_question = question.strip()
         if len(short_question) > AgentConstants.MAX_QUESTION_LENGTH:
             short_question = short_question[:AgentConstants.MAX_QUESTION_LENGTH] + "..."
@@ -467,9 +483,9 @@ class AssistantCore:
             history = history[:AgentConstants.MAX_HISTORY_LENGTH] + "..."
         
         return (
-            "Based on the recent part of this meeting, here is a focused answer. "
-            f"Question: {short_question} "
-            f"Context: {history}"
+            "Based strictly on what was said in this meeting, "
+            f"here is a focused answer to your question '{short_question}'. "
+            f"Relevant context: {history}"
         )
 
 
@@ -544,13 +560,15 @@ class AgentManager:
                 name=AgentConstants.SYSTEM_DISPLAY_NAME,
             ),
             instructions=(
-                "You are a meeting assistant. "
-                "You understand multilingual speech from participants, "
-                "but you always respond in clear, professional English. "
-                "Your responses must be in English only, regardless of "
-                "the language used in questions or discussions. "
-                "If the user says 'stop assistant', 'bye assistant', 'deactivate assistant', "
-                "or 'turn off assistant', do not respond at all; remain silent."
+                "You are a meeting assistant. You will get activated by the user when they say 'hey assistant' until then you will remain silent."
+                "You understand multilingual speech from participants, but you always respond in clear, professional English. "
+                "Your responses must be in English only, regardless of the language used in questions or discussions. "
+                "You may ONLY answer using information explicitly stated in the meeting transcript available to you. "
+                "Do NOT use any external or general knowledge beyond what was said in this meeting. "
+                "If the answer cannot be found in the transcript context, respond exactly with: 'That was not discussed in this meeting.' "
+                "Do not infer beyond what is explicitly stated. "
+                "Do not fabricate missing details. "
+                "If the user says 'stop assistant', 'bye assistant', 'deactivate assistant' or 'turn off assistant', do not respond at all; remain silent."
             ),
             llm=llm_instance,
         )

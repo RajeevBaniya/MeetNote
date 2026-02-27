@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Meeting
 from app.db.session import async_session_factory
 from app.modules.stream_tokens.service import query_stream_call_members
+from app.core.metrics import incr
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,8 @@ async def transfer_host_if_current_disconnected(
                 .where(Meeting.id == meeting_id)
                 .values(current_host_id=candidate)
             )
+        if candidate is not None:
+            incr("host_transfers_total")
         return candidate
 
 

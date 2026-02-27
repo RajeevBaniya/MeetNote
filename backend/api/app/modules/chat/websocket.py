@@ -18,8 +18,10 @@ from app.modules.meetings.service import (
     get_meeting_by_id,
     restore_original_host_if_rejoined,
 )
+from app.modules.meetings.reconciliation import reconcile_meeting_state_with_guard
 from app.modules.stream_tokens.service import is_user_removed
 from app.state.client import get_redis
+from app.core.metrics import incr
 
 WS_CLOSE_UNAUTHORIZED = 4401
 WS_CLOSE_FORBIDDEN = 4403
@@ -133,7 +135,12 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
         return
     try:
         redis = await get_redis()
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "ws_redis_unavailable",
+            extra={"meeting_id": str(meeting_id), "user_id": str(user_id)},
+            exc_info=exc,
+        )
         await websocket.close(code=1011, reason="Service unavailable")
         return
     removed = await is_user_removed(redis, meeting_id, user_id)
@@ -156,6 +163,12 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
             extra={"meeting_id": str(meeting_id)},
             exc_info=exc,
         )
+    incr("ws_connected_total")
+    logger.info(
+        "ws_connected",
+        extra={"meeting_id": str(meeting_id), "user_id": str(user_id)},
+    )
+    await reconcile_meeting_state_with_guard(meeting_id)
     try:
         restored = await restore_original_host_if_rejoined(meeting_id, user_id)
         if restored is not None:
@@ -195,7 +208,10 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
                 except Exception:
                     pass
     except WebSocketDisconnect:
-        pass
+        logger.info(
+            "ws_disconnected",
+            extra={"meeting_id": str(meeting_id), "user_id": str(user_id)},
+        )
     except Exception:
         try:
             await websocket.close(code=1011)

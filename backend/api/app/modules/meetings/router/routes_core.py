@@ -17,6 +17,7 @@ from app.modules.meetings.schemas import (
     ParticipantActionIn,
     CheckRemovedOut,
     RecordingActionOut,
+    MeetingParticipantsOut,
 )
 from app.modules.meetings.service import (
     create_meeting,
@@ -25,6 +26,7 @@ from app.modules.meetings.service import (
     get_meetings_for_host,
     STREAM_CALL_TYPE,
 )
+from app.modules.meetings.reconciliation import reconcile_meeting_state_with_guard
 from app.modules.meetings.events import (
     publish_meeting_created,
     publish_meeting_ended,
@@ -189,7 +191,55 @@ async def post_end_meeting(
     except Exception:
         logger.debug("expire_transcript_keys_failed meeting_id=%s", meeting_id)
     await publish_meeting_ended(meeting_id)
+    await reconcile_meeting_state_with_guard(meeting_id)
     return EndMeetingOut()
+
+
+@router.get("/{meeting_id}/participants", response_model=MeetingParticipantsOut)
+async def get_meeting_participants(
+    meeting_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+    _: None = Depends(rate_limit_general),
+):
+    meeting = await get_meeting_by_id(session, meeting_id)
+    if not meeting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found",
+        )
+    try:
+        members = await query_stream_call_members(
+            STREAM_CALL_TYPE,
+            str(meeting_id),
+            user_id,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable",
+        )
+    items: list[dict] = []
+    for m in members:
+        uid = m.get("user_id")
+        if not isinstance(uid, str):
+            continue
+        try:
+            user_uuid = UUID(uid)
+        except Exception:
+            continue
+        is_host = user_uuid == meeting.current_host_id
+        name = m.get("name") if isinstance(m.get("name"), str) else ""
+        joined_at = m.get("joined_at") if isinstance(m.get("joined_at"), str) else ""
+        items.append(
+            {
+                "user_id": user_uuid,
+                "name": name,
+                "joined_at": joined_at,
+                "is_current_host": is_host,
+            }
+        )
+    return {"participants": items}
 
 
 @router.post("/{meeting_id}/remove-participant", status_code=status.HTTP_204_NO_CONTENT)

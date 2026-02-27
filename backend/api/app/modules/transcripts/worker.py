@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 
 from app.modules.transcripts.service import append_transcript_segment
 from app.state.client import get_redis
+from app.core.metrics import incr
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ async def run_transcript_worker() -> None:
         speaker_name=speaker_name,
         timestamp=timestamp,
       )
+      incr("transcript_chunks_processed_total")
     except asyncio.CancelledError:
       break
     except Exception:

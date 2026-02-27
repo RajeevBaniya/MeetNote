@@ -380,5 +380,13 @@ async def query_stream_call_members(
         uid = user.get("id") or m.get("user_id")
         if not uid or not isinstance(uid, str):
             continue
-        out.append({"user_id": uid})
+        name = user.get("name") if isinstance(user.get("name"), str) else None
+        joined_at = m.get("created_at") or user.get("created_at")
+        out.append(
+            {
+                "user_id": uid,
+                "name": name,
+                "joined_at": str(joined_at) if joined_at is not None else "",
+            }
+        )
     return out

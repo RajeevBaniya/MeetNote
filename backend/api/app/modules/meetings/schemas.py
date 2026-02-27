@@ -95,3 +95,14 @@ class AssistantPreferenceIn(BaseModel):
 
 class AssistantPreferenceOut(BaseModel):
     enabled: bool
+
+
+class MeetingParticipantOut(BaseModel):
+    user_id: UUID
+    name: str
+    joined_at: str
+    is_current_host: bool
+
+
+class MeetingParticipantsOut(BaseModel):
+    participants: list[MeetingParticipantOut]

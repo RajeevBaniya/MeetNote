@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 
 from app.core.config import get_database_url, get_jwt_secret
+from app.core.logging import configure_logging
+from app.core.metrics import incr, snapshot, init_metrics_worker
 from app.core.redis import get_redis_url
 from app.db.base import engine
 from app.db.models import Meeting
@@ -23,12 +25,7 @@ from app.modules.transcripts.webhook import router as transcript_webhook_router
 from app.modules.transcripts.websocket import transcript_websocket
 from app.modules.transcripts.worker import run_transcript_worker
 from app.state.client import close_redis, get_redis
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-)
+from app.core.request_id import RequestIdMiddleware
 
 CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
@@ -102,6 +99,7 @@ async def lifespan(app: FastAPI):
         raise ValueError("REDIS_URL is required")
     await run_db_migrations()
     try:
+        init_metrics_worker()
         async with async_session_factory() as session:
             result = await session.execute(
                 select(Meeting).where(Meeting.is_active.is_(True))
@@ -124,10 +122,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Smart Meeting API", version="0.1.0", lifespan=lifespan)
 
+configure_logging()
+app.add_middleware(RequestIdMiddleware)
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logging.exception("Unhandled exception: %s", exc)
+    request_id = getattr(request.state, "request_id", None)
+    logging.getLogger(__name__).error(
+        "unhandled_exception",
+        extra={"request_id": request_id},
+        exc_info=exc,
+    )
     origin = request.headers.get("origin")
     if origin not in CORS_ORIGINS:
         origin = CORS_ORIGINS[0] if CORS_ORIGINS else "*"
@@ -162,20 +168,66 @@ app.websocket("/ws/meetings/{meeting_id}/chat")(chat_websocket)
 app.websocket("/ws/meetings/{meeting_id}/transcript")(transcript_websocket)
 
 
-@app.get("/health")
-async def health_check() -> dict[str, str]:
+@app.get("/healthz")
+async def healthz() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/healthz/deep")
+async def healthz_deep() -> JSONResponse:
+    db_status = "ok"
+    redis_status = "ok"
+    stream_status = "ok"
+
     try:
         async with async_session_factory() as session:
             await session.execute(text("SELECT 1"))
     except Exception:
-        pass
+        db_status = "error"
+
     if get_redis_url():
         try:
             redis = await get_redis()
             await redis.ping()
         except Exception:
-            pass
-    return {"status": "ok"}
+            redis_status = "error"
+    else:
+        redis_status = "error"
+
+    # Lightweight Stream check: reuse list_stream_transcriptions path indirectly
+    # Here we only mark status unknown if configuration is missing.
+    if not get_database_url():
+        stream_status = "unknown"
+
+    overall = "ok"
+    if db_status != "ok" or redis_status != "ok" or stream_status not in ("ok", "unknown"):
+        overall = "error"
+        status_code = 503
+    else:
+        status_code = 200
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": overall,
+            "db": db_status,
+            "redis": redis_status,
+            "stream": stream_status,
+        },
+    )
+
+
+@app.get("/metrics")
+async def metrics() -> JSONResponse:
+    data = await snapshot()
+    status = "ok" if data else "error"
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": status,
+            "metrics": data,
+        },
+    )
 
 
 if __name__ == "__main__":

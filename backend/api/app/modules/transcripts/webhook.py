@@ -8,7 +8,9 @@ from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Request, status
 
 from app.core.config import get_stream_api_key, get_stream_api_secret
+from app.core.metrics import incr
 from app.modules.chat.websocket import broadcast_host_changed
+from app.modules.meetings.reconciliation import reconcile_meeting_state_with_guard
 from app.modules.meetings.service import transfer_host_if_current_disconnected
 from app.state.client import get_redis
 
@@ -59,6 +61,8 @@ async def stream_transcript_webhook(
     x_signature: str | None = Header(default=None, alias="X-Signature"),
     x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
 ) -> dict:
+    incr("webhook_events_received_total")
+
     if not x_signature or not x_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -72,6 +76,7 @@ async def stream_transcript_webhook(
             detail="Unauthorized",
         )
 
+    start_time = datetime.now(timezone.utc)
     raw_body = await request.body()
     secret = get_stream_api_secret().encode("utf-8")
     computed = hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
@@ -96,11 +101,13 @@ async def stream_transcript_webhook(
         )
 
     event_type = body.get("type")
+    meeting_id_for_log: str | None = None
 
     if event_type == "call.closed_caption":
         call_cid = str(body.get("call_cid") or "")
         meeting_id = _parse_meeting_id(call_cid)
         if meeting_id is None:
+        meeting_id_for_log = str(meeting_id)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or missing call_cid",
@@ -127,7 +134,13 @@ async def stream_transcript_webhook(
 
         try:
             redis = await get_redis()
-        except Exception:
+        except Exception as exc:
+            incr("webhook_failures_total")
+            logger.warning(
+                "webhook_redis_unavailable",
+                extra={"meeting_id": meeting_id_for_log},
+                exc_info=exc,
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Service temporarily unavailable",
@@ -141,6 +154,26 @@ async def stream_transcript_webhook(
             "timestamp": timestamp,
         }
         await redis.rpush("transcript_events", json.dumps(payload))
+        processing_ms = int(
+            (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+        )
+        logger.info(
+            "webhook_processed",
+            extra={
+                "meeting_id": meeting_id_for_log,
+                "event_type": event_type,
+                "processing_time_ms": processing_ms,
+            },
+        )
+        if processing_ms > 2000:
+            logger.warning(
+                "webhook_slow",
+                extra={
+                    "meeting_id": meeting_id_for_log,
+                    "event_type": event_type,
+                    "processing_time_ms": processing_ms,
+                },
+            )
         return {"accepted": True}
 
     if event_type in {"call.member_removed", "call.member_updated", "call.session_ended"}:
@@ -208,8 +241,51 @@ async def stream_transcript_webhook(
             if new_host is None:
                 return
             await broadcast_host_changed(meeting_id, new_host)
+            await reconcile_meeting_state_with_guard(meeting_id)
 
         asyncio.create_task(_debounced_transfer())
+        asyncio.create_task(reconcile_meeting_state_with_guard(meeting_id))
+
+        processing_ms = int(
+            (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+        )
+        logger.info(
+            "webhook_processed",
+            extra={
+                "meeting_id": str(meeting_id),
+                "event_type": event_type,
+                "processing_time_ms": processing_ms,
+            },
+        )
+        if processing_ms > 2000:
+            logger.warning(
+                "webhook_slow",
+                extra={
+                    "meeting_id": str(meeting_id),
+                    "event_type": event_type,
+                    "processing_time_ms": processing_ms,
+                },
+            )
         return {"accepted": True}
 
+    processing_ms = int(
+        (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+    )
+    logger.info(
+        "webhook_processed",
+        extra={
+            "meeting_id": meeting_id_for_log,
+            "event_type": event_type,
+            "processing_time_ms": processing_ms,
+        },
+    )
+    if processing_ms > 2000:
+        logger.warning(
+            "webhook_slow",
+            extra={
+                "meeting_id": meeting_id_for_log,
+                "event_type": event_type,
+                "processing_time_ms": processing_ms,
+            },
+        )
     return {"accepted": True}

@@ -51,17 +51,22 @@ function LoadingScreen({ message }) {
 
 function ErrorCard({ title, message, onBack }) {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">
-      <div className="p-6 bg-red-900/20 border border-red-500 rounded-lg max-w-md">
-        <p className="text-red-500 font-bold text-lg mb-2">{title}</p>
-        <p className="text-slate-300">{message}</p>
-        <button
-          type="button"
-          onClick={onBack}
-          className="mt-4 px-4 py-2 bg-red-500 rounded-lg hover:bg-red-600 text-white font-medium"
-        >
-          Back to home
-        </button>
+    <div className="fixed inset-0 flex items-center justify-center bg-[#0f1419] text-slate-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.25),transparent_55%)]" />
+      <div className="relative w-full max-w-md rounded-2xl border border-red-500/40 bg-slate-900/80 px-6 py-5 shadow-xl shadow-black/40">
+        <p className="text-xs font-semibold uppercase tracking-wide text-red-400">
+          {title}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-200">{message}</p>
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center justify-center rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1419]"
+          >
+            Back to home
+          </button>
+        </div>
       </div>
     </div>
   );

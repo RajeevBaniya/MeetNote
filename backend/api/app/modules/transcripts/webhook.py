@@ -3,14 +3,15 @@ import hashlib
 import hmac
 import json
 import logging
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 
 from app.core.config import get_stream_api_key, get_stream_api_secret
 from app.core.metrics import incr
+from app.modules.analytics.service import record_participant_join, record_participant_leave
 from app.modules.chat.websocket import broadcast_host_changed
-from app.modules.meetings.reconciliation import reconcile_meeting_state_with_guard
 from app.modules.meetings.service import transfer_host_if_current_disconnected
 from app.state.client import get_redis
 
@@ -107,7 +108,6 @@ async def stream_transcript_webhook(
         call_cid = str(body.get("call_cid") or "")
         meeting_id = _parse_meeting_id(call_cid)
         if meeting_id is None:
-        meeting_id_for_log = str(meeting_id)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or missing call_cid",
@@ -121,6 +121,7 @@ async def stream_transcript_webhook(
         if not text:
             return {"accepted": True}
 
+        meeting_id_for_log = str(meeting_id)
         user = cc.get("user") or {}
         speaker_id: str | None = user.get("id") or None
         speaker_name: str | None = user.get("name") or None
@@ -176,14 +177,95 @@ async def stream_transcript_webhook(
             )
         return {"accepted": True}
 
-    if event_type in {"call.member_removed", "call.member_updated", "call.session_ended"}:
+    if event_type in {
+        "call.member_added",
+        "call.member_removed",
+        "call.member_updated",
+        "call.session_ended",
+        "call.session_participant_joined",
+        "call.session_participant_left",
+    }:
         call_cid = str(body.get("call_cid") or "")
         meeting_id = _parse_meeting_id(call_cid)
         if meeting_id is None:
             return {"accepted": True}
 
         disconnected_user_id: UUID | None = None
+        joined_user_id: UUID | None = None
         should_trigger = False
+        now_utc = datetime.now(timezone.utc)
+
+        event_id = (
+            request.headers.get("X-WEBHOOK-ID")
+            or body.get("id")
+            or body.get("event_id")
+            or hashlib.sha256(
+                json.dumps(
+                    {
+                        "type": event_type,
+                        "call_cid": call_cid,
+                        "created_at": body.get("created_at"),
+                        "member": body.get("member"),
+                    },
+                    sort_keys=True,
+                ).encode()
+            ).hexdigest()
+        )
+        event_id_str = str(event_id) if event_id else ""
+
+        async def _record_join_if_new(uid_str: str) -> None:
+            if not event_id_str:
+                return
+            try:
+                redis_client = await get_redis()
+            except Exception:
+                return
+            key = f"analytics_event_seen:{meeting_id}:{event_id_str}"
+            if not await redis_client.set(key, "1", ex=3600, nx=True):
+                return
+            try:
+                uid = UUID(uid_str)
+                await record_participant_join(meeting_id, uid, now_utc)
+            except ValueError:
+                pass
+
+        async def _record_leave_if_new(uid: UUID) -> None:
+            if not event_id_str:
+                return
+            try:
+                redis_client = await get_redis()
+            except Exception:
+                return
+            key = f"analytics_event_seen:{meeting_id}:{event_id_str}"
+            if not await redis_client.set(key, "1", ex=3600, nx=True):
+                return
+            await record_participant_leave(meeting_id, uid, now_utc)
+
+        if event_type == "call.member_added":
+            member = body.get("member") or {}
+            user = member.get("user") or {}
+            raw_user_id = user.get("id") or member.get("user_id")
+            if isinstance(raw_user_id, str):
+                asyncio.create_task(_record_join_if_new(raw_user_id))
+            return {"accepted": True}
+        if event_type == "call.session_participant_joined":
+            member = body.get("member") or body.get("participant") or {}
+            user = member.get("user") or {}
+            raw_user_id = user.get("id") or member.get("user_id")
+            if isinstance(raw_user_id, str):
+                asyncio.create_task(_record_join_if_new(raw_user_id))
+            return {"accepted": True}
+        if event_type == "call.session_participant_left":
+            member = body.get("member") or body.get("participant") or {}
+            user = member.get("user") or {}
+            raw_user_id = user.get("id") or member.get("user_id")
+            if isinstance(raw_user_id, str):
+                try:
+                    left_user_id = UUID(raw_user_id)
+                    asyncio.create_task(_record_leave_if_new(left_user_id))
+                except ValueError:
+                    pass
+            return {"accepted": True}
 
         if event_type == "call.member_removed":
             member = body.get("member") or {}
@@ -192,6 +274,7 @@ async def stream_transcript_webhook(
             if isinstance(raw_user_id, str):
                 try:
                     disconnected_user_id = UUID(raw_user_id)
+                    asyncio.create_task(_record_leave_if_new(disconnected_user_id))
                 except ValueError:
                     disconnected_user_id = None
             should_trigger = True
@@ -211,6 +294,7 @@ async def stream_transcript_webhook(
                 if isinstance(raw_user_id, str):
                     try:
                         disconnected_user_id = UUID(raw_user_id)
+                        asyncio.create_task(_record_leave_if_new(disconnected_user_id))
                         should_trigger = True
                     except ValueError:
                         disconnected_user_id = None
@@ -241,10 +325,8 @@ async def stream_transcript_webhook(
             if new_host is None:
                 return
             await broadcast_host_changed(meeting_id, new_host)
-            await reconcile_meeting_state_with_guard(meeting_id)
 
         asyncio.create_task(_debounced_transfer())
-        asyncio.create_task(reconcile_meeting_state_with_guard(meeting_id))
 
         processing_ms = int(
             (datetime.now(timezone.utc) - start_time).total_seconds() * 1000

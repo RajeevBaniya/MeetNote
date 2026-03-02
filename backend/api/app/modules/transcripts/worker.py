@@ -1,11 +1,12 @@
 import asyncio
+import hashlib
 import json
 import logging
 from typing import Any
 from uuid import UUID
 
 from redis.asyncio import Redis
-
+from app.modules.analytics.service import add_speaking_time
 from app.modules.transcripts.service import append_transcript_segment
 from app.state.client import get_redis
 from app.core.metrics import incr
@@ -65,6 +66,18 @@ async def run_transcript_worker() -> None:
         timestamp=timestamp,
       )
       incr("transcript_chunks_processed_total")
+      if speaker_id and text.strip():
+        segment_hash = hashlib.sha256(
+          f"{meeting_id}|{speaker_id}|{text}|{timestamp or ''}".encode()
+        ).hexdigest()
+        key = f"analytics_segment_seen:{meeting_id}:{segment_hash}"
+        if await redis.set(key, "1", ex=7200, nx=True):
+          try:
+            user_id = UUID(str(speaker_id))
+            word_count = len(text.strip().split())
+            await add_speaking_time(meeting_id, user_id, word_count)
+          except (ValueError, TypeError):
+            pass
     except asyncio.CancelledError:
       break
     except Exception:

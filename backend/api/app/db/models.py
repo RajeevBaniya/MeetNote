@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -77,3 +77,64 @@ class Meeting(Base):
         default=False,
         nullable=False,
     )
+
+
+class MeetingAnalytics(Base):
+    __tablename__ = "meeting_analytics"
+
+    meeting_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("meetings.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    duration_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_participants: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    host_transfers: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    transcript_segments: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class MeetingParticipantStats(Base):
+    __tablename__ = "meeting_participant_stats"
+    __table_args__ = (
+        UniqueConstraint("meeting_id", "user_id", name="uq_meeting_participant_stats"),
+    )
+
+    meeting_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("meetings.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    left_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    total_time_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    speaking_time_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

@@ -16,32 +16,25 @@ from app.modules.meetings.schemas import (
     MyMeetingsOut,
     ParticipantActionIn,
     CheckRemovedOut,
-    RecordingActionOut,
     MeetingParticipantsOut,
+    MeetingStatusOut,
 )
 from app.modules.meetings.service import (
     create_meeting,
     end_meeting,
     get_meeting_by_id,
     get_meetings_for_host,
-    STREAM_CALL_TYPE,
 )
-from app.modules.meetings.reconciliation import reconcile_meeting_state_with_guard
-from app.modules.meetings.events import (
-    publish_meeting_created,
-    publish_meeting_ended,
-)
+from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
 from app.modules.stream_tokens.service import (
     add_removed_user,
-    end_stream_call,
     is_user_removed,
     kick_stream_user,
     mute_stream_user,
-    stop_stream_recording,
+    query_stream_call_members,
 )
 from app.state.client import get_redis
-from app.modules.transcripts.service import expire_transcript_keys
-from app.modules.chat.websocket import close_chat_connections, close_chat_connections_for_user
+from app.modules.chat.websocket import close_chat_connections_for_user
 
 
 logger = logging.getLogger(__name__)
@@ -72,13 +65,12 @@ async def post_meeting(
                 detail="scheduled_start_at must be in the future.",
             )
     meeting = await create_meeting(
-        session,
-        user_id,
-        title or None,
+        session=session,
+        host_id=user_id,
+        title=title or None,
         scheduled_start_at=scheduled_start_at,
         scheduled_end_at=None,
     )
-    await publish_meeting_created(meeting.id)
     return meeting
 
 
@@ -134,6 +126,22 @@ async def get_meeting(
     return meeting
 
 
+@router.get("/{meeting_id}/status", response_model=MeetingStatusOut)
+async def get_meeting_status(
+    meeting_id: UUID,
+    _user_id: UUID = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+    _: None = Depends(rate_limit_general),
+):
+    meeting = await get_meeting_by_id(session, meeting_id)
+    if not meeting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found",
+        )
+    return MeetingStatusOut(is_active=meeting.is_active, host_joined=meeting.host_joined)
+
+
 @router.post("/{meeting_id}/end", response_model=EndMeetingOut)
 async def post_end_meeting(
     meeting_id: UUID,
@@ -165,34 +173,12 @@ async def post_end_meeting(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=message,
         )
-    try:
-        await stop_stream_recording(
-            STREAM_CALL_TYPE,
-            str(meeting_id),
-            user_id,
-        )
-    except Exception:
-        logger.debug("stop_stream_recording_on_end_ignored meeting_id=%s", meeting_id)
-    try:
-        await end_stream_call(
-            STREAM_CALL_TYPE,
-            str(meeting_id),
-            user_id,
-        )
-    except Exception:
-        logger.exception("end_stream_call_failed meeting_id=%s", meeting_id)
-    await close_chat_connections(meeting_id)
-    try:
-        redis = await get_redis()
-        await expire_transcript_keys(redis, meeting_id)
-        assistant_key = f"assistant_enabled:{meeting_id}"
-        removed_users_key = f"meeting:{meeting_id}:removed_users"
-        await redis.delete(assistant_key, removed_users_key)
-    except Exception:
-        logger.debug("expire_transcript_keys_failed meeting_id=%s", meeting_id)
-    await publish_meeting_ended(meeting_id)
-    await reconcile_meeting_state_with_guard(meeting_id)
-    return EndMeetingOut()
+    return EndMeetingOut(
+        status="ended",
+        meeting_id=meeting_id,
+        ended_at=meeting.ended_at,
+        ended_by=user_id,
+    )
 
 
 @router.get("/{meeting_id}/participants", response_model=MeetingParticipantsOut)

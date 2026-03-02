@@ -29,6 +29,14 @@ class MeetingOut(BaseModel):
 
 class EndMeetingOut(BaseModel):
     status: str = "ended"
+    meeting_id: UUID | None = None
+    ended_at: datetime | None = None
+    ended_by: UUID | None = None
+
+
+class MeetingStatusOut(BaseModel):
+    is_active: bool
+    host_joined: bool
 
 
 class ParticipantActionIn(BaseModel):
@@ -37,22 +45,6 @@ class ParticipantActionIn(BaseModel):
 
 class CheckRemovedOut(BaseModel):
     removed: bool
-
-
-class RecordingActionOut(BaseModel):
-    status: str
-
-
-class RecordingItemOut(BaseModel):
-    url: str
-    filename: str
-    start_time: str
-    end_time: str
-    session_id: str
-
-
-class RecordingsListOut(BaseModel):
-    recordings: list[RecordingItemOut]
 
 
 class TranscriptSegmentOut(BaseModel):
@@ -81,12 +73,27 @@ class MyMeetingsOut(BaseModel):
     ended: list[MeetingListItemOut]
 
 
-class MeetingAnalyticsOut(BaseModel):
+class MeetingAnalyticsMeetingOut(BaseModel):
     meeting_id: UUID
-    duration_seconds: int | None
-    participants_count: int
-    chat_message_count: int
-    recording_count: int
+    started_at: datetime
+    ended_at: datetime | None
+    duration_seconds: int
+    total_participants: int
+    host_transfers: int
+    transcript_segments: int
+
+
+class MeetingParticipantStatsOut(BaseModel):
+    user_id: UUID
+    joined_at: datetime
+    left_at: datetime | None
+    total_time_seconds: int
+    speaking_time_seconds: int
+
+
+class MeetingAnalyticsOut(BaseModel):
+    meeting: MeetingAnalyticsMeetingOut
+    participants: list[MeetingParticipantStatsOut]
 
 
 class AssistantPreferenceIn(BaseModel):

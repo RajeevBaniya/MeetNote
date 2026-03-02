@@ -8,7 +8,8 @@ from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.schemas import TranscriptOut
-from app.modules.meetings.service import get_meeting_by_id, STREAM_CALL_TYPE
+from app.modules.meetings.service import get_meeting_by_id
+from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
 from app.modules.stream_tokens.service import get_stream_transcript_segments
 from app.state.client import get_redis
 from app.modules.transcripts.service import (

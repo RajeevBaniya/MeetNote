@@ -7,11 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
-from app.modules.meetings.schemas import MeetingAnalyticsOut
-from app.modules.meetings.service import get_meeting_by_id, STREAM_CALL_TYPE
-from app.modules.chat.service import get_recent_messages
-from app.state.client import get_redis
-from app.modules.stream_tokens.service import list_stream_recordings
+from app.modules.analytics.service import get_analytics_for_meeting
+from app.modules.meetings.schemas import (
+    MeetingAnalyticsMeetingOut,
+    MeetingAnalyticsOut,
+    MeetingParticipantStatsOut,
+)
+from app.modules.meetings.service import get_meeting_by_id
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +34,10 @@ async def get_meeting_analytics(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    if meeting.current_host_id != user_id:
+    is_host = (
+        meeting.current_host_id == user_id or meeting.original_host_id == user_id
+    )
+    if not is_host:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the host can view analytics for this meeting",
@@ -47,41 +52,29 @@ async def get_meeting_analytics(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Analytics are not available for this meeting yet",
         )
-    try:
-        redis = await get_redis()
-    except Exception:
-        redis = None
-    chat_messages: list[dict] = []
-    if redis is not None:
-        try:
-            chat_messages = await get_recent_messages(redis, meeting_id)
-        except Exception:
-            chat_messages = []
-    duration_seconds: int | None = None
-    if meeting.ended_at and meeting.ended_at >= meeting.created_at:
-        duration_seconds = int((meeting.ended_at - meeting.created_at).total_seconds())
-    chat_message_count = len(chat_messages)
-    participant_ids: set[str] = set()
-    for msg in chat_messages:
-        uid = msg.get("user_id")
-        if isinstance(uid, str) and uid.strip():
-            participant_ids.add(uid.strip())
-    participant_ids.add(str(meeting.original_host_id))
-    participants_count = len(participant_ids)
-    try:
-        recordings = await list_stream_recordings(
-            STREAM_CALL_TYPE,
-            str(meeting_id),
-            user_id,
+    analytics, participants = await get_analytics_for_meeting(session, meeting_id)
+    if not analytics:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analytics not found for this meeting",
         )
-    except Exception:
-        recordings = []
-    recording_count = len(recordings)
-    return MeetingAnalyticsOut(
-        meeting_id=meeting_id,
-        duration_seconds=duration_seconds,
-        participants_count=participants_count,
-        chat_message_count=chat_message_count,
-        recording_count=recording_count,
+    meeting_out = MeetingAnalyticsMeetingOut(
+        meeting_id=analytics.meeting_id,
+        started_at=analytics.started_at,
+        ended_at=analytics.ended_at,
+        duration_seconds=analytics.duration_seconds,
+        total_participants=analytics.total_participants,
+        host_transfers=analytics.host_transfers,
+        transcript_segments=analytics.transcript_segments,
     )
-
+    participants_out = [
+        MeetingParticipantStatsOut(
+            user_id=p.user_id,
+            joined_at=p.joined_at,
+            left_at=p.left_at,
+            total_time_seconds=p.total_time_seconds,
+            speaking_time_seconds=p.speaking_time_seconds,
+        )
+        for p in participants
+    ]
+    return MeetingAnalyticsOut(meeting=meeting_out, participants=participants_out)

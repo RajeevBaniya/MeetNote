@@ -18,7 +18,6 @@ from app.modules.meetings.service import (
     get_meeting_by_id,
     restore_original_host_if_rejoined,
 )
-from app.modules.meetings.reconciliation import reconcile_meeting_state_with_guard
 from app.modules.stream_tokens.service import is_user_removed
 from app.state.client import get_redis
 from app.core.metrics import incr
@@ -168,7 +167,6 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
         "ws_connected",
         extra={"meeting_id": str(meeting_id), "user_id": str(user_id)},
     )
-    await reconcile_meeting_state_with_guard(meeting_id)
     try:
         restored = await restore_original_host_if_rejoined(meeting_id, user_id)
         if restored is not None:

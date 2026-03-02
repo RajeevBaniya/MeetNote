@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.rate_limit import rate_limit_stream_token
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
-from app.modules.meetings.service import get_meeting_by_id
+from app.modules.meetings.service import get_meeting_by_id, ensure_host_started
 from app.modules.stream_tokens.schemas import StreamTokenIn, StreamTokenOut
 from app.modules.stream_tokens.service import (
     STREAM_TOKEN_EXPIRY_SECONDS,
@@ -82,11 +82,15 @@ async def stream_token(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Incorrect passcode",
             )
-        if not meeting.host_joined:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Meeting has not been started by host yet.",
-            )
+        try:
+            ensure_host_started(meeting, user_id)
+        except ValueError as exc:
+            if str(exc) == "HOST_NOT_STARTED":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Host has not started the meeting yet",
+                ) from exc
+            raise
     display_name = None
     if body and body.display_name and isinstance(body.display_name, str):
         display_name = body.display_name.strip() or None

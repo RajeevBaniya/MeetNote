@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
+from app.core.metrics import incr
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.schemas import TranscriptOut
@@ -16,6 +17,9 @@ from app.modules.transcripts.service import (
     append_transcript_segment,
     generate_final_summary,
     get_live_transcript,
+    get_transcript_segments,
+    has_user_left,
+    delete_transcript_state,
 )
 
 
@@ -95,9 +99,10 @@ async def ingest_transcript_segment(
 @router.get("/{meeting_id}/live-transcript", response_model=TranscriptOut)
 async def get_live_transcript_api(
     meeting_id: UUID,
-    _user_id: UUID = Depends(get_current_user_id),
+    user_id: UUID = Depends(get_current_user_id),
     _: None = Depends(rate_limit_general),
 ):
+    incr("transcript_restore_requests_total")
     try:
         redis = await get_redis()
     except Exception:
@@ -105,8 +110,55 @@ async def get_live_transcript_api(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Service temporarily unavailable",
         )
-    items = await get_live_transcript(redis, meeting_id)
-    segments = [{"type": "speech", "text": item, "speaker_id": None} for item in items]
+    if await has_user_left(redis, meeting_id, user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="transcript_unavailable",
+        )
+    items = await get_transcript_segments(redis, meeting_id)
+    segments = [
+        {
+            "type": "speech",
+            "start_time": item.get("start_time", ""),
+            "stop_time": item.get("end_time", ""),
+            "speaker_id": item.get("speaker_id"),
+            "text": item.get("text", ""),
+        }
+        for item in items
+    ]
+    return TranscriptOut(segments=segments)
+
+
+@router.get("/{meeting_id}/transcript/live", response_model=TranscriptOut)
+async def get_live_transcript_segments_api(
+    meeting_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    _: None = Depends(rate_limit_general),
+):
+    incr("transcript_restore_requests_total")
+    try:
+        redis = await get_redis()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable",
+        )
+    if await has_user_left(redis, meeting_id, user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="transcript_unavailable",
+        )
+    items = await get_transcript_segments(redis, meeting_id)
+    segments = [
+        {
+            "type": "speech",
+            "start_time": item.get("start_time", ""),
+            "stop_time": item.get("end_time", ""),
+            "speaker_id": item.get("speaker_id"),
+            "text": item.get("text", ""),
+        }
+        for item in items
+    ]
     return TranscriptOut(segments=segments)
 
 
@@ -132,4 +184,34 @@ async def post_generate_final_summary(
             detail="Failed to generate final summary",
         )
     return {"summary": summary or ""}
+
+
+@router.post("/{meeting_id}/transcript/cleanup", status_code=status.HTTP_204_NO_CONTENT)
+async def post_transcript_cleanup(
+    meeting_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+    _: None = Depends(rate_limit_general),
+):
+    meeting = await get_meeting_by_id(session, meeting_id)
+    if not meeting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found",
+        )
+    if meeting.host_id != user_id and meeting.original_host_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden",
+        )
+    try:
+        redis = await get_redis()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable",
+        )
+    await delete_transcript_state(redis, meeting_id)
+    incr("transcript_cleanup_total")
+    return None
 

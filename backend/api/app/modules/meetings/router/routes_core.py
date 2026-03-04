@@ -35,6 +35,7 @@ from app.modules.stream_tokens.service import (
 )
 from app.state.client import get_redis
 from app.modules.chat.websocket import close_chat_connections_for_user
+from app.modules.transcripts.service import mark_user_left
 
 
 logger = logging.getLogger(__name__)
@@ -319,6 +320,23 @@ async def post_mute_participant(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to mute participant",
         )
+
+
+@router.post("/{meeting_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def post_leave_meeting(
+    meeting_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    _: None = Depends(rate_limit_general),
+):
+    try:
+        redis = await get_redis()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable",
+        )
+    await mark_user_left(redis, meeting_id, user_id)
+    return None
 
 
 @router.get("/{meeting_id}/check-removed", response_model=CheckRemovedOut)

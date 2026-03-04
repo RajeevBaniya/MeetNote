@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import json
-import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 from uuid import UUID
@@ -9,16 +8,44 @@ from uuid import UUID
 from fastapi import Request
 
 from app.core.metrics import incr
-from app.modules.analytics.service import (
-    record_participant_join,
-    record_participant_leave,
+from app.modules.transcripts.webhooks.call_analytics import (
+    record_join_if_new,
+    record_leave_if_new,
 )
-from app.modules.chat.websocket import broadcast_host_changed
-from app.modules.meetings.service import transfer_host_if_current_disconnected
+from app.modules.transcripts.webhooks.call_host_transfer import (
+    run_debounced_host_transfer,
+)
 from app.modules.transcripts.webhooks.utils import parse_meeting_id
-from app.state.client import get_redis
 
-logger = logging.getLogger(__name__)
+
+def _event_id_str(body: Dict[str, Any], request: Request) -> str:
+    event_type = body.get("type")
+    call_cid = str(body.get("call_cid") or "")
+    raw = (
+        request.headers.get("X-WEBHOOK-ID")
+        or body.get("id")
+        or body.get("event_id")
+    )
+    if raw is not None:
+        return str(raw)
+    payload = {
+        "type": event_type,
+        "call_cid": call_cid,
+        "created_at": body.get("created_at"),
+        "member": body.get("member"),
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True).encode()
+    ).hexdigest()
+    return digest
+
+
+def _user_id_from_member(member: Dict[str, Any]) -> str | None:
+    if not member:
+        return None
+    user = member.get("user") or {}
+    raw = user.get("id") or member.get("user_id")
+    return str(raw) if isinstance(raw, str) else None
 
 
 async def handle_call_event(
@@ -33,98 +60,57 @@ async def handle_call_event(
         incr("webhook_processed_total")
         return {"accepted": True}
 
-    disconnected_user_id: UUID | None = None
-    joined_user_id: UUID | None = None
-    should_trigger = False
+    event_id_str = _event_id_str(body, request)
     now_utc = datetime.now(timezone.utc)
-
-    event_id = (
-        request.headers.get("X-WEBHOOK-ID")
-        or body.get("id")
-        or body.get("event_id")
-        or hashlib.sha256(
-            json.dumps(
-                {
-                    "type": event_type,
-                    "call_cid": call_cid,
-                    "created_at": body.get("created_at"),
-                    "member": body.get("member"),
-                },
-                sort_keys=True,
-            ).encode()
-        ).hexdigest()
-    )
-    event_id_str = str(event_id) if event_id else ""
-
-    async def _record_join_if_new(uid_str: str) -> None:
-        if not event_id_str:
-            return
-        try:
-            redis_client = await get_redis()
-        except Exception:
-            return
-        key = f"analytics_event_seen:{meeting_id}:{event_id_str}"
-        if not await redis_client.set(key, "1", ex=3600, nx=True):
-            return
-        try:
-            uid = UUID(uid_str)
-            await record_participant_join(meeting_id, uid, now_utc)
-        except ValueError:
-            return
-
-    async def _record_leave_if_new(uid: UUID) -> None:
-        if not event_id_str:
-            return
-        try:
-            redis_client = await get_redis()
-        except Exception:
-            return
-        key = f"analytics_event_seen:{meeting_id}:{event_id_str}"
-        if not await redis_client.set(key, "1", ex=3600, nx=True):
-            return
-        await record_participant_leave(meeting_id, uid, now_utc)
+    disconnected_user_id: UUID | None = None
+    should_trigger = False
 
     if event_type == "call.member_added":
-        member = body.get("member") or {}
-        user = member.get("user") or {}
-        raw_user_id = user.get("id") or member.get("user_id")
-        if isinstance(raw_user_id, str):
-            asyncio.create_task(_record_join_if_new(raw_user_id))
+        uid = _user_id_from_member(body.get("member") or {})
+        if uid:
+            asyncio.create_task(
+                record_join_if_new(meeting_id, event_id_str, uid, now_utc)
+            )
         incr("webhook_processed_total")
         return {"accepted": True}
 
     if event_type == "call.session_participant_joined":
         member = body.get("member") or body.get("participant") or {}
-        user = member.get("user") or {}
-        raw_user_id = user.get("id") or member.get("user_id")
-        if isinstance(raw_user_id, str):
-            asyncio.create_task(_record_join_if_new(raw_user_id))
+        uid = _user_id_from_member(member)
+        if uid:
+            asyncio.create_task(
+                record_join_if_new(meeting_id, event_id_str, uid, now_utc)
+            )
         incr("webhook_processed_total")
         return {"accepted": True}
 
     if event_type == "call.session_participant_left":
         member = body.get("member") or body.get("participant") or {}
-        user = member.get("user") or {}
-        raw_user_id = user.get("id") or member.get("user_id")
-        if isinstance(raw_user_id, str):
+        uid = _user_id_from_member(member)
+        if uid:
             try:
-                left_user_id = UUID(raw_user_id)
-                asyncio.create_task(_record_leave_if_new(left_user_id))
+                asyncio.create_task(
+                    record_leave_if_new(
+                        meeting_id, event_id_str, UUID(uid), now_utc
+                    )
+                )
             except ValueError:
-                return {"accepted": True}
+                pass
         incr("webhook_processed_total")
         return {"accepted": True}
 
     if event_type == "call.member_removed":
-        member = body.get("member") or {}
-        user = member.get("user") or {}
-        raw_user_id = user.get("id") or member.get("user_id")
-        if isinstance(raw_user_id, str):
+        uid = _user_id_from_member(body.get("member") or {})
+        if uid:
             try:
-                disconnected_user_id = UUID(raw_user_id)
-                asyncio.create_task(_record_leave_if_new(disconnected_user_id))
+                disconnected_user_id = UUID(uid)
+                asyncio.create_task(
+                    record_leave_if_new(
+                        meeting_id, event_id_str, disconnected_user_id, now_utc
+                    )
+                )
             except ValueError:
-                disconnected_user_id = None
+                pass
         should_trigger = True
     elif event_type == "call.member_updated":
         member = body.get("member") or {}
@@ -133,19 +119,25 @@ async def handle_call_event(
             member.get("deleted"),
             member.get("is_removed"),
         ]
-        removed_flag = any(bool(flag) for flag in removed_flags)
+        removed_flag = any(bool(f) for f in removed_flags)
         status = str(member.get("status") or "").strip().lower()
-        inactive_status = status in {"left", "removed", "blocked"}
-        if removed_flag or inactive_status:
-            user = member.get("user") or {}
-            raw_user_id = user.get("id") or member.get("user_id")
-            if isinstance(raw_user_id, str):
+        inactive = status in {"left", "removed", "blocked"}
+        if removed_flag or inactive:
+            uid = _user_id_from_member(member)
+            if uid:
                 try:
-                    disconnected_user_id = UUID(raw_user_id)
-                    asyncio.create_task(_record_leave_if_new(disconnected_user_id))
+                    disconnected_user_id = UUID(uid)
+                    asyncio.create_task(
+                        record_leave_if_new(
+                            meeting_id,
+                            event_id_str,
+                            disconnected_user_id,
+                            now_utc,
+                        )
+                    )
                     should_trigger = True
                 except ValueError:
-                    disconnected_user_id = None
+                    pass
     elif event_type == "call.session_ended":
         should_trigger = True
 
@@ -153,52 +145,9 @@ async def handle_call_event(
         incr("webhook_processed_total")
         return {"accepted": True}
 
-    try:
-        redis = await get_redis()
-    except Exception:
-        return {"accepted": True}
-
-    lock_key = f"host_transfer_lock:{meeting_id}"
-    got_lock = await redis.set(lock_key, "1", ex=5, nx=True)
-    if not got_lock:
+    ran = await run_debounced_host_transfer(
+        meeting_id, disconnected_user_id, event_type, start_time
+    )
+    if not ran:
         incr("webhook_processed_total")
-        return {"accepted": True}
-
-    async def _debounced_transfer() -> None:
-        await asyncio.sleep(3)
-        try:
-            new_host = await transfer_host_if_current_disconnected(
-                meeting_id,
-                disconnected_user_id,
-            )
-        except Exception:
-            return
-        if new_host is None:
-            return
-        await broadcast_host_changed(meeting_id, new_host)
-
-    asyncio.create_task(_debounced_transfer())
-
-    processing_ms = int(
-        (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
-    )
-    logger.info(
-        "webhook_processed",
-        extra={
-            "meeting_id": str(meeting_id),
-            "event_type": event_type,
-            "processing_time_ms": processing_ms,
-        },
-    )
-    if processing_ms > 2000:
-        logger.warning(
-            "webhook_slow",
-            extra={
-                "meeting_id": str(meeting_id),
-                "event_type": event_type,
-                "processing_time_ms": processing_ms,
-            },
-        )
-    incr("webhook_processed_total")
     return {"accepted": True}
-

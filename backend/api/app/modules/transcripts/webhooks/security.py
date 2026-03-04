@@ -18,12 +18,6 @@ async def verify_and_dedupe_webhook(
     x_signature: str | None,
     x_api_key: str | None,
 ) -> Tuple[Dict[str, Any], str] | None:
-    """
-    Verify webhook authenticity and enforce global idempotency.
-    Returns (body, event_id) when the event should be processed.
-    Returns None when the event is a duplicate that should be acknowledged.
-    Raises HTTPException for any failure.
-    """
     incr("webhook_received_total")
 
     if not x_signature or not x_api_key:

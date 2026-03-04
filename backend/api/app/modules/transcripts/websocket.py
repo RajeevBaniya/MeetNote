@@ -1,11 +1,3 @@
-"""
-WebSocket handler for live transcript streaming.
-
-Clients connect with a JWT token and immediately receive the full transcript
-history stored in Redis.  New segments published via the webhook are forwarded
-in real-time over the same connection.
-"""
-
 import asyncio
 import json
 from urllib.parse import unquote
@@ -14,8 +6,12 @@ from uuid import UUID
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.core.jwt import get_user_id_from_token
+from app.core.metrics import incr
 from app.modules.transcripts.broadcaster import _pub_channel
-from app.modules.transcripts.service import get_live_transcript
+from app.modules.transcripts.service import (
+    get_transcript_segments,
+    has_user_left,
+)
 from app.state.client import get_redis
 
 
@@ -54,14 +50,31 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
         await websocket.close(code=1011, reason="Service unavailable")
         return
 
-    history = await get_live_transcript(redis, meeting_id)
+    try:
+        left = await has_user_left(redis, meeting_id, user_id)
+    except Exception:
+        await websocket.close(code=1011, reason="Service unavailable")
+        return
+    if left:
+        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="transcript_unavailable")
+        return
+
+    history_items = await get_transcript_segments(redis, meeting_id)
     history_segments = [
-        {"text": item, "speaker_id": None, "speaker": None, "timestamp": None}
-        for item in history
+        {
+            "text": item.get("text"),
+            "speaker_id": item.get("speaker_id"),
+            "speaker": item.get("speaker_name"),
+            "timestamp": item.get("start_time"),
+        }
+        for item in history_items
     ]
     await websocket.send_text(
         json.dumps({"type": "history", "segments": history_segments})
     )
+    incr("transcript_restore_requests_total")
+    if history_segments:
+        incr("transcript_segments_streamed_total", amount=len(history_segments))
 
     pubsub = redis.pubsub()
     channel = _pub_channel(meeting_id)
@@ -93,6 +106,7 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
                         await websocket.send_text(
                             json.dumps({"type": "transcript", "segment": segment})
                         )
+                        incr("transcript_segments_streamed_total")
                     except Exception:
                         stop_event.set()
                         break

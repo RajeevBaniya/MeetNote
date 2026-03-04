@@ -22,9 +22,6 @@ async def _get_redis_client() -> Redis:
 
 
 async def run_transcript_worker() -> None:
-  """
-  Long-running task that blocks on BRPOP and processes transcript events.
-  """
   while True:
     try:
       redis = await _get_redis_client()

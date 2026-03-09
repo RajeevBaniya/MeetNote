@@ -82,4 +82,3 @@ const ParticipantsOverlay = ({
 };
 
 export default ParticipantsOverlay;
-

@@ -4,7 +4,12 @@ import { memo } from "react";
 import { ParticipantView, useCallStateHooks } from "@stream-io/video-react-sdk";
 import iconsData from "@/app/components/icons/icons.json";
 
-const ParticipantTile = memo(function ParticipantTile({ participant, isAssistant = false, isHost = false, isHandRaised = false }) {
+const ParticipantTile = memo(function ParticipantTile({
+  participant,
+  isAssistant = false,
+  isHost = false,
+  isHandRaised = false,
+}) {
   const { useParticipants } = useCallStateHooks();
   const allParticipants = useParticipants();
   const participantCount = allParticipants?.length || 0;
@@ -43,9 +48,23 @@ const ParticipantTile = memo(function ParticipantTile({ participant, isAssistant
           </span>
         ) : null}
         {isHandRaised ? (
-          <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-500/90 text-white text-xs font-medium" title="Hand raised">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 1.5 0v2.716a5.499 5.499 0 0 1-.43 2.103 5.99 5.99 0 0 1 2.43 2.103 5.499 5.499 0 0 1-.43-2.103V2.75a.75.75 0 0 1 1.5 0v6.375a4.5 4.5 0 0 1-1.5 3.375 9 9 0 0 1-6.939 2.437A9.001 9.001 0 0 1 6.633 10.25z" />
+          <span
+            className="inline-flex items-center px-2 py-1 rounded-full bg-amber-500/90 text-white text-xs font-medium"
+            title="Hand raised"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-3.5 h-3.5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 1.5 0v2.716a5.499 5.499 0 0 1-.43 2.103 5.99 5.99 0 0 1 2.43 2.103 5.499 5.499 0 0 1-.43-2.103V2.75a.75.75 0 0 1 1.5 0v6.375a4.5 4.5 0 0 1-1.5 3.375 9 9 0 0 1-6.939 2.437A9.001 9.001 0 0 1 6.633 10.25z"
+              />
             </svg>
           </span>
         ) : null}

@@ -26,7 +26,7 @@ const ParticipantGrid = ({
     if (!allParticipants) return [];
     return filterAssistant(allParticipants, showAssistant);
   }, [allParticipants, showAssistant]);
-  
+
   const sortedParticipants = useMemo(() => {
     return sortParticipants(participants);
   }, [participants]);
@@ -51,11 +51,11 @@ const ParticipantGrid = ({
     if (participantCount <= 4) return "grid-cols-2";
     if (participantCount <= 6) return "grid-cols-2 lg:grid-cols-3";
     if (participantCount <= 9) return "grid-cols-2 lg:grid-cols-3";
-    if (participantCount <= 12) return "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+    if (participantCount <= 12)
+      return "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
     if (participantCount <= 16) return "grid-cols-3 lg:grid-cols-4";
     return "grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
   };
-
 
   if (isStrip) {
     return (
@@ -63,10 +63,17 @@ const ParticipantGrid = ({
         {sortedParticipants.map((participant) => {
           const key = participant.sessionId || participant.userId;
           const showHostBadge =
-            Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
-          const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
+            Boolean(isHost) &&
+            Boolean(currentUserId) &&
+            participant.userId === currentUserId;
+          const isHandRaised = Boolean(
+            participant.userId && raisedHandUserIds.has(participant.userId),
+          );
           return (
-            <div key={key} className="relative h-full aspect-video shrink-0 rounded-lg overflow-hidden border border-slate-700/40">
+            <div
+              key={key}
+              className="relative h-full aspect-video shrink-0 rounded-lg overflow-hidden border border-slate-700/40"
+            >
               <ParticipantTile
                 participant={participant}
                 isAssistant={isAssistantParticipant(participant)}
@@ -87,10 +94,17 @@ const ParticipantGrid = ({
           {sortedParticipants.map((participant) => {
             const key = participant.sessionId || participant.userId;
             const showHostBadge =
-              Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
-            const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
+              Boolean(isHost) &&
+              Boolean(currentUserId) &&
+              participant.userId === currentUserId;
+            const isHandRaised = Boolean(
+              participant.userId && raisedHandUserIds.has(participant.userId),
+            );
             return (
-              <div key={key} className="w-full aspect-video shrink-0 rounded-lg overflow-hidden">
+              <div
+                key={key}
+                className="w-full aspect-video shrink-0 rounded-lg overflow-hidden"
+              >
                 <ParticipantTile
                   participant={participant}
                   isAssistant={isAssistantParticipant(participant)}
@@ -108,8 +122,12 @@ const ParticipantGrid = ({
   if (participantCount === 1) {
     const participant = sortedParticipants[0];
     const showHostBadge =
-      Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
-    const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
+      Boolean(isHost) &&
+      Boolean(currentUserId) &&
+      participant.userId === currentUserId;
+    const isHandRaised = Boolean(
+      participant.userId && raisedHandUserIds.has(participant.userId),
+    );
     return (
       <div className="absolute inset-0 w-full h-full bg-[#020617] overflow-hidden">
         <ParticipantTile
@@ -124,12 +142,18 @@ const ParticipantGrid = ({
 
   return (
     <div className="absolute inset-0 w-full h-full p-2 sm:p-3 md:p-4 bg-[#020617] overflow-auto flex items-center justify-center">
-      <div className={`grid ${getGridClass()} gap-2 sm:gap-3 md:gap-4 w-full max-w-full`}>
+      <div
+        className={`grid ${getGridClass()} gap-2 sm:gap-3 md:gap-4 w-full max-w-full`}
+      >
         {sortedParticipants.map((participant) => {
           const key = participant.sessionId || participant.userId;
           const showHostBadge =
-            Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
-          const isHandRaised = Boolean(participant.userId && raisedHandUserIds.has(participant.userId));
+            Boolean(isHost) &&
+            Boolean(currentUserId) &&
+            participant.userId === currentUserId;
+          const isHandRaised = Boolean(
+            participant.userId && raisedHandUserIds.has(participant.userId),
+          );
           return (
             <div key={key} className="min-h-0 min-w-0 w-full aspect-video">
               <ParticipantTile

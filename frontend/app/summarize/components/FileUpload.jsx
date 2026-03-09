@@ -57,7 +57,7 @@ function validateFile(file) {
   return { valid: true, error: null };
 }
 
-function FileUpload({ onFileUpload, transcript }) {
+const FileUpload = ({ onFileUpload, transcript }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -222,6 +222,6 @@ function FileUpload({ onFileUpload, transcript }) {
       )}
     </div>
   );
-}
+};
 
 export default FileUpload;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 
-function ExportButton({ summaryId, fileName, variant = "outline" }) {
+const ExportButton = ({ summaryId, fileName, variant = "outline" }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState(null);
 
@@ -176,6 +176,6 @@ function ExportButton({ summaryId, fileName, variant = "outline" }) {
       </Button>
     </div>
   );
-}
+};
 
 export default ExportButton;

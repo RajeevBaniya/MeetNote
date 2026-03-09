@@ -4,7 +4,7 @@ import { useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Button } from "./ui/button";
 
-function EmailSender({ summary }) {
+const EmailSender = ({ summary }) => {
   const [recipients, setRecipients] = useState([""]);
   const [subject, setSubject] = useState("Meeting Summary");
   const [isSending, setIsSending] = useState(false);
@@ -151,6 +151,6 @@ function EmailSender({ summary }) {
       </div>
     </div>
   );
-}
+};
 
 export default EmailSender;

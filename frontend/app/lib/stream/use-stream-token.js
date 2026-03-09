@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useAuth } from "@/app/lib/auth/use-auth";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -7,7 +8,7 @@ function buildUrl(baseUrl, meetingId) {
   return `${base}/meetings/${meetingId}/stream-token`;
 }
 
-export const useStreamTokenFromBackend = (meetingId, jwt, displayName, passcode, enabled = true) => {
+export const useStreamTokenFromBackend = (meetingId, jwtProp, displayName, passcode, enabled = true) => {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -15,6 +16,7 @@ export const useStreamTokenFromBackend = (meetingId, jwt, displayName, passcode,
   const [expiresInSeconds, setExpiresInSeconds] = useState(null);
   const timeoutRef = useRef(null);
   const mountedRef = useRef(true);
+  const { jwt, refreshAccessToken } = useAuth();
 
   useEffect(() => {
     mountedRef.current = true;
@@ -25,8 +27,10 @@ export const useStreamTokenFromBackend = (meetingId, jwt, displayName, passcode,
   }, []);
 
   useEffect(() => {
-    if (!enabled || !meetingId || !jwt) {
-      if (!jwt && meetingId) {
+    const activeJwt = jwtProp || jwt;
+
+    if (!enabled || !meetingId || !activeJwt) {
+      if (!activeJwt && meetingId) {
         setError("Not authenticated");
         setStatus("error");
       } else {
@@ -46,17 +50,28 @@ export const useStreamTokenFromBackend = (meetingId, jwt, displayName, passcode,
 
     const fetchToken = async () => {
       const url = buildUrl(apiUrl, meetingId);
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({
-          display_name: displayName != null ? String(displayName).trim() : "",
-          passcode: passcode != null ? String(passcode).trim() : undefined,
-        }),
-      });
+
+      const send = async (tokenToUse) =>
+        fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${tokenToUse}`,
+          },
+          body: JSON.stringify({
+            display_name: displayName != null ? String(displayName).trim() : "",
+            passcode: passcode != null ? String(passcode).trim() : undefined,
+          }),
+        });
+
+      let res = await send(activeJwt);
+
+      if (res.status === 401) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          res = await send(refreshed);
+        }
+      }
 
       if (cancelled || !mountedRef.current) return;
 
@@ -72,6 +87,15 @@ export const useStreamTokenFromBackend = (meetingId, jwt, displayName, passcode,
         );
         setError(null);
         setStatus("ready");
+        return;
+      }
+
+      if (res.status === 429) {
+        setError({
+          status: 429,
+          code: "rate_limit_exceeded",
+        });
+        setStatus("error");
         return;
       }
 
@@ -143,7 +167,7 @@ export const useStreamTokenFromBackend = (meetingId, jwt, displayName, passcode,
         timeoutRef.current = null;
       }
     };
-  }, [meetingId, jwt, displayName, passcode, enabled]);
+  }, [meetingId, jwtProp, jwt, displayName, passcode, enabled, refreshAccessToken]);
 
   return { token, user, error, status, expiresInSeconds };
 };

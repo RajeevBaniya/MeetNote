@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -92,10 +92,15 @@ export const useLiveTranscript = (meetingId, jwt) => {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       wsRef.current = null;
       if (!mountedRef.current) return;
       setConnected(false);
+      if (event && event.code === 4408) {
+        setConnectionError(
+          (prev) => prev || "Connection temporarily limited. Please wait a moment.",
+        );
+      }
     };
 
     ws.onerror = () => {

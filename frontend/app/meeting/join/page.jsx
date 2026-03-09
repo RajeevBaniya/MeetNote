@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/lib/auth/use-auth";
+import { getErrorMessage, isRateLimitError } from "@/app/lib/ui/error-messages";
+import ErrorBanner from "@/app/lib/ui/error-banner";
 import MeetingCreatedModal from "@/app/components/meeting-room/meeting-info-modal";
 
 const JoinMeetingContent = () => {
@@ -29,6 +31,7 @@ const JoinMeetingContent = () => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
   const [createdMeeting, setCreatedMeeting] = useState(null);
+  const [bannerError, setBannerError] = useState(null);
 
   const formatJoinCode = (value) => {
     const digits = value.replace(/\D/g, "").slice(0, 12);
@@ -44,6 +47,8 @@ const JoinMeetingContent = () => {
 
   const handleJoin = async () => {
     const name = username.trim() === "" ? "anonymous" : username.trim();
+
+    setBannerError(null);
 
     if (isHostMode) {
       setCreating(true);
@@ -74,6 +79,17 @@ const JoinMeetingContent = () => {
             scheduled_start_at,
           }),
         });
+        if (res.status === 429) {
+          const structuredError = {
+            status: 429,
+            code: "rate_limit_exceeded",
+          };
+          if (isRateLimitError(structuredError)) {
+            setBannerError(structuredError);
+          }
+          setCreating(false);
+          return;
+        }
         const data = await res.json();
         if (!res.ok) {
           setCreateError(data.detail || "Failed to create meeting");
@@ -118,6 +134,19 @@ const JoinMeetingContent = () => {
           passcode: passcode,
         }),
       });
+      if (res.status === 429) {
+        const structuredError = {
+          status: 429,
+          code: "rate_limit_exceeded",
+          message: "Too many join attempts. Please wait a moment.",
+        };
+        if (isRateLimitError(structuredError)) {
+          setBannerError(structuredError);
+        } else {
+          setCreateError("Too many join attempts. Please wait a moment.");
+        }
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         setCreateError(data.detail || "Failed to join meeting");
@@ -208,6 +237,13 @@ const JoinMeetingContent = () => {
             <h2 className="mb-4 text-lg sm:text-xl font-semibold text-center text-slate-50">
               {formTitle}
             </h2>
+
+            {bannerError ? (
+              <ErrorBanner
+                message={getErrorMessage(bannerError)}
+                onClose={() => setBannerError(null)}
+              />
+            ) : null}
 
             <div className="space-y-4">
               <input

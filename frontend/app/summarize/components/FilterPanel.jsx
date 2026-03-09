@@ -15,7 +15,7 @@ const MEETING_TYPES = [
   { value: "other", label: "Other" },
 ];
 
-function FilterPanel({ filters, onFilterChange, isExpanded, onToggle }) {
+const FilterPanel = ({ filters, onFilterChange, isExpanded, onToggle }) => {
   const handleClearFilters = useCallback(() => {
     onFilterChange({
       dateFrom: null,
@@ -74,9 +74,9 @@ function FilterPanel({ filters, onFilterChange, isExpanded, onToggle }) {
       )}
     </div>
   );
-}
+};
 
-function FilterPanelExpanded({ filters, onFilterChange }) {
+const FilterPanelExpanded = ({ filters, onFilterChange }) => {
   const dateFromRef = useRef(null);
   const dateToRef = useRef(null);
 
@@ -210,7 +210,7 @@ function FilterPanelExpanded({ filters, onFilterChange }) {
       </div>
     </div>
   );
-}
+};
 
 export { FilterPanelExpanded };
 export default FilterPanel;

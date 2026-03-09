@@ -9,7 +9,7 @@ const SORT_OPTIONS = [
   { value: "updated_at", label: "Last Updated" },
 ];
 
-function SortDropdown({ sortBy, sortOrder, onSortChange }) {
+const SortDropdown = ({ sortBy, sortOrder, onSortChange }) => {
   const handleSortByChange = useCallback(
     (e) => {
       onSortChange({ sortBy: e.target.value, sortOrder });
@@ -67,6 +67,6 @@ function SortDropdown({ sortBy, sortOrder, onSortChange }) {
       </button>
     </div>
   );
-}
+};
 
 export default SortDropdown;

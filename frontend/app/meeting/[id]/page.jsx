@@ -6,9 +6,9 @@ import { useSearchParams, useRouter, useParams } from "next/navigation";
 import StreamProvider from "@/app/components/stream-provider";
 import MeetingRoom from "@/app/components/meeting-room/meeting-room";
 import { StreamTheme } from "@stream-io/video-react-sdk";
-import { useAuth } from "@/app/lib/use-auth";
-import { useStreamTokenFromBackend } from "@/app/lib/use-stream-token";
-import { checkLeavingForSummarizeAndRedirect } from "@/app/lib/use-leave-and-summarize";
+import { useAuth } from "@/app/lib/auth/use-auth";
+import { useStreamTokenFromBackend } from "@/app/lib/stream/use-stream-token";
+import { checkLeavingForSummarizeAndRedirect } from "@/app/lib/meeting/use-leave-and-summarize";
 
 const REDIRECT_DELAY_MS = 2500;
 const REFRESH_SAFETY_SECONDS = 300;
@@ -21,7 +21,7 @@ const LOADING_MESSAGE_CHECKING_MEETING = "Checking meeting…";
 const LOADING_MESSAGE_VIDEO_ACCESS = "Getting video access…";
 const LOADING_MESSAGE_REDIRECT_SUMMARY = "Meeting has ended. Redirecting to summary…";
 
-function MeetingEndedOverlay({ removedByHost, onRedirect }) {
+const MeetingEndedOverlay = ({ removedByHost, onRedirect }) => {
   useEffect(() => {
     const t = setTimeout(onRedirect, REDIRECT_DELAY_MS);
     return () => clearTimeout(t);
@@ -36,9 +36,9 @@ function MeetingEndedOverlay({ removedByHost, onRedirect }) {
       <p className="text-lg text-slate-300">{message}</p>
     </div>
   );
-}
+};
 
-function LoadingScreen({ message }) {
+const LoadingScreen = ({ message }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#020617] text-slate-100">
       <div className="text-center">
@@ -47,9 +47,9 @@ function LoadingScreen({ message }) {
       </div>
     </div>
   );
-}
+};
 
-function ErrorCard({ title, message, onBack }) {
+const ErrorCard = ({ title, message, onBack }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#0f1419] text-slate-100">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.25),transparent_55%)]" />
@@ -70,9 +70,9 @@ function ErrorCard({ title, message, onBack }) {
       </div>
     </div>
   );
-}
+};
 
-function MeetingPageContent() {
+const MeetingPageContent = () => {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -226,7 +226,8 @@ function MeetingPageContent() {
         setMeetingLoaded(true);
         setMeetingFetchStatus("found");
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Meeting status fetch failed:", err);
         if (!cancelled) setMeetingFetchStatus("found");
       });
     return () => { cancelled = true; };
@@ -244,6 +245,10 @@ function MeetingPageContent() {
     router.push("/");
   }, [router]);
 
+  const goBack = useCallback(() => {
+    router.push("/");
+  }, [router]);
+
   const handleSessionEnded = useCallback(async () => {
     if (checkLeavingForSummarizeAndRedirect(router, callId)) return;
 
@@ -258,8 +263,8 @@ function MeetingPageContent() {
           const d = await r.json();
           removed = d.removed === true;
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error("Check removed failed:", err);
       }
     }
     if (removed) {
@@ -293,7 +298,7 @@ function MeetingPageContent() {
       <ErrorCard
         title="Meeting not found"
         message="This meeting does not exist or the link is incorrect."
-        onBack={() => router.push("/")}
+        onBack={goBack}
       />
     );
   }
@@ -320,7 +325,7 @@ function MeetingPageContent() {
       <ErrorCard
         title="Meeting not started yet"
         message={`This meeting is scheduled for ${localTime}. You can join when it starts.`}
-        onBack={() => router.push("/")}
+        onBack={goBack}
       />
     );
   }
@@ -331,7 +336,7 @@ function MeetingPageContent() {
       <ErrorCard
         title="Meeting not started yet"
         message={message}
-        onBack={() => router.push("/")}
+        onBack={goBack}
       />
     );
   }
@@ -344,7 +349,7 @@ function MeetingPageContent() {
       <ErrorCard
         title="Waiting for host"
         message={message}
-        onBack={() => router.push("/")}
+        onBack={goBack}
       />
     );
   }
@@ -363,7 +368,7 @@ function MeetingPageContent() {
         <ErrorCard
           title="Meeting not found"
           message="This meeting does not exist or the link is incorrect."
-          onBack={() => router.push("/")}
+          onBack={goBack}
         />
       );
     }
@@ -392,7 +397,7 @@ function MeetingPageContent() {
       <ErrorCard
         title={title}
         message={message}
-        onBack={() => router.push("/")}
+        onBack={goBack}
       />
     );
   }
@@ -424,7 +429,7 @@ function MeetingPageContent() {
   );
 }
 
-function MeetingPage() {
+const MeetingPage = () => {
   return (
     <Suspense
       fallback={
@@ -436,6 +441,6 @@ function MeetingPage() {
       <MeetingPageContent />
     </Suspense>
   );
-}
+};
 
 export default MeetingPage;

@@ -3,10 +3,10 @@
 import Image from "next/image";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/app/lib/use-auth";
+import { useAuth } from "@/app/lib/auth/use-auth";
 import MeetingCreatedModal from "@/app/components/meeting-room/meeting-info-modal";
 
-function JoinMeetingContent() {
+const JoinMeetingContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { jwt, loading: authLoading, restoringAuth } = useAuth();
@@ -279,9 +279,9 @@ function JoinMeetingContent() {
     </div>
     </>
   );
-}
+};
 
-function JoinMeetingPage() {
+const JoinMeetingPage = () => {
   return (
     <Suspense
       fallback={
@@ -291,6 +291,6 @@ function JoinMeetingPage() {
       <JoinMeetingContent />
     </Suspense>
   );
-}
+};
 
 export default JoinMeetingPage;

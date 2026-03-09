@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/lib/use-auth";
+import { useAuth } from "@/app/lib/auth/use-auth";
 import Navbar from "@/app/components/landing/navbar";
 
-function MeetingCard({ meeting, actionLabel, actionHref, isActive }) {
+const MeetingCard = ({ meeting, actionLabel, actionHref, isActive }) => {
   const timestamp = meeting.scheduled_start_at || meeting.created_at;
   const created = timestamp
     ? new Date(timestamp).toLocaleDateString(undefined, {
@@ -46,9 +46,9 @@ function MeetingCard({ meeting, actionLabel, actionHref, isActive }) {
       </Link>
     </div>
   );
-}
+};
 
-function EmptySection({ message, ctaLabel, ctaHref }) {
+const EmptySection = ({ message, ctaLabel, ctaHref }) => {
   return (
     <div className="rounded-xl border border-slate-700/50 border-dashed bg-slate-800/30 px-5 py-8 text-center">
       <p className="text-sm text-slate-500">{message}</p>
@@ -62,9 +62,9 @@ function EmptySection({ message, ctaLabel, ctaHref }) {
       ) : null}
     </div>
   );
-}
+};
 
-export default function MyMeetingsPage() {
+const MyMeetingsPage = () => {
   const {
     jwt,
     loading: authLoading,
@@ -317,4 +317,6 @@ export default function MyMeetingsPage() {
       </main>
     </div>
   );
-}
+};
+
+export default MyMeetingsPage;

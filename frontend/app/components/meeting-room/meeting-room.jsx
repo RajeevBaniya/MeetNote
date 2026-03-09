@@ -13,13 +13,27 @@ import RecordingBanner from "./recording-banner";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
-const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) => {
+const MeetingRoom = ({
+  callId,
+  onLeave,
+  onSessionEnded,
+  userId,
+  hostId,
+  jwt,
+}) => {
   const [showAssistant, setShowAssistant] = useState(true);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [currentHostId, setCurrentHostId] = useState(hostId || null);
 
-  const { call, error, hasLeftRef } = useMeetingCall(callId, userId, onLeave, onSessionEnded);
-  const isHost = Boolean(currentHostId && userId && String(currentHostId) === String(userId));
+  const { call, error, hasLeftRef } = useMeetingCall(
+    callId,
+    userId,
+    onLeave,
+    onSessionEnded,
+  );
+  const isHost = Boolean(
+    currentHostId && userId && String(currentHostId) === String(userId),
+  );
 
   useEffect(() => {
     setCurrentHostId(hostId || null);
@@ -34,7 +48,8 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) =
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && typeof data.enabled === "boolean") setShowAssistant(data.enabled);
+        if (data && typeof data.enabled === "boolean")
+          setShowAssistant(data.enabled);
       })
       .catch((err) => {
         console.error("Assistant preference fetch failed:", err);

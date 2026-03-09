@@ -149,7 +149,11 @@ const MeetingRoomContent = ({
                 ? "bg-green-500 hover:bg-green-600 text-white"
                 : "bg-gray-700 hover:bg-gray-600 text-gray-300"
             }`}
-            title={showAssistant ? "Assistant on (click to turn off)" : "Assistant off (click to turn on, then say Hey Assistant)"}
+            title={
+              showAssistant
+                ? "Assistant on (click to turn off)"
+                : "Assistant off (click to turn on, then say Hey Assistant)"
+            }
           >
             <span
               className="w-4 h-4 sm:w-5 sm:h-5"

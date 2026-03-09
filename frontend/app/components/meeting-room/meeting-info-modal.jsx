@@ -39,10 +39,12 @@ const MeetingCreatedModal = ({ meetingId, joinCode, passcode, onJoin }) => {
         <p className="text-sm text-slate-400 mb-4 text-center">
           Share this with participants
         </p>
-        
+
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-xs text-slate-400 mb-2">Meeting Code</label>
+            <label className="block text-xs text-slate-400 mb-2">
+              Meeting Code
+            </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -59,9 +61,11 @@ const MeetingCreatedModal = ({ meetingId, joinCode, passcode, onJoin }) => {
               </button>
             </div>
           </div>
-          
+
           <div>
-            <label className="block text-xs text-slate-400 mb-2">Passcode</label>
+            <label className="block text-xs text-slate-400 mb-2">
+              Passcode
+            </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"

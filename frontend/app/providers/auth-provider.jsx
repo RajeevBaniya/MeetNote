@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
+
+import { AuthContext } from "@/app/lib/auth/auth-context";
 
 const apiBase = () => {
   const url = process.env.NEXT_PUBLIC_API_URL;
@@ -9,9 +11,7 @@ const apiBase = () => {
 
 const JWT_STORAGE_KEY = "meetnote_jwt";
 
-export const AuthContext = createContext(null);
-
-export function AuthProvider({ children }) {
+const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [jwt, setJwt] = useState(null);
   const [loading, setLoading] = useState(true);

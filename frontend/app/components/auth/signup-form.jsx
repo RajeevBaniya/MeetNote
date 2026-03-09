@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useAuth } from "@/app/lib/use-auth";
+import { useState, useCallback } from "react";
+
+import { useAuth } from "@/app/lib/auth/use-auth";
 import PasswordField from "@/app/components/auth/password-field";
 
 const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
@@ -10,15 +11,34 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError(null);
+  const handleSubmit = useCallback(
+    async (event) => {
+      event.preventDefault();
+      setError(null);
+      const ok = await register(email.trim(), password, name.trim() || null);
+      if (ok && typeof onSuccess === "function") {
+        onSuccess();
+      }
+    },
+    [email, password, name, onSuccess, register, setError],
+  );
 
-    const ok = await register(email.trim(), password, name.trim() || null);
-    if (ok && typeof onSuccess === "function") {
-      onSuccess();
-    }
-  };
+  const handleSwitchToLogin = useCallback(() => {
+    if (typeof onSwitchMode === "function") onSwitchMode("login");
+    setError(null);
+  }, [onSwitchMode, setError]);
+
+  const handleEmailChange = useCallback((event) => {
+    setEmail(event.target.value);
+  }, []);
+
+  const handleNameChange = useCallback((event) => {
+    setName(event.target.value);
+  }, []);
+
+  const handlePasswordChange = useCallback((event) => {
+    setPassword(event.target.value);
+  }, []);
 
   return (
     <>
@@ -37,7 +57,7 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
             id="signup-email"
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={handleEmailChange}
             required
             className="w-full px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
@@ -54,7 +74,7 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
             id="signup-name"
             type="text"
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={handleNameChange}
             maxLength={255}
             className="w-full px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500"
           />
@@ -64,7 +84,7 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
           id="signup-password"
           label="Password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={handlePasswordChange}
         />
 
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
@@ -82,10 +102,7 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
         Already have an account?{" "}
         <button
           type="button"
-          onClick={() => {
-            if (typeof onSwitchMode === "function") onSwitchMode("login");
-            setError(null);
-          }}
+          onClick={handleSwitchToLogin}
           className="text-emerald-400 hover:text-emerald-300 font-medium"
         >
           Sign in

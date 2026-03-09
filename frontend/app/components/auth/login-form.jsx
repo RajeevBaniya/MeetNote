@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useAuth } from "@/app/lib/use-auth";
+import { useState, useCallback } from "react";
+
+import { useAuth } from "@/app/lib/auth/use-auth";
 import PasswordField from "@/app/components/auth/password-field";
 
 const LoginForm = ({ onSuccess, onSwitchMode, message }) => {
@@ -9,15 +10,30 @@ const LoginForm = ({ onSuccess, onSwitchMode, message }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError(null);
+  const handleSubmit = useCallback(
+    async (event) => {
+      event.preventDefault();
+      setError(null);
+      const ok = await login(email.trim(), password);
+      if (ok && typeof onSuccess === "function") {
+        onSuccess();
+      }
+    },
+    [email, password, onSuccess, login, setError],
+  );
 
-    const ok = await login(email.trim(), password);
-    if (ok && typeof onSuccess === "function") {
-      onSuccess();
-    }
-  };
+  const handleSwitchToSignup = useCallback(() => {
+    if (typeof onSwitchMode === "function") onSwitchMode("signup");
+    setError(null);
+  }, [onSwitchMode, setError]);
+
+  const handleEmailChange = useCallback((event) => {
+    setEmail(event.target.value);
+  }, []);
+
+  const handlePasswordChange = useCallback((event) => {
+    setPassword(event.target.value);
+  }, []);
 
   return (
     <>
@@ -33,7 +49,7 @@ const LoginForm = ({ onSuccess, onSwitchMode, message }) => {
             id="login-email"
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={handleEmailChange}
             required
             className="w-full px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
@@ -43,7 +59,7 @@ const LoginForm = ({ onSuccess, onSwitchMode, message }) => {
           id="login-password"
           label="Password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={handlePasswordChange}
         />
 
         {error ? (
@@ -63,10 +79,7 @@ const LoginForm = ({ onSuccess, onSwitchMode, message }) => {
         No account?{" "}
         <button
           type="button"
-          onClick={() => {
-            if (typeof onSwitchMode === "function") onSwitchMode("signup");
-            setError(null);
-          }}
+          onClick={handleSwitchToSignup}
           className="text-emerald-400 hover:text-emerald-300 font-medium"
         >
           Sign up

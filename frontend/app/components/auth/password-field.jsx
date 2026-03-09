@@ -7,7 +7,7 @@ const inputClass =
 const toggleBtnClass =
   "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-inset";
 
-function EyeIcon() {
+const EyeIcon = () => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -29,9 +29,9 @@ function EyeIcon() {
       />
     </svg>
   );
-}
+};
 
-function EyeSlashIcon() {
+const EyeSlashIcon = () => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -53,9 +53,9 @@ function EyeSlashIcon() {
       />
     </svg>
   );
-}
+};
 
-function PasswordField({ id, label, value, onChange, required = true }) {
+const PasswordField = ({ id, label, value, onChange, required = true }) => {
   const [showPassword, setShowPassword] = useState(false);
   const toggleLabel = showPassword ? "Hide password" : "Show password";
 
@@ -85,6 +85,6 @@ function PasswordField({ id, label, value, onChange, required = true }) {
       </div>
     </div>
   );
-}
+};
 
 export default PasswordField;

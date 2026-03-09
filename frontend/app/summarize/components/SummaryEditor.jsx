@@ -104,7 +104,7 @@ function renderMarkdown(text) {
   return result.join("");
 }
 
-function SummaryEditor({ summary, setSummary, summaryId, meetingTitle }) {
+const SummaryEditor = ({ summary, setSummary, summaryId, meetingTitle }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedSummary, setEditedSummary] = useState(summary);
 
@@ -175,6 +175,6 @@ function SummaryEditor({ summary, setSummary, summaryId, meetingTitle }) {
       )}
     </div>
   );
-}
+};
 
 export default SummaryEditor;

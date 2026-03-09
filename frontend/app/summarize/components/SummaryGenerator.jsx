@@ -12,7 +12,7 @@ const PRESET_INSTRUCTIONS = [
   "Extract important dates, deadlines and deliverables",
 ];
 
-function SummaryGenerator({
+const SummaryGenerator = ({
   transcript,
   setSummary,
   setStructured,
@@ -21,7 +21,7 @@ function SummaryGenerator({
   meetingData,
   setSummaryId,
   meetingId,
-}) {
+}) => {
   const [instruction, setInstruction] = useState("");
   const [error, setError] = useState("");
 
@@ -138,6 +138,6 @@ function SummaryGenerator({
       </div>
     </div>
   );
-}
+};
 
 export default SummaryGenerator;

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
-function CollapsibleSection({
+const CollapsibleSection = ({
   title,
   icon,
   count,
   children,
   defaultOpen = true,
-}) {
+}) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   if (count === 0) return null;
@@ -46,9 +46,9 @@ function CollapsibleSection({
       {isOpen && <div className="p-3 bg-slate-800/20">{children}</div>}
     </div>
   );
-}
+};
 
-function ActionItemsList({ items }) {
+const ActionItemsList = ({ items }) => {
   return (
     <ul className="space-y-2">
       {items.map((item, index) => (
@@ -101,9 +101,9 @@ function ActionItemsList({ items }) {
       ))}
     </ul>
   );
-}
+};
 
-function DecisionsList({ items }) {
+const DecisionsList = ({ items }) => {
   return (
     <ul className="space-y-2">
       {items.map((item, index) => (
@@ -119,9 +119,9 @@ function DecisionsList({ items }) {
       ))}
     </ul>
   );
-}
+};
 
-function DeadlinesList({ items }) {
+const DeadlinesList = ({ items }) => {
   return (
     <ul className="space-y-2">
       {items.map((item, index) => (
@@ -170,9 +170,9 @@ function DeadlinesList({ items }) {
       ))}
     </ul>
   );
-}
+};
 
-function ParticipantsList({ items, manualParticipants = [] }) {
+const ParticipantsList = ({ items, manualParticipants = [] }) => {
   const manualLower = manualParticipants.map((p) => p.toLowerCase());
 
   return (
@@ -258,7 +258,7 @@ function isValidParticipantName(name) {
   return true;
 }
 
-function StructuredSummary({ structured, manualParticipants = [] }) {
+const StructuredSummary = ({ structured, manualParticipants = [] }) => {
   const {
     actionItems = [],
     decisions = [],
@@ -330,6 +330,6 @@ function StructuredSummary({ structured, manualParticipants = [] }) {
       </div>
     </div>
   );
-}
+};
 
 export default StructuredSummary;

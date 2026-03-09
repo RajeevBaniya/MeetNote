@@ -18,7 +18,7 @@ const MEETING_TYPES = [
   { value: "other", label: "Other" },
 ];
 
-function MeetingDetails({ meetingData, onUpdate }) {
+const MeetingDetails = ({ meetingData, onUpdate }) => {
   const [participantInput, setParticipantInput] = useState("");
   const dateTimeInputRef = useRef(null);
 
@@ -211,6 +211,6 @@ function MeetingDetails({ meetingData, onUpdate }) {
       </div>
     </div>
   );
-}
+};
 
 export default MeetingDetails;

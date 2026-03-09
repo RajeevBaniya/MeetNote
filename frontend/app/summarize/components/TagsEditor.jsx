@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 
-function TagsEditor({ tags = [], onChange, placeholder = "Add tags..." }) {
+const TagsEditor = ({ tags = [], onChange, placeholder = "Add tags..." }) => {
   const [inputValue, setInputValue] = useState("");
 
   const handleInputChange = useCallback((e) => {
@@ -76,6 +76,6 @@ function TagsEditor({ tags = [], onChange, placeholder = "Add tags..." }) {
       />
     </div>
   );
-}
+};
 
 export default TagsEditor;

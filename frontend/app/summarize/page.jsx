@@ -23,7 +23,7 @@ function getInitialMeetingData() {
   };
 }
 
-function SummarizeContent() {
+const SummarizeContent = () => {
   const searchParams = useSearchParams();
   const source = searchParams.get("source") || "upload";
   const meetingId = searchParams.get("meetingId") || null;
@@ -81,7 +81,9 @@ function SummarizeContent() {
         if (cancelled || !data?.item) return;
         handleSelectSummary(data.item);
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Load summary by id failed:", err);
+      })
       .finally(() => {
         if (!cancelled) setLoadingSummaryById(false);
       });
@@ -223,9 +225,9 @@ function SummarizeContent() {
       </div>
     </div>
   );
-}
+};
 
-export default function SummarizePage() {
+const SummarizePage = () => {
   return (
     <Suspense
       fallback={
@@ -243,4 +245,6 @@ export default function SummarizePage() {
       <SummarizeContent />
     </Suspense>
   );
-}
+};
+
+export default SummarizePage;

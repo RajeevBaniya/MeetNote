@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 const MeetingCreatedModal = ({ meetingId, joinCode, passcode, onJoin }) => {
   const [copied, setCopied] = useState(null);
@@ -13,12 +13,20 @@ const MeetingCreatedModal = ({ meetingId, joinCode, passcode, onJoin }) => {
     return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8)}`;
   };
 
-  const copyToClipboard = (text, label) => {
+  const copyToClipboard = useCallback((text, label) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(label);
       setTimeout(() => setCopied(null), 2000);
     });
-  };
+  }, []);
+
+  const handleCopyCode = useCallback(() => {
+    copyToClipboard(joinCode?.replace(/\D/g, "") || "", "code");
+  }, [joinCode, copyToClipboard]);
+
+  const handleCopyPasscode = useCallback(() => {
+    copyToClipboard(passcode, "passcode");
+  }, [passcode, copyToClipboard]);
 
   const formattedJoinCode = formatJoinCode(joinCode);
 
@@ -44,7 +52,7 @@ const MeetingCreatedModal = ({ meetingId, joinCode, passcode, onJoin }) => {
               />
               <button
                 type="button"
-                onClick={() => copyToClipboard(joinCode?.replace(/\D/g, "") || "", "code")}
+                onClick={handleCopyCode}
                 className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition"
               >
                 {copied === "code" ? "Copied!" : "Copy"}
@@ -63,7 +71,7 @@ const MeetingCreatedModal = ({ meetingId, joinCode, passcode, onJoin }) => {
               />
               <button
                 type="button"
-                onClick={() => copyToClipboard(passcode, "passcode")}
+                onClick={handleCopyPasscode}
                 className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition"
               >
                 {copied === "passcode" ? "Copied!" : "Copy"}

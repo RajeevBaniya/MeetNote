@@ -6,7 +6,7 @@ import Starfield from "./starfield";
 import Content from "./content";
 import Card from "./card";
 
-function HeroSection({ onOpenAuth }) {
+const HeroSection = ({ onOpenAuth }) => {
   const [isCardHovered, setIsCardHovered] = useState(false);
   const [isCardClicked, setIsCardClicked] = useState(false);
   const [windowWidth, setWindowWidth] = useState(0);
@@ -53,6 +53,6 @@ function HeroSection({ onOpenAuth }) {
       </div>
     </section>
   );
-}
+};
 
 export default HeroSection;

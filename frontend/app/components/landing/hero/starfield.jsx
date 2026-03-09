@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { buildStarList } from "@/app/lib/stars";
+import { buildStarList } from "@/app/lib/ui/stars";
 
-function Starfield() {
+const Starfield = () => {
   const stars = useMemo(() => buildStarList(), []);
 
   return (
@@ -30,6 +30,6 @@ function Starfield() {
       ))}
     </div>
   );
-}
+};
 
 export default Starfield;

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 
-function Card({ isCardHovered, isCardClicked, onHoverChange, onCardClick }) {
+const Card = ({ isCardHovered, isCardClicked, onHoverChange, onCardClick }) => {
   const isStraight = isCardClicked || isCardHovered;
   const greenTheme = isStraight ? "hero-card-green-theme" : "";
   const transformClass = isStraight ? "hero-card-flat" : "hero-card-3d";
@@ -45,6 +45,6 @@ function Card({ isCardHovered, isCardClicked, onHoverChange, onCardClick }) {
       <div className={`hero-card-cloud-ultrawide ${ultraCloudClass}`} />
     </div>
   );
-}
+};
 
 export default Card;

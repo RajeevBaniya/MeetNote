@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { FiVideo } from "react-icons/fi";
-import { useAuth } from "@/app/lib/use-auth";
+
+import { useAuth } from "@/app/lib/auth/use-auth";
 
 const Navbar = ({ onOpenAuth }) => {
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -13,6 +14,33 @@ const Navbar = ({ onOpenAuth }) => {
   const { isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const handleAuthClick = useCallback(
+    (mode) => {
+      if (pathname === "/" && onOpenAuth) {
+        onOpenAuth(mode);
+      } else {
+        router.push(`/?auth=${mode}`);
+      }
+    },
+    [pathname, onOpenAuth, router],
+  );
+
+  const handleToggleMeet = useCallback(() => {
+    setMeetOpen((prev) => !prev);
+  }, []);
+
+  const handleCloseMeet = useCallback(() => {
+    setMeetOpen(false);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    logout();
+  }, [logout]);
+
+  const handleSignupClick = useCallback(() => {
+    handleAuthClick("signup");
+  }, [handleAuthClick]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -46,14 +74,6 @@ const Navbar = ({ onOpenAuth }) => {
     ? "text-base font-semibold tracking-tight text-emerald-400"
     : "text-base font-semibold tracking-tight text-white";
 
-  const handleAuthClick = (mode) => {
-    if (pathname === "/" && onOpenAuth) {
-      onOpenAuth(mode);
-    } else {
-      router.push(`/?auth=${mode}`);
-    }
-  };
-
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/20 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
@@ -70,7 +90,7 @@ const Navbar = ({ onOpenAuth }) => {
             <div className="relative" ref={meetRef}>
               <button
                 type="button"
-                onClick={() => setMeetOpen((prev) => !prev)}
+                onClick={handleToggleMeet}
                 className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1 font-medium text-white/85 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 aria-expanded={meetOpen}
                 aria-haspopup="true"
@@ -83,14 +103,14 @@ const Navbar = ({ onOpenAuth }) => {
                   <Link
                     href="/meeting/join?mode=host"
                     className="block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-                    onClick={() => setMeetOpen(false)}
+                    onClick={handleCloseMeet}
                   >
                     Host a meeting
                   </Link>
                   <Link
                     href="/meeting/join?mode=join"
                     className="mt-1 block rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-                    onClick={() => setMeetOpen(false)}
+                    onClick={handleCloseMeet}
                   >
                     Join a meeting
                   </Link>
@@ -108,7 +128,7 @@ const Navbar = ({ onOpenAuth }) => {
             {isAuthenticated ? (
               <button
                 type="button"
-                onClick={() => logout()}
+                onClick={handleLogout}
                 className="rounded-md px-2 py-1 font-medium text-red-400 transition hover:text-red-300"
               >
                 Log out
@@ -116,7 +136,7 @@ const Navbar = ({ onOpenAuth }) => {
             ) : (
               <button
                 type="button"
-                onClick={() => handleAuthClick("signup")}
+                onClick={handleSignupClick}
                 className="rounded-md px-2 py-1 font-medium text-emerald-400 transition hover:text-emerald-300"
               >
                 Sign up
@@ -132,7 +152,7 @@ const Navbar = ({ onOpenAuth }) => {
               {isAuthenticated ? (
                 <button
                   type="button"
-                  onClick={() => logout()}
+                  onClick={handleLogout}
                   className="block w-full text-left rounded-lg px-3 py-2 text-sm text-red-400 transition hover:bg-red-400/20"
                 >
                   Log out
@@ -140,7 +160,7 @@ const Navbar = ({ onOpenAuth }) => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleAuthClick("signup")}
+                  onClick={handleSignupClick}
                   className="block w-full text-left rounded-lg px-3 py-2 text-sm text-emerald-400 transition hover:bg-emerald-300/20"
                 >
                   Sign up

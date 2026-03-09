@@ -1,9 +1,9 @@
 "use client";
 
-import { useAuth } from "@/app/lib/use-auth";
+import { useAuth } from "@/app/lib/auth/use-auth";
 import { useRouter } from "next/navigation";
 
-function Content({ onOpenAuth }) {
+const Content = ({ onOpenAuth }) => {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -59,6 +59,6 @@ function Content({ onOpenAuth }) {
       </div>
     </div>
   );
-}
+};
 
 export default Content;

@@ -1,6 +1,6 @@
 "use client";
 
-function Background({ isDesktop, isTablet, isCardHovered, isCardClicked }) {
+const Background = ({ isDesktop, isTablet, isCardHovered, isCardClicked }) => {
   const cardActive = isCardHovered || isCardClicked;
 
   const outerGradient = isDesktop
@@ -44,6 +44,6 @@ function Background({ isDesktop, isTablet, isCardHovered, isCardClicked }) {
       />
     </>
   );
-}
+};
 
 export default Background;

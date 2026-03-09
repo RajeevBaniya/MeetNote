@@ -6,7 +6,7 @@ import Navbar from "@/app/components/landing/navbar";
 import HeroSection from "@/app/components/landing/hero/index";
 import AuthModal from "@/app/components/auth/auth-modal";
 
-function HomeContent() {
+const HomeContent = () => {
   const searchParams = useSearchParams();
   const [authModal, setAuthModal] = useState(null);
 
@@ -42,9 +42,9 @@ function HomeContent() {
       ) : null}
     </div>
   );
-}
+};
 
-function HomePage() {
+const HomePage = () => {
   return (
     <Suspense
       fallback={
@@ -54,6 +54,6 @@ function HomePage() {
       <HomeContent />
     </Suspense>
   );
-}
+};
 
 export default HomePage;

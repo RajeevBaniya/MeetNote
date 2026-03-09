@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useRequireAuth } from "@/app/lib/use-require-auth";
+import { useRequireAuth } from "@/app/lib/auth/use-require-auth";
 import Navbar from "@/app/components/landing/navbar";
 import HistoryView from "@/app/summarize/components/HistoryView";
 
@@ -10,7 +10,7 @@ const pageBackground = (
   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.25),transparent_55%)]" />
 );
 
-function FeaturesHistoryPage() {
+const FeaturesHistoryPage = () => {
   const router = useRouter();
   const { isReady } = useRequireAuth("/features/history");
 
@@ -71,6 +71,6 @@ function FeaturesHistoryPage() {
       </main>
     </div>
   );
-}
+};
 
 export default FeaturesHistoryPage;

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/app/summarize/lib/api";
 
-function MeetingSummariesSection({ meetingId }) {
+const MeetingSummariesSection = ({ meetingId }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -98,6 +98,6 @@ function MeetingSummariesSection({ meetingId }) {
       </ul>
     </section>
   );
-}
+};
 
 export default MeetingSummariesSection;

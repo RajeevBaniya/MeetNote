@@ -2,12 +2,12 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/app/lib/use-auth";
+import { useAuth } from "@/app/lib/auth/use-auth";
 import Navbar from "@/app/components/landing/navbar";
 import MeetingInsights from "../meeting-insights";
 import MeetingSummariesSection from "./meeting-summaries-section";
 
-function RecordingSection({ recordings }) {
+const RecordingSection = ({ recordings }) => {
   const first = Array.isArray(recordings) && recordings.length > 0 ? recordings[0] : null;
   const hasUrl = first && typeof first.url === "string" && first.url.trim() !== "";
 
@@ -40,9 +40,9 @@ function RecordingSection({ recordings }) {
       </a>
     </div>
   );
-}
+};
 
-function TranscriptSection({ segments }) {
+const TranscriptSection = ({ segments }) => {
   if (!Array.isArray(segments) || segments.length === 0) {
     return <p className="text-slate-500 text-sm">No transcript available.</p>;
   }
@@ -72,7 +72,7 @@ const pageBackground = (
 
 const ENDED_BANNER_MESSAGE = "This meeting has ended. You were redirected here from the call.";
 
-function SummaryContent({ meeting, recordings, transcriptSegments, onOpenAuth, showEndedBanner, jwt }) {
+const SummaryContent = ({ meeting, recordings, transcriptSegments, onOpenAuth, showEndedBanner, jwt }) => {
   const title = meeting?.title ? String(meeting.title).trim() : "Meeting";
 
   return (
@@ -120,9 +120,9 @@ function SummaryContent({ meeting, recordings, transcriptSegments, onOpenAuth, s
       </main>
     </div>
   );
-}
+};
 
-function SummaryPageContent() {
+const SummaryPageContent = () => {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -174,7 +174,8 @@ function SummaryPageContent() {
           setNotFound(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Meeting fetch failed:", err);
         if (!cancelled) setNotFound(true);
       })
       .finally(() => {
@@ -197,7 +198,9 @@ function SummaryPageContent() {
           setRecordings(data.recordings);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Recordings fetch failed:", err);
+      });
     fetch(`${apiUrl}/meetings/${meetingId}/transcript`, {
       headers: { Authorization: `Bearer ${jwt}` },
     })
@@ -207,7 +210,9 @@ function SummaryPageContent() {
           setTranscriptSegments(data.segments);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Transcript fetch failed:", err);
+      });
     return () => { cancelled = true; };
   }, [meetingId, jwt, meeting]);
 
@@ -225,13 +230,15 @@ function SummaryPageContent() {
     router.push(`/?auth=${mode}`);
   };
 
-  const LayoutWithNav = ({ children }) => (
-    <div className="relative min-h-screen bg-[#0f1419] text-slate-100">
-      {pageBackground}
-      <Navbar onOpenAuth={openAuth} />
-      {children}
-    </div>
-  );
+  const LayoutWithNav = ({ children }) => {
+    return (
+      <div className="relative min-h-screen bg-[#0f1419] text-slate-100">
+        {pageBackground}
+        <Navbar onOpenAuth={openAuth} />
+        {children}
+      </div>
+    );
+  };
 
   if (authLoading || restoringAuth) {
     return (
@@ -314,9 +321,9 @@ function SummaryPageContent() {
       jwt={jwt}
     />
   );
-}
+};
 
-function SummaryPage() {
+const SummaryPage = () => {
   return (
     <Suspense
       fallback={
@@ -326,6 +333,6 @@ function SummaryPage() {
       <SummaryPageContent />
     </Suspense>
   );
-}
+};
 
 export default SummaryPage;

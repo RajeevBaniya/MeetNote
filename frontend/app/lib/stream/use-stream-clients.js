@@ -32,12 +32,14 @@ function configureDevicesLogger() {
         },
       },
     });
-  } catch {}
+  } catch (err) {
+    console.error("Configure devices logger failed:", err);
+  }
 }
 
 configureDevicesLogger();
 
-export function useStreamClients({ apiKey, user, getToken }) {
+export const useStreamClients = ({ apiKey, user, getToken }) => {
   const [videoClient, setVideoClient] = useState(null);
   const clientRef = useRef(null);
   const getTokenRef = useRef(getToken);
@@ -76,9 +78,11 @@ export function useStreamClients({ apiKey, user, getToken }) {
       isMounted = false;
       const client = clientRef.current;
       clientRef.current = null;
-      if (client) client.disconnectUser().catch(() => {});
+      if (client) client.disconnectUser().catch((err) => {
+        console.error("Disconnect user failed:", err);
+      });
     };
   }, [apiKey, user, getToken]);
 
   return { videoClient };
-}
+};

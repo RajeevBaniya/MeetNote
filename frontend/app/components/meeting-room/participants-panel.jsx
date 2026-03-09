@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
 const ParticipantsPanel = ({
@@ -21,49 +21,55 @@ const ParticipantsPanel = ({
   const canModerate = Boolean(isHost && apiUrl && callId && jwt);
   const raisedSet = new Set(raisedHandUserIds ?? []);
 
-  const removeParticipant = async (participantUserId) => {
-    if (!canModerate || actioningId) return;
-    setActioningId(participantUserId);
-    try {
-      const res = await fetch(
-        `${apiUrl}/meetings/${callId}/remove-participant`,
-        {
+  const removeParticipant = useCallback(
+    async (participantUserId) => {
+      if (!canModerate || actioningId) return;
+      setActioningId(participantUserId);
+      try {
+        const res = await fetch(
+          `${apiUrl}/meetings/${callId}/remove-participant`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwt}`,
+            },
+            body: JSON.stringify({ user_id: participantUserId }),
+          },
+        );
+        if (res.ok) {
+          onClose?.();
+        }
+      } catch {
+        // ignore
+      } finally {
+        setActioningId(null);
+      }
+    },
+    [canModerate, apiUrl, callId, jwt, onClose, actioningId],
+  );
+
+  const muteParticipant = useCallback(
+    async (participantUserId) => {
+      if (!canModerate || actioningId) return;
+      setActioningId(participantUserId);
+      try {
+        await fetch(`${apiUrl}/meetings/${callId}/mute-participant`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${jwt}`,
           },
           body: JSON.stringify({ user_id: participantUserId }),
-        },
-      );
-      if (res.ok) {
-        onClose?.();
+        });
+      } catch {
+        // ignore
+      } finally {
+        setActioningId(null);
       }
-    } catch {
-      // ignore
-    } finally {
-      setActioningId(null);
-    }
-  };
-
-  const muteParticipant = async (participantUserId) => {
-    if (!canModerate || actioningId) return;
-    setActioningId(participantUserId);
-    try {
-      await fetch(`${apiUrl}/meetings/${callId}/mute-participant`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({ user_id: participantUserId }),
-      });
-    } catch {
-      // ignore
-    } finally {
-      setActioningId(null);
-    }
-  };
+    },
+    [canModerate, apiUrl, callId, jwt, actioningId],
+  );
 
   useEffect(() => {
     if (embedded) return;

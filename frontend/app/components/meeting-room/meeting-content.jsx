@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
+
 import ParticipantGrid from "./participant-grid";
 import ScreenShareView from "./screen-share-view";
 

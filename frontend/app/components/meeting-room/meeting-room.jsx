@@ -2,7 +2,9 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
-import useMeetingCall from "@/app/lib/use-meeting-call";
+
+import useMeetingCall from "@/app/lib/meeting/use-meeting-call";
+
 import MeetingRoomContent from "./meeting-room-content";
 import MeetingRoomError from "./meeting-room-error";
 import MeetingRoomLoading from "./meeting-room-loading";
@@ -34,13 +36,23 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) =
       .then((data) => {
         if (data && typeof data.enabled === "boolean") setShowAssistant(data.enabled);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Assistant preference fetch failed:", err);
+      });
   }, [callId, jwt]);
 
   const handleLeave = useCallback(() => {
     setParticipantsOpen(false);
     onLeave?.();
   }, [onLeave]);
+
+  const handleOpenParticipants = useCallback(() => {
+    setParticipantsOpen(true);
+  }, []);
+
+  const handleCloseParticipants = useCallback(() => {
+    setParticipantsOpen(false);
+  }, []);
 
   const handleHostChanged = useCallback(
     (incomingHostId) => {
@@ -74,8 +86,8 @@ const MeetingRoom = ({ callId, onLeave, onSessionEnded, userId, hostId, jwt }) =
             setCurrentHostId={handleHostChanged}
             pendingCount={0}
             onOpenWaitingRoom={undefined}
-            onOpenParticipants={() => setParticipantsOpen(true)}
-            onCloseParticipants={() => setParticipantsOpen(false)}
+            onOpenParticipants={handleOpenParticipants}
+            onCloseParticipants={handleCloseParticipants}
             participantsOpen={participantsOpen}
             currentUserId={userId}
             onLeave={onLeave}

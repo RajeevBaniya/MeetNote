@@ -3,7 +3,7 @@
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import { CallingState } from "@stream-io/video-client";
 
-function ConnectionStateBanner() {
+const ConnectionStateBanner = () => {
   const { useCallCallingState } = useCallStateHooks();
   const callingState = useCallCallingState();
 
@@ -32,6 +32,6 @@ function ConnectionStateBanner() {
   }
 
   return null;
-}
+};
 
 export default ConnectionStateBanner;

@@ -37,7 +37,7 @@ function isAssistantMessage(message) {
   return id === ASSISTANT_USER_ID || name === ASSISTANT_DISPLAY_NAME;
 }
 
-export function useMeetingChat(meetingId, jwt, isChatTabVisible = false, onHostChanged) {
+export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostChanged) => {
   const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
@@ -165,4 +165,4 @@ export function useMeetingChat(meetingId, jwt, isChatTabVisible = false, onHostC
     unreadCount,
     markChatRead,
   };
-}
+};

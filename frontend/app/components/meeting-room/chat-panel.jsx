@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 
 function formatTime(ts) {
   if (!ts || typeof ts !== "string") return "";
@@ -33,6 +33,30 @@ const ChatPanel = ({
   const listRef = useRef(null);
   const inputRef = useRef(null);
 
+  const handleSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (inputDisabled || !connected) return;
+      const input = inputRef.current;
+      if (!input) return;
+      const text = (input.value || "").trim();
+      if (!text) return;
+      onSendMessage(text);
+      input.value = "";
+    },
+    [inputDisabled, connected, onSendMessage],
+  );
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    },
+    [handleSubmit],
+  );
+
   const visibleMessages = Array.isArray(messages)
     ? messages.filter((msg) => !isAssistantMessage(msg))
     : [];
@@ -42,24 +66,6 @@ const ChatPanel = ({
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [visibleMessages]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (inputDisabled || !connected) return;
-    const input = inputRef.current;
-    if (!input) return;
-    const text = (input.value || "").trim();
-    if (!text) return;
-    onSendMessage(text);
-    input.value = "";
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
 
   const disabled = inputDisabled || !connected || connectionError;
 

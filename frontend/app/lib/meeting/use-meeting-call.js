@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useStreamVideoClient } from "@stream-io/video-react-sdk";
-import { CALL_TYPE, CLOSED_CAPTIONS_LANGUAGE } from "@/app/lib/meeting-constants";
 
-function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
+import { CALL_TYPE, CLOSED_CAPTIONS_LANGUAGE } from "@/app/lib/meeting/meeting-constants";
+
+const useMeetingCall = (callId, userId, onLeave, onSessionEnded) => {
   const client = useStreamVideoClient();
   const [call, setCall] = useState(null);
   const [error, setError] = useState(null);
@@ -48,13 +49,14 @@ function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
       } catch (err) {
         const message =
           (err && typeof err.message === "string" && err.message) ||
-          "We couldn’t connect to the meeting. Please refresh and try again.";
+          "We couldn't connect to the meeting. Please refresh and try again.";
         setError(message);
       }
     };
 
-    init().catch(() => {
-      setError("We couldn’t connect to the meeting. Please refresh and try again.");
+    init().catch((err) => {
+      console.error("Meeting call init failed:", err);
+      setError("We couldn't connect to the meeting. Please refresh and try again.");
     });
 
     return () => {
@@ -62,13 +64,17 @@ function useMeetingCall(callId, userId, onLeave, onSessionEnded) {
       const c = callRef.current;
       if (c && !leavingRef.current) {
         leavingRef.current = true;
-        c.stopClosedCaptions().catch(() => {});
-        c.leave().catch(() => {});
+        c.stopClosedCaptions().catch((err) => {
+          console.error("Stop closed captions failed:", err);
+        });
+        c.leave().catch((err) => {
+          console.error("Leave call failed:", err);
+        });
       }
     };
   }, [client, callId, userId]);
 
   return { call, error, hasLeftRef };
-}
+};
 
 export default useMeetingCall;

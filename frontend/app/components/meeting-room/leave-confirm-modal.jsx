@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
   useEffect(() => {
@@ -10,6 +10,16 @@ const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  const handleLeaveOnly = useCallback(() => {
+    onClose();
+    onLeaveOnly?.();
+  }, [onClose, onLeaveOnly]);
+
+  const handleEndForEveryone = useCallback(() => {
+    onClose();
+    onEndForEveryone?.();
+  }, [onClose, onEndForEveryone]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -31,20 +41,14 @@ const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => {
-              onClose();
-              onLeaveOnly?.();
-            }}
+            onClick={handleLeaveOnly}
             className="w-full py-3 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium transition"
           >
             Leave meeting
           </button>
           <button
             type="button"
-            onClick={() => {
-              onClose();
-              onEndForEveryone?.();
-            }}
+            onClick={handleEndForEveryone}
             className="w-full py-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium transition"
           >
             End meeting for everyone

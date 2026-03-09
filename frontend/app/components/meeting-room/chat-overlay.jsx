@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+
 import ChatPanel from "./chat-panel";
 
 const ChatOverlay = ({

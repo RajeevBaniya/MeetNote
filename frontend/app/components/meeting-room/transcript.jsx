@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { useCall } from "@stream-io/video-react-sdk";
+
 import iconsData from "@/app/components/icons/icons.json";
-import { useLeaveAndSummarize } from "@/app/lib/use-leave-and-summarize";
-import { useLiveTranscript } from "@/app/lib/use-live-transcript";
+import { useLeaveAndSummarize } from "@/app/lib/meeting/use-leave-and-summarize";
+import { useLiveTranscript } from "@/app/lib/transcript/use-live-transcript";
 
 const TranscriptPanel = ({ callId, hasLeftRef, jwt }) => {
   const transcriptEndRef = useRef(null);
@@ -12,8 +13,12 @@ const TranscriptPanel = ({ callId, hasLeftRef, jwt }) => {
 
   const { transcripts, getSnapshot } = useLiveTranscript(callId, jwt);
 
-  const { handleSummarizeClick, isSummarizing, showEmptyInfo, setShowEmptyInfo } =
-    useLeaveAndSummarize(call, callId, getSnapshot, hasLeftRef);
+  const {
+    handleSummarizeClick,
+    isSummarizing,
+    showEmptyInfo,
+    setShowEmptyInfo,
+  } = useLeaveAndSummarize(call, callId, getSnapshot, hasLeftRef);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });

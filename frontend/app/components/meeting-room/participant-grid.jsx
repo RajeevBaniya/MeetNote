@@ -2,12 +2,13 @@
 
 import { useMemo } from "react";
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
-import ParticipantTile from "./participant-tile";
+
 import {
   filterAssistant,
   sortParticipants,
   isAssistantParticipant,
-} from "@/app/lib/participant-helpers";
+} from "@/app/lib/participants/participant-helpers";
+import ParticipantTile from "./participant-tile";
 
 const ParticipantGrid = ({
   showAssistant = false,

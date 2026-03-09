@@ -7,7 +7,7 @@ import {
   filterAssistant,
   sortParticipants,
   isAssistantParticipant,
-} from "@/app/lib/participant-helpers";
+} from "@/app/lib/participants/participant-helpers";
 
 const ScreenShareParticipantRail = ({
   showAssistant = false,

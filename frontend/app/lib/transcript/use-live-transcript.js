@@ -22,7 +22,7 @@ function parseSegment(seg, index) {
   };
 }
 
-export function useLiveTranscript(meetingId, jwt) {
+export const useLiveTranscript = (meetingId, jwt) => {
   const [transcripts, setTranscripts] = useState([]);
   const [connected, setConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
@@ -113,4 +113,4 @@ export function useLiveTranscript(meetingId, jwt) {
   const getSnapshot = useCallback(() => transcripts, [transcripts]);
 
   return { transcripts, connected, connectionError, getSnapshot };
-}
+};

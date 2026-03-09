@@ -2,15 +2,17 @@
 
 import { useState, useCallback } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
+
+import useRaisedHands from "@/app/lib/meeting/use-raised-hands";
+import { useMeetingChat } from "@/app/lib/meeting/use-meeting-chat";
+import iconsData from "@/app/components/icons/icons.json";
+
 import GalleryLayout from "./gallery-layout";
 import ScreenShareLayout from "./screen-share-layout";
 import MeetingControls from "./meeting-controls";
 import RaisedHandsModal from "./raised-hands-modal";
 import ParticipantsOverlay from "./participants-overlay";
 import ChatOverlay from "./chat-overlay";
-import useRaisedHands from "@/app/lib/use-raised-hands";
-import { useMeetingChat } from "@/app/lib/use-meeting-chat";
-import iconsData from "@/app/components/icons/icons.json";
 
 const MeetingRoomContent = ({
   showAssistant,
@@ -70,7 +72,7 @@ const MeetingRoomContent = ({
     setChatOpen(false);
   }, []);
 
-  const onEndMeeting = async () => {
+  const onEndMeeting = useCallback(async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl || !callId || !jwt) return false;
     const res = await fetch(`${apiUrl}/meetings/${callId}/end`, {
@@ -78,7 +80,39 @@ const MeetingRoomContent = ({
       headers: { Authorization: `Bearer ${jwt}` },
     });
     return res.ok;
-  };
+  }, [callId, jwt]);
+
+  const handleOpenRaisedHandsModal = useCallback(() => {
+    setShowRaisedHandsModal(true);
+  }, []);
+
+  const handleCloseRaisedHandsModal = useCallback(() => {
+    setShowRaisedHandsModal(false);
+  }, []);
+
+  const handleShowLeaveConfirmModal = useCallback(() => {
+    setShowLeaveConfirmModal(true);
+  }, []);
+
+  const handleToggleAssistant = useCallback(async () => {
+    const next = !showAssistant;
+    setShowAssistant(next);
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl && callId && jwt) {
+      try {
+        await fetch(`${apiUrl}/meetings/${callId}/assistant-preference`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ enabled: next }),
+        });
+      } catch (err) {
+        console.error("Assistant preference update failed:", err);
+      }
+    }
+  }, [showAssistant, setShowAssistant, callId, jwt]);
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-[#020617]">
@@ -109,23 +143,7 @@ const MeetingRoomContent = ({
       <div className="flex justify-center items-center shrink-0 pb-1 sm:pb-2">
         <div className="w-full bg-[#020617] px-2 py-1.5 sm:px-4 sm:py-1.5 md:px-6 md:py-2 border-t border-slate-800/80 flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap justify-center">
           <button
-            onClick={async () => {
-              const next = !showAssistant;
-              setShowAssistant(next);
-              const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-              if (apiUrl && callId && jwt) {
-                try {
-                  await fetch(`${apiUrl}/meetings/${callId}/assistant-preference`, {
-                    method: "PUT",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${jwt}`,
-                    },
-                    body: JSON.stringify({ enabled: next }),
-                  });
-                } catch (_) {}
-              }
-            }}
+            onClick={handleToggleAssistant}
             className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors ${
               showAssistant
                 ? "bg-green-500 hover:bg-green-600 text-white"
@@ -146,11 +164,11 @@ const MeetingRoomContent = ({
             isHost={isHost}
             onEndMeeting={onEndMeeting}
             raisedHandCount={raisedHandCount}
-            onOpenRaisedHands={() => setShowRaisedHandsModal(true)}
+            onOpenRaisedHands={handleOpenRaisedHandsModal}
             onRaiseHand={raiseHand}
             onLowerHand={lowerHand}
             isHandRaised={isHandRaised}
-            onLeaveClick={isHost ? () => setShowLeaveConfirmModal(true) : undefined}
+            onLeaveClick={isHost ? handleShowLeaveConfirmModal : undefined}
             showLeaveConfirmModal={showLeaveConfirmModal}
             setShowLeaveConfirmModal={setShowLeaveConfirmModal}
             callId={callId}
@@ -161,7 +179,7 @@ const MeetingRoomContent = ({
 
           {showRaisedHandsModal ? (
             <RaisedHandsModal
-              onClose={() => setShowRaisedHandsModal(false)}
+              onClose={handleCloseRaisedHandsModal}
               raisedHandUserIds={raisedHandUserIds}
             />
           ) : null}

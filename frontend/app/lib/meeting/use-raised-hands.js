@@ -6,7 +6,7 @@ import { useCall } from "@stream-io/video-react-sdk";
 const HAND_RAISED = "hand_raised";
 const HAND_LOWERED = "hand_lowered";
 
-function useRaisedHands(currentUserId) {
+const useRaisedHands = (currentUserId) => {
   const call = useCall();
   const [raisedSet, setRaisedSet] = useState(() => new Set());
 
@@ -37,12 +37,16 @@ function useRaisedHands(currentUserId) {
 
   const raiseHand = useCallback(() => {
     if (!call || !currentUserId) return;
-    call.sendCustomEvent({ type: HAND_RAISED, user_id: currentUserId }).catch(() => {});
+    call.sendCustomEvent({ type: HAND_RAISED, user_id: currentUserId }).catch((err) => {
+      console.error("Raise hand event failed:", err);
+    });
   }, [call, currentUserId]);
 
   const lowerHand = useCallback(() => {
     if (!call || !currentUserId) return;
-    call.sendCustomEvent({ type: HAND_LOWERED, user_id: currentUserId }).catch(() => {});
+    call.sendCustomEvent({ type: HAND_LOWERED, user_id: currentUserId }).catch((err) => {
+      console.error("Lower hand event failed:", err);
+    });
   }, [call, currentUserId]);
 
   const raisedHandUserIds = Array.from(raisedSet);
@@ -55,6 +59,6 @@ function useRaisedHands(currentUserId) {
     lowerHand,
     isHandRaised,
   };
-}
+};
 
 export default useRaisedHands;

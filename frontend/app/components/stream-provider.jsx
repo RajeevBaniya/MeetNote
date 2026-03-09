@@ -1,12 +1,13 @@
 "use client";
 
 import { StreamVideo } from "@stream-io/video-react-sdk";
-import { useStreamClients } from "@/app/lib/use-stream-clients";
 
-const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+import { useStreamClients } from "@/app/lib/stream/use-stream-clients";
+
+const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 
 const StreamProvider = ({ children, user, getToken }) => {
-  const { videoClient } = useStreamClients({ apiKey, user, getToken });
+  const { videoClient } = useStreamClients({ apiKey: API_KEY, user, getToken });
 
   if (!videoClient) {
     return (

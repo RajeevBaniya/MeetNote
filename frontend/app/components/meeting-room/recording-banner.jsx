@@ -2,7 +2,7 @@
 
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
-function RecordingBanner() {
+const RecordingBanner = () => {
   const { useIsCallRecordingInProgress } = useCallStateHooks();
   const isRecording = useIsCallRecordingInProgress();
 
@@ -16,6 +16,6 @@ function RecordingBanner() {
       Recording
     </div>
   );
-}
+};
 
 export default RecordingBanner;

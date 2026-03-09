@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
-import ScreenShareView, { isScreenSharePublisher } from "./screen-share-view";
+
+import ScreenShareView from "./screen-share-view";
+import { isScreenSharePublisher } from "@/app/lib/screenshare/screen-share-utils";
 import ScreenShareParticipantRail from "./screen-share-participant-rail";
 import TranscriptPanel from "./transcript";
 

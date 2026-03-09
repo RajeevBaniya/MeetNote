@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+
 import ParticipantsPanel from "./participants-panel";
 
 const ParticipantsOverlay = ({

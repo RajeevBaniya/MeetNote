@@ -14,7 +14,7 @@ const ScreenShareView = () => {
 
   const screenSharingParticipant = useMemo(
     () => participants.find(isScreenSharePublisher),
-    [participants]
+    [participants],
   );
 
   useEffect(() => {
@@ -29,7 +29,7 @@ const ScreenShareView = () => {
         cleanup = await call.bindVideoElement(
           videoElement,
           sessionId,
-          "screenShareTrack"
+          "screenShareTrack",
         );
       } catch (err) {
         console.error("Failed to bind screen share video:", err);

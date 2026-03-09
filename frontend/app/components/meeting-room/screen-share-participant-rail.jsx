@@ -42,9 +42,11 @@ const ScreenShareParticipantRail = ({
         {sortedParticipants.map((participant) => {
           const key = participant.sessionId || participant.userId;
           const showHostBadge =
-            Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
+            Boolean(isHost) &&
+            Boolean(currentUserId) &&
+            participant.userId === currentUserId;
           const isHandRaised = Boolean(
-            participant.userId && raisedHandUserIds.has(participant.userId)
+            participant.userId && raisedHandUserIds.has(participant.userId),
           );
           return (
             <div
@@ -69,9 +71,11 @@ const ScreenShareParticipantRail = ({
       {sortedParticipants.map((participant) => {
         const key = participant.sessionId || participant.userId;
         const showHostBadge =
-          Boolean(isHost) && Boolean(currentUserId) && participant.userId === currentUserId;
+          Boolean(isHost) &&
+          Boolean(currentUserId) &&
+          participant.userId === currentUserId;
         const isHandRaised = Boolean(
-          participant.userId && raisedHandUserIds.has(participant.userId)
+          participant.userId && raisedHandUserIds.has(participant.userId),
         );
         return (
           <div

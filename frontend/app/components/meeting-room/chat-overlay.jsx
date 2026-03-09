@@ -55,4 +55,3 @@ const ChatOverlay = ({
 };
 
 export default ChatOverlay;
-

@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import { Button } from "./button";
 
-function ConfirmDialog({
+const ConfirmDialog = ({
   open,
   title = "Confirm",
   description,
@@ -12,7 +12,7 @@ function ConfirmDialog({
   onConfirm,
   onCancel,
   confirmVariant = "destructive",
-}) {
+}) => {
   if (!open) return null;
 
   const dialog = (
@@ -54,6 +54,6 @@ function ConfirmDialog({
   );
 
   return createPortal(dialog, document.body);
-}
+};
 
 export default ConfirmDialog;

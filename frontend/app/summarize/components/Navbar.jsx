@@ -1,6 +1,6 @@
 "use client";
 
-function Navbar() {
+const Navbar = () => {
   return (
     <nav className="navbar-main">
       <div className="navbar-wrapper">
@@ -17,6 +17,6 @@ function Navbar() {
       </div>
     </nav>
   );
-}
+};
 
 export default Navbar;

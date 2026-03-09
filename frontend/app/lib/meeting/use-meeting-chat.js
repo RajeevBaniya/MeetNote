@@ -11,6 +11,9 @@ function buildChatWsUrl(apiUrl, meetingId, jwt) {
 
 function closeReasonToMessage(code, reason) {
   const r = (reason || "").toLowerCase();
+  if (code === 4408 || r.includes("rate_limit_exceeded")) {
+    return "Connection temporarily limited. Please wait a moment.";
+  }
   if (code === 4401 || r.includes("token") || r.includes("unauthorized")) {
     return "Connection failed. Sign in again.";
   }

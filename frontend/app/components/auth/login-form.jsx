@@ -3,21 +3,33 @@
 import { useState, useCallback } from "react";
 
 import { useAuth } from "@/app/lib/auth/use-auth";
+import { getErrorMessage, isRateLimitError } from "@/app/lib/ui/error-messages";
+import ErrorBanner from "@/app/lib/ui/error-banner";
 import PasswordField from "@/app/components/auth/password-field";
 
 const LoginForm = ({ onSuccess, onSwitchMode, message }) => {
   const { login, loading, error, setError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [bannerError, setBannerError] = useState(null);
 
   const handleSubmit = useCallback(
     async (event) => {
       event.preventDefault();
       setError(null);
-      const ok = await login(email.trim(), password);
-      if (ok && typeof onSuccess === "function") {
-        onSuccess();
+      setBannerError(null);
+      const result = await login(email.trim(), password);
+      if (result && typeof result === "object") {
+        const structuredError = result.error || null;
+        if (structuredError && isRateLimitError(structuredError)) {
+          setBannerError(structuredError);
+        }
+        if (result.ok && typeof onSuccess === "function") {
+          onSuccess();
+        }
+        return;
       }
+      if (result && typeof onSuccess === "function") onSuccess();
     },
     [email, password, onSuccess, login, setError],
   );
@@ -37,6 +49,12 @@ const LoginForm = ({ onSuccess, onSwitchMode, message }) => {
 
   return (
     <>
+      {bannerError ? (
+        <ErrorBanner
+          message={getErrorMessage(bannerError)}
+          onClose={() => setBannerError(null)}
+        />
+      ) : null}
       {message ? (
         <p className="mb-3 text-sm text-slate-300">{message}</p>
       ) : null}

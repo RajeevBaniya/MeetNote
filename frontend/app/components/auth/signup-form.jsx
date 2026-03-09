@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 
 import { useAuth } from "@/app/lib/auth/use-auth";
+import { getErrorMessage, isRateLimitError } from "@/app/lib/ui/error-messages";
+import ErrorBanner from "@/app/lib/ui/error-banner";
 import PasswordField from "@/app/components/auth/password-field";
 
 const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
@@ -10,15 +12,25 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [bannerError, setBannerError] = useState(null);
 
   const handleSubmit = useCallback(
     async (event) => {
       event.preventDefault();
       setError(null);
-      const ok = await register(email.trim(), password, name.trim() || null);
-      if (ok && typeof onSuccess === "function") {
-        onSuccess();
+      setBannerError(null);
+      const result = await register(email.trim(), password, name.trim() || null);
+      if (result && typeof result === "object") {
+        const structuredError = result.error || null;
+        if (structuredError && isRateLimitError(structuredError)) {
+          setBannerError(structuredError);
+        }
+        if (result.ok && typeof onSuccess === "function") {
+          onSuccess();
+        }
+        return;
       }
+      if (result && typeof onSuccess === "function") onSuccess();
     },
     [email, password, name, onSuccess, register, setError],
   );
@@ -42,6 +54,12 @@ const SignupForm = ({ onSuccess, onSwitchMode, message }) => {
 
   return (
     <>
+      {bannerError ? (
+        <ErrorBanner
+          message={getErrorMessage(bannerError)}
+          onClose={() => setBannerError(null)}
+        />
+      ) : null}
       {message ? (
         <p className="mb-3 text-sm text-slate-300">{message}</p>
       ) : null}

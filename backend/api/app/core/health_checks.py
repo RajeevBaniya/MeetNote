@@ -1,4 +1,5 @@
 from fastapi.responses import JSONResponse
+import logging
 from sqlalchemy import text
 
 from app.core.config import get_database_url
@@ -6,6 +7,8 @@ from app.core.dependencies import get_service
 from app.core.interfaces import CacheServiceInterface
 from app.core.redis import get_redis_url
 from app.db.session import async_session_factory
+
+logger = logging.getLogger(__name__)
 
 
 async def basic_health_check() -> dict[str, str]:
@@ -47,6 +50,7 @@ async def _check_database_health() -> str:
             await session.execute(text("SELECT 1"))
         return "ok"
     except Exception:
+        logger.warning("health_check_db_failed", exc_info=True)
         return "error"
 
 
@@ -60,6 +64,7 @@ async def _check_redis_health() -> str:
         await cache_service.ping()
         return "ok"
     except Exception:
+        logger.warning("health_check_redis_failed", exc_info=True)
         return "error"
 
 

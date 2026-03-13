@@ -23,11 +23,11 @@ def get_jwt_secret() -> str:
 
 
 def get_jwt_expire_minutes() -> int:
-    raw = os.getenv("JWT_EXPIRE_MINUTES", "30")
+    raw = os.getenv("JWT_EXPIRE_MINUTES", "15")
     try:
         return int(raw)
     except ValueError:
-        return 30
+        return 15
 
 
 def get_stream_api_key() -> str:
@@ -93,3 +93,20 @@ def get_app_base_url() -> str:
         raise ValueError("APP_BASE_URL is required")
     base = raw.strip()
     return base[:-1] if base.endswith("/") else base
+
+
+def get_refresh_token_days() -> int:
+    raw = os.getenv("REFRESH_TOKEN_DAYS", "14")
+    try:
+        days = int(raw)
+    except ValueError:
+        days = 14
+    return max(7, min(days, 30))
+
+
+def get_cookie_domain() -> str | None:
+    raw = os.getenv("COOKIE_DOMAIN")
+    if not raw:
+        return None
+    domain = raw.strip()
+    return domain or None

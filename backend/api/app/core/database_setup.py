@@ -17,8 +17,9 @@ async def ensure_database_schema(engine: AsyncEngine) -> None:
             await _create_analytics_tables(conn)
             await _create_analytics_indexes(conn)
             await _ensure_lifecycle_constraints(conn)
-    except Exception:
+    except Exception as exc:
         logger.exception("database_schema_setup_failed")
+        raise RuntimeError("Database schema setup failed") from exc
 
 
 async def _add_user_columns(conn):

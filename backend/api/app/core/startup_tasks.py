@@ -3,6 +3,7 @@ import logging
 
 from sqlalchemy import select
 
+from app.state.client import get_redis
 from app.core.config import (
     get_database_url,
     get_jwt_secret,
@@ -10,6 +11,7 @@ from app.core.config import (
     get_stream_webhook_secret,
 )
 from app.core.database_setup import ensure_database_schema
+from app.core.error_monitoring import initialize_error_monitoring, run_worker_with_sentry
 from app.core.metrics import init_metrics_worker
 from app.core.redis import get_redis_url
 from app.db.base import engine
@@ -17,6 +19,8 @@ from app.db.models import Meeting
 from app.db.session import async_session_factory
 from app.modules.meetings.events import publish_meeting_snapshot
 from app.modules.transcripts.worker import run_transcript_worker
+from app.workers.convergence_auditor import run_convergence_auditor
+from app.workers.meeting_cleanup_worker import run_meeting_cleanup_worker
 
 logger = logging.getLogger(__name__)
 
@@ -40,18 +44,44 @@ async def initialize_application() -> asyncio.Task | None:
     Performs all application initialization tasks.
     Returns the transcript worker task if successfully started.
     """
+    initialize_error_monitoring()
     await validate_environment()
     await ensure_database_schema(engine)
+    await _warn_if_redis_persistence_disabled()
 
     transcript_task: asyncio.Task | None = None
     try:
         init_metrics_worker()
         await _publish_active_meetings_snapshot()
-        transcript_task = asyncio.create_task(run_transcript_worker())
+        transcript_task = asyncio.create_task(
+            run_worker_with_sentry("transcript_worker", run_transcript_worker)
+        )
+        asyncio.create_task(
+            run_worker_with_sentry("convergence_auditor", run_convergence_auditor)
+        )
+        asyncio.create_task(
+            run_worker_with_sentry("meeting_cleanup_worker", run_meeting_cleanup_worker)
+        )
     except Exception:
         logger.debug("meeting_snapshot_startup_failed", exc_info=True)
 
     return transcript_task
+
+
+async def _warn_if_redis_persistence_disabled() -> None:
+    try:
+        redis = await get_redis()
+        info = await redis.info()
+    except Exception:
+        logger.debug("redis_info_unavailable", exc_info=True)
+        return
+
+    appendonly = info.get("appendonly")
+    if appendonly is None:
+        return
+    normalized = str(appendonly).strip().lower()
+    if normalized in {"0", "no", "false"}:
+        logger.warning("redis_persistence_disabled")
 
 
 async def _publish_active_meetings_snapshot() -> None:

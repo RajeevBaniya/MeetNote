@@ -78,6 +78,25 @@ class Meeting(Base):
         nullable=False,
     )
 
+    convergence_state: Mapped[str] = mapped_column(
+        String(32),
+        default="pending",
+        nullable=False,
+    )
+    convergence_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    convergence_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    analytics_state: Mapped[str] = mapped_column(
+        String(32),
+        default="pending",
+        nullable=False,
+    )
+
 
 class MeetingAnalytics(Base):
     __tablename__ = "meeting_analytics"
@@ -138,3 +157,12 @@ class MeetingParticipantStats(Base):
     )
     total_time_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     speaking_time_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class ProcessedSegment(Base):
+    __tablename__ = "processed_segments"
+
+    segment_id: Mapped[str] = mapped_column(
+        Text,
+        primary_key=True,
+    )

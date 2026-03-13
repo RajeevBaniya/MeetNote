@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 KEY_PREFIX_GENERAL = "ratelimit"
 KEY_PREFIX_STREAM_TOKEN = "ratelimit:streamtoken"
 KEY_PREFIX_MEETING_JOIN = "ratelimit:join"
+WS_CONNECTION_PREFIX = f"{KEY_PREFIX_GENERAL}:ws"
 
 STREAM_TOKEN_WINDOW_SECONDS = 60
 MEETING_JOIN_LIMIT = 20
@@ -115,4 +116,15 @@ async def rate_limit_meeting_join(
         limit=MEETING_JOIN_LIMIT,
         window_seconds=MEETING_JOIN_WINDOW_SECONDS,
         key_prefix=KEY_PREFIX_MEETING_JOIN,
+    )
+
+
+async def rate_limit_ws_for_user(user_id: UUID) -> bool:
+    redis = await get_redis()
+    key = f"{WS_CONNECTION_PREFIX}:user:{user_id}"
+    return await check_rate_limit(
+        redis,
+        key,
+        limit=get_rate_limit_requests(),
+        window_seconds=get_rate_limit_window_seconds(),
     )

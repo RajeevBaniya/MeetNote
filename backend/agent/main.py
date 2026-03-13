@@ -320,20 +320,20 @@ class AssistantCore:
         
         self._append_to_transcript(speaker_id, cleaned_text, timestamp)
         logger.info("[%s]: %s", speaker_id, cleaned_text)
-        
+
         transcript_lower = cleaned_text.lower().strip()
-        
+
         if await self._handle_pending_question_response(transcript_lower):
             return
-        
+
         if await self._handle_deactivation(transcript_lower):
             return
-        
+
         question = await self._handle_activation(transcript_lower, cleaned_text)
-        
+
         if not self.assistant_active:
             return
-        
+
         if question and len(question) >= AgentConstants.MIN_QUESTION_LENGTH:
             await self._process_question(question)
     
@@ -402,7 +402,7 @@ class AssistantCore:
         raw_text: str
     ) -> Optional[str]:
         activation_phrases = [phrase.value for phrase in ActivationPhrase]
-        
+
         for phrase in activation_phrases:
             if not text_lower.startswith(phrase):
                 continue
@@ -414,7 +414,7 @@ class AssistantCore:
                 logger.info("Assistant activated for meeting %s", self.meeting_id)
             
             question_after_activation = raw_text[len(phrase):].strip()
-            
+
             if (not question_after_activation or
                 len(question_after_activation) < AgentConstants.MIN_QUESTION_LENGTH):
                 if activated_now:
@@ -542,7 +542,7 @@ class AgentManager:
                 meeting_id
             )
             return
-        
+
         logger.info("Attaching agent to meeting %s", meeting_id)
         
         core = AssistantCore(
@@ -614,7 +614,7 @@ class AgentManager:
         if meeting_id not in self.agents:
             logger.debug("Not attached to meeting %s", meeting_id)
             return
-        
+
         logger.info("Detaching from meeting %s", meeting_id)
         meeting_agent = self.agents.pop(meeting_id)
         await meeting_agent.cleanup()
@@ -739,7 +739,7 @@ class AgentManager:
             
             elif channel == AgentConstants.MEETING_ASSISTANT_PREFERENCE_CHANNEL:
                 await self._handle_assistant_preference(data)
-        
+
         except Exception as exc:
             logger.error(
                 "Error handling pub/sub message from %s: %s",

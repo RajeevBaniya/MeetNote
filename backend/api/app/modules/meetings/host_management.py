@@ -57,9 +57,7 @@ async def select_next_host_candidate(
         try:
             user_uuid = UUID(uid)
         except Exception:
-            continue
-            
-        if user_uuid == exclude_user_id:
+            continue  # skip non-UUID string when selecting host candidate
             continue
             
         return user_uuid
@@ -202,8 +200,8 @@ async def _get_connected_user_ids(meeting_id: UUID, acting_user_id: UUID) -> set
         try:
             connected_ids.add(UUID(uid))
         except Exception:
-            continue
-    
+            continue  # skip invalid member uid from Stream API
+
     return connected_ids
 
 

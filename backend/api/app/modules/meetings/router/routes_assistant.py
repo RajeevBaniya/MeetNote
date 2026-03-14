@@ -37,7 +37,7 @@ async def get_assistant_preference(
         redis = await get_redis()
         raw = await redis.get(f"{ASSISTANT_ENABLED_KEY_PREFIX}{meeting_id}")
     except Exception:
-        raw = None
+        raw = None  # Redis unavailable; treat as preference not set
     enabled = raw != "0"
     return AssistantPreferenceOut(enabled=enabled)
 

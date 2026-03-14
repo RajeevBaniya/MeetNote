@@ -62,6 +62,5 @@ async def logout(
     if raw_token:
         await revoke_refresh_token(raw_token)
     clear_refresh_cookie(response)
-    # Optional: return current user for client-side cleanup
     return None
 

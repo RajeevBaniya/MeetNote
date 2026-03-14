@@ -55,10 +55,7 @@ async def get_meeting_by_join_code(
     Returns:
         Meeting instance if found and valid, None otherwise
     """
-    # Normalize join code by removing spaces and dashes
     cleaned = join_code.strip().replace(" ", "").replace("-", "")
-    
-    # Validate format: must be numeric and correct length
     if not cleaned.isdigit() or len(cleaned) != JOIN_CODE_LENGTH:
         return None
     

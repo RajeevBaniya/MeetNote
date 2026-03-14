@@ -54,7 +54,13 @@ async def end_meeting(
     await session.execute(
         update(Meeting)
         .where(Meeting.id == meeting_id)
-        .values(is_active=False, ended_at=now)
+        .values(
+            is_active=False,
+            ended_at=now,
+            convergence_started_at=now,
+            convergence_state="pending",
+            analytics_state="pending",
+        )
     )
     await session.commit()
     await session.refresh(meeting)

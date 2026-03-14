@@ -41,18 +41,23 @@ async def join_meeting(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
+    if not meeting.is_active and meeting.ended_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This meeting has already ended",
+        )
     meeting_id = meeting.id
-    if meeting.scheduled_start_at:
+    is_creator = meeting.host_id == user_id
+    if meeting.scheduled_start_at and not is_creator:
         now_utc = datetime.now(timezone.utc)
-        delta_seconds = (meeting.scheduled_start_at - now_utc).total_seconds()
-        if delta_seconds > 60:
+        if now_utc < meeting.scheduled_start_at:
             logger.info(
                 "join_rejected",
-                extra={"reason": "not_started", "meeting_id": str(meeting_id)},
+                extra={"reason": "host_not_started", "meeting_id": str(meeting_id)},
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="This meeting is scheduled and has not started yet.",
+                detail="Host has not started the meeting yet",
             )
     if not meeting.is_active:
         logger.info(
@@ -72,8 +77,7 @@ async def join_meeting(
                 detail="Host has not started the meeting yet",
             ) from exc
         raise
-    is_host = meeting.host_id == user_id
-    if not is_host:
+    if not is_creator:
         raw_passcode = (body.passcode or "").strip() if body and body.passcode else ""
         if not raw_passcode:
             logger.info(

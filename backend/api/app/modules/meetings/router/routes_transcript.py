@@ -111,6 +111,7 @@ async def get_live_transcript_api(
             detail="Service temporarily unavailable",
         )
     if await has_user_left(redis, meeting_id, user_id):
+        incr("transcript_user_blocked_total")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="transcript_unavailable",
@@ -144,6 +145,7 @@ async def get_live_transcript_segments_api(
             detail="Service temporarily unavailable",
         )
     if await has_user_left(redis, meeting_id, user_id):
+        incr("transcript_user_blocked_total")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="transcript_unavailable",

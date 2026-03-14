@@ -6,6 +6,7 @@ from .routes_schedule import router as schedule_router
 from .routes_assistant import router as assistant_router
 from .routes_analytics import router as analytics_router
 from .routes_transcript import router as transcript_router
+from .routes_share import router as share_router
 
 
 logger = logging.getLogger(__name__)
@@ -17,4 +18,5 @@ router.include_router(schedule_router)
 router.include_router(assistant_router)
 router.include_router(analytics_router)
 router.include_router(transcript_router)
+router.include_router(share_router)
 

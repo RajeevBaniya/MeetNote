@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
@@ -15,6 +16,7 @@ from app.state.client import get_redis
 SYSTEM_USER_ID = "system:assistant"
 SYSTEM_DISPLAY_NAME = "Assistant"
 
+logger = logging.getLogger(__name__)
 
 class AssistantMessageIn(BaseModel):
     text: str
@@ -90,5 +92,5 @@ async def post_assistant_message(
         try:
             await _send_json(ws, payload_out)
         except Exception:
-            pass
+            logger.warning("chat_broadcast_send_failed", exc_info=True)
 

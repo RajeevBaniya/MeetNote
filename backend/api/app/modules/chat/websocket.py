@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.core.jwt import get_user_id_from_token
+from app.core.rate_limit import rate_limit_ws_for_user
 from app.db.session import async_session_factory
 from app.modules.chat.service import (
     append_message,
@@ -74,7 +75,7 @@ async def close_chat_connections(meeting_id: UUID) -> None:
         try:
             await ws.close(code=WS_CLOSE_MEETING_ENDED, reason="Meeting ended")
         except Exception:
-            pass
+            logger.warning("ws_close_failed", exc_info=True)
 
 
 async def close_chat_connections_for_user(meeting_id: UUID, user_id: UUID) -> None:
@@ -98,7 +99,7 @@ async def close_chat_connections_for_user(meeting_id: UUID, user_id: UUID) -> No
                 reason="You were removed from this meeting",
             )
         except Exception:
-            pass
+            logger.warning("ws_close_failed", exc_info=True)
 
 
 async def _send_json(websocket: WebSocket, obj: dict) -> None:
@@ -111,7 +112,7 @@ async def broadcast_host_changed(meeting_id: UUID, new_host_id: UUID) -> None:
         try:
             await _send_json(ws, payload)
         except Exception:
-            pass
+            logger.warning("broadcast_host_changed_send_failed", exc_info=True)
 
 
 async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
@@ -123,6 +124,10 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
     user_id = get_user_id_from_token(token)
     if not user_id:
         await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Invalid or expired token")
+        return
+    allowed = await rate_limit_ws_for_user(user_id)
+    if not allowed:
+        await websocket.close(code=4408, reason="rate_limit_exceeded")
         return
     async with async_session_factory() as session:
         meeting = await get_meeting_by_id(session, meeting_id)
@@ -173,7 +178,7 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
             initial_host_id = restored
             await broadcast_host_changed(meeting_id, restored)
     except Exception:
-        pass
+        logger.warning("restore_original_host_failed", exc_info=True)
 
     _register(meeting_id, websocket, user_id)
     try:
@@ -204,16 +209,17 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
                 try:
                     await _send_json(ws, payload)
                 except Exception:
-                    pass
+                    logger.warning("chat_broadcast_send_failed", exc_info=True)
     except WebSocketDisconnect:
         logger.info(
             "ws_disconnected",
             extra={"meeting_id": str(meeting_id), "user_id": str(user_id)},
         )
     except Exception:
+        logger.exception("chat_websocket_error")
         try:
             await websocket.close(code=1011)
         except Exception:
-            pass
+            logger.warning("ws_close_on_error_failed", exc_info=True)
     finally:
         _unregister(meeting_id, websocket)

@@ -110,3 +110,18 @@ def get_cookie_domain() -> str | None:
         return None
     domain = raw.strip()
     return domain or None
+
+
+def get_frontend_base_url() -> str:
+    raw = os.getenv("APP_BASE_URL", "http://localhost:3000")
+    base = (raw or "").strip()
+    if not base:
+        return "http://localhost:3000"
+    return base.rstrip("/")
+
+
+def get_frontend_base_url_required() -> str:
+    raw = os.getenv("APP_BASE_URL")
+    if not raw or not raw.strip():
+        raise ValueError("APP_BASE_URL is required for share links")
+    return raw.strip().rstrip("/")

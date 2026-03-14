@@ -1,25 +1,21 @@
-import hashlib
 import json
-from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from redis.asyncio import Redis
 
-from app.core.metrics import incr
-from app.modules.transcripts.broadcaster import publish_segment
 from app.modules.transcripts.redis_keys import (
-    ACTIVE_MEETING_TTL_SECONDS,
     POST_MEETING_TTL_SECONDS,
     buffer_key,
+    chunks_key,
     left_users_key,
-    lock_key,
     live_key,
-    seen_key,
+    lock_key,
     segments_key,
     seq_key,
-    chunks_key,
+    seen_key,
 )
+from app.modules.transcripts.transcript_stabilizer import append_and_stabilize_segment
 
 
 async def append_transcript_segment(
@@ -29,52 +25,17 @@ async def append_transcript_segment(
     speaker_id: str | None = None,
     speaker_name: str | None = None,
     timestamp: str | None = None,
+    confidence: float | None = None,
 ) -> None:
-    if not text or not text.strip():
-        return
-    payload = text.strip()
-    ts = timestamp or datetime.now(timezone.utc).isoformat()
-
-    bucket = ts[:19]
-    hasher = hashlib.sha256()
-    hasher.update((speaker_id or "").encode("utf-8"))
-    hasher.update(b"|")
-    hasher.update((speaker_name or "").encode("utf-8"))
-    hasher.update(b"|")
-    hasher.update(payload.encode("utf-8"))
-    hasher.update(b"|")
-    hasher.update(bucket.encode("utf-8"))
-    digest = hasher.hexdigest()
-
-    sk = seen_key(meeting_id)
-    if await redis.sismember(sk, digest):
-        return
-    await redis.sadd(sk, digest)
-    await redis.expire(sk, ACTIVE_MEETING_TTL_SECONDS)
-
-    segment_record: dict[str, Any] = {
-        "segment_id": digest,
-        "speaker_id": speaker_id,
-        "speaker_name": speaker_name,
-        "text": payload,
-        "start_time": ts,
-        "end_time": ts,
-    }
-    sequence = await redis.incr(seq_key(meeting_id))
-    segment_record["sequence"] = int(sequence)
-    seg_key = segments_key(meeting_id)
-    await redis.rpush(seg_key, json.dumps(segment_record))
-    await redis.ltrim(seg_key, -2000, -1)
-
-    segment_for_stream = {
-        "text": payload,
-        "speaker_id": speaker_id,
-        "speaker": speaker_name,
-        "timestamp": ts,
-        "sequence": int(sequence),
-    }
-    await publish_segment(redis, meeting_id, segment_for_stream)
-    incr("transcript_segments_received_total")
+    await append_and_stabilize_segment(
+        redis=redis,
+        meeting_id=meeting_id,
+        text=text,
+        speaker_id=speaker_id,
+        speaker_name=speaker_name,
+        timestamp=timestamp,
+        confidence=confidence,
+    )
 
 
 async def get_segment_count(redis: Redis, meeting_id: UUID) -> int:
@@ -119,6 +80,7 @@ async def expire_transcript_keys(redis: Redis, meeting_id: UUID) -> None:
         lock_key(meeting_id),
         segments_key(meeting_id),
         seq_key(meeting_id),
+        seen_key(meeting_id),
     ]
     for key in keys_for_ttl:
         await redis.expire(key, POST_MEETING_TTL_SECONDS)

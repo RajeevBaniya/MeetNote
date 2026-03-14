@@ -27,12 +27,16 @@ async def append_transcript_segment(
     speaker_id: str | None = None,
     speaker_name: str | None = None,
     timestamp: str | None = None,
+    confidence: float | None = None,
 ) -> None:
     await _append_segment(
-        redis, meeting_id, text,
+        redis,
+        meeting_id,
+        text,
         speaker_id=speaker_id,
         speaker_name=speaker_name,
         timestamp=timestamp,
+        confidence=confidence,
     )
     length = await get_segment_count(redis, meeting_id)
     if length >= TRANSCRIPT_SEGMENT_THRESHOLD:

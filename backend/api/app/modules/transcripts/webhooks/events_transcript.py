@@ -117,5 +117,6 @@ async def handle_transcript_event(
             },
         )
     incr("webhook_processed_total")
+    incr("transcript_segments_received_total")
     return {"accepted": True}
 

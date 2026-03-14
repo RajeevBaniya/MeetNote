@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from app.core.jwt import get_user_id_from_token
 from app.core.metrics import incr
+from app.core.rate_limit import rate_limit_ws_for_user
 from app.modules.transcripts.broadcaster import _pub_channel
 from app.modules.transcripts.service import (
     get_transcript_segments,
@@ -14,6 +16,8 @@ from app.modules.transcripts.service import (
 )
 from app.state.client import get_redis
 
+
+logger = logging.getLogger(__name__)
 
 WS_CLOSE_UNAUTHORIZED = 4401
 
@@ -44,6 +48,11 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
         await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Invalid token")
         return
 
+    allowed = await rate_limit_ws_for_user(user_id)
+    if not allowed:
+        await websocket.close(code=4408, reason="rate_limit_exceeded")
+        return
+
     try:
         redis = await get_redis()
     except Exception:
@@ -56,8 +65,17 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
         await websocket.close(code=1011, reason="Service unavailable")
         return
     if left:
-        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="transcript_unavailable")
-        return
+        await websocket.send_text(json.dumps({"type": "history", "segments": []}))
+        incr("transcript_restore_requests_total")
+        incr("transcript_user_blocked_total")
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            return
+        except Exception:
+            logger.warning("transcript_blocked_ws_receive_error", exc_info=True)
+            return
 
     history_items = await get_transcript_segments(redis, meeting_id)
     history_segments = [
@@ -66,6 +84,7 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
             "speaker_id": item.get("speaker_id"),
             "speaker": item.get("speaker_name"),
             "timestamp": item.get("start_time"),
+            "sequence": item.get("sequence"),
         }
         for item in history_items
     ]
@@ -89,6 +108,7 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
         except WebSocketDisconnect:
             stop_event.set()
         except Exception:
+            logger.warning("transcript_receive_loop_error", exc_info=True)
             stop_event.set()
 
     async def _broadcast_loop() -> None:
@@ -108,9 +128,11 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
                         )
                         incr("transcript_segments_streamed_total")
                     except Exception:
+                        logger.warning("transcript_send_segment_failed", exc_info=True)
                         stop_event.set()
                         break
         except Exception:
+            logger.warning("transcript_broadcast_loop_error", exc_info=True)
             stop_event.set()
 
     recv_task = asyncio.create_task(_receive_loop())
@@ -125,4 +147,4 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
             await pubsub.unsubscribe(channel)
             await pubsub.aclose()
         except Exception:
-            pass
+            logger.warning("transcript_ws_cleanup_failed", exc_info=True)

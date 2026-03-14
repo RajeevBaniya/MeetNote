@@ -1,0 +1,12 @@
+ALTER TABLE meetings
+ADD COLUMN IF NOT EXISTS convergence_state VARCHAR(32) NOT NULL DEFAULT 'pending';
+
+ALTER TABLE meetings
+ADD COLUMN IF NOT EXISTS convergence_started_at TIMESTAMPTZ NULL;
+
+ALTER TABLE meetings
+ADD COLUMN IF NOT EXISTS convergence_completed_at TIMESTAMPTZ NULL;
+
+ALTER TABLE meetings
+ADD COLUMN IF NOT EXISTS analytics_state VARCHAR(32) NOT NULL DEFAULT 'pending';
+

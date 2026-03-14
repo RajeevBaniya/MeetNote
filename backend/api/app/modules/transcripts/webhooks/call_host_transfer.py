@@ -23,6 +23,7 @@ async def run_debounced_host_transfer(
     try:
         redis = await get_redis()
     except Exception:
+        logger.warning("host_transfer_redis_unavailable", exc_info=True)
         return False
 
     lock_key = f"host_transfer_lock:{meeting_id}"
@@ -40,6 +41,7 @@ async def run_debounced_host_transfer(
                 disconnected_user_id,
             )
         except Exception:
+            logger.exception("transfer_host_if_current_disconnected_failed")
             return
         if new_host is None:
             return

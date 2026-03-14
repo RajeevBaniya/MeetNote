@@ -220,7 +220,7 @@ async def get_stream_transcript_segments(
         try:
             data = json.loads(line)
         except Exception:
-            continue
+            continue  # skip malformed JSON line from transcript response
         if not isinstance(data, dict):
             continue
         if data.get("type") != "speech":

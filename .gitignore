@@ -1,11 +1,11 @@
-# Secrets (root or any subfolder)
+# Secrets 
 .env
 .env.*
 !.env.example
 *.pem
 *.key
 
-# Python (root-level or stray)
+# Python 
 .venv/
 venv/
 env/
@@ -15,7 +15,7 @@ __pycache__/
 dist/
 build/
 
-# Node (root-level or stray)
+# Node 
 node_modules/
 .pnp/
 .next/

@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -13,6 +13,7 @@ from app.core.metrics import snapshot
 from app.core.request_id import RequestIdMiddleware
 from app.core.startup_tasks import initialize_application
 from app.modules.auth.router import router as auth_router
+from app.modules.auth.refresh_router import router as auth_refresh_router
 from app.modules.join.router import router as join_router
 from app.modules.meetings.router import router as meetings_router
 from app.modules.stream_tokens.router import router as stream_tokens_router
@@ -79,6 +80,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(auth_refresh_router)
 app.include_router(meetings_router)
 app.include_router(join_router)
 app.include_router(stream_tokens_router)
@@ -99,15 +101,20 @@ async def healthz_deep() -> JSONResponse:
 
 
 @app.get("/metrics")
-async def metrics() -> JSONResponse:
+async def metrics() -> Response:
     data = await snapshot()
-    status = "ok" if data else "error"
-    return JSONResponse(
+    lines: list[str] = []
+    for name, value in sorted(data.items()):
+        try:
+            numeric = int(value)
+        except (TypeError, ValueError):
+            continue
+        lines.append(f"{name} {numeric}")
+    body = "\n".join(lines) + ("\n" if lines else "")
+    return Response(
+        content=body,
+        media_type="text/plain; version=0.0.4; charset=utf-8",
         status_code=200,
-        content={
-            "status": status,
-            "metrics": data,
-        },
     )
 
 

@@ -10,6 +10,7 @@ import ParticipantsButton from "./controls/participants-button";
 import ChatButton from "./controls/chat-button";
 import RaisedHandControl from "./controls/raised-hand-control";
 import RecordingControl from "./controls/recording-control";
+import ShareControl from "./controls/share-control";
 import EndMeetingControl from "./controls/end-meeting-control";
 import LeaveControl from "./controls/leave-control";
 
@@ -31,6 +32,7 @@ const MeetingControls = ({
   jwt,
   onOpenChat,
   chatUnreadCount = 0,
+  onOpenShare,
 }) => {
   const call = useCall();
   const {
@@ -192,6 +194,9 @@ const MeetingControls = ({
       />
       <ParticipantsButton onClick={onOpenParticipants} count={participantCount} />
       <ChatButton onClick={onOpenChat} unreadCount={chatUnreadCount} />
+      {isHost && onOpenShare ? (
+        <ShareControl onClick={onOpenShare} />
+      ) : null}
       <RaisedHandControl
         isHost={isHost}
         onOpenRaisedHands={onOpenRaisedHands}

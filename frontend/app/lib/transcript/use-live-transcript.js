@@ -87,9 +87,7 @@ export const useLiveTranscript = (meetingId, jwt) => {
           };
           setTranscripts((prev) => [...prev, entry]);
         }
-      } catch {
-        // ignore malformed messages
-      }
+      } catch {}
     };
 
     ws.onclose = (event) => {

@@ -60,9 +60,7 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
       if (!t || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
       try {
         wsRef.current.send(JSON.stringify({ type: "message", text: t }));
-      } catch {
-        // ignore
-      }
+      } catch {}
     },
     []
   );
@@ -113,17 +111,13 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
         if (data.type === "initial_state" && typeof data.current_host_id === "string") {
           try {
             onHostChanged?.(data.current_host_id);
-          } catch {
-            // ignore
-          }
+          } catch {}
           return;
         }
         if (data.type === "host_changed" && typeof data.new_host_id === "string") {
           try {
             onHostChanged?.(data.new_host_id);
-          } catch {
-            // ignore
-          }
+          } catch {}
           return;
         }
         if (data.type === "chat_message") {
@@ -135,9 +129,7 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
             setUnreadCount((count) => count + 1);
           }
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
     };
 
     ws.onclose = (event) => {

@@ -11,6 +11,7 @@ import GalleryLayout from "./gallery-layout";
 import ScreenShareLayout from "./screen-share-layout";
 import MeetingControls from "./meeting-controls";
 import RaisedHandsModal from "./raised-hands-modal";
+import ShareMeetingModal from "./share-meeting-modal";
 import ParticipantsOverlay from "./participants-overlay";
 import ChatOverlay from "./chat-overlay";
 
@@ -45,6 +46,7 @@ const MeetingRoomContent = ({
 
   const [showRaisedHandsModal, setShowRaisedHandsModal] = useState(false);
   const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
   const {
@@ -88,6 +90,14 @@ const MeetingRoomContent = ({
 
   const handleCloseRaisedHandsModal = useCallback(() => {
     setShowRaisedHandsModal(false);
+  }, []);
+
+  const handleOpenShare = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  const handleCloseShareModal = useCallback(() => {
+    setShowShareModal(false);
   }, []);
 
   const handleShowLeaveConfirmModal = useCallback(() => {
@@ -179,12 +189,21 @@ const MeetingRoomContent = ({
             jwt={jwt}
             onOpenChat={handleOpenChat}
             chatUnreadCount={unreadCount}
+            onOpenShare={isHost ? handleOpenShare : undefined}
           />
 
           {showRaisedHandsModal ? (
             <RaisedHandsModal
               onClose={handleCloseRaisedHandsModal}
               raisedHandUserIds={raisedHandUserIds}
+            />
+          ) : null}
+
+          {showShareModal && callId && jwt ? (
+            <ShareMeetingModal
+              meetingId={callId}
+              jwt={jwt}
+              onClose={handleCloseShareModal}
             />
           ) : null}
 

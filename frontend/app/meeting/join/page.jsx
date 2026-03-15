@@ -18,6 +18,9 @@ const JoinMeetingContent = () => {
   useEffect(() => {
     if (authLoading || restoringAuth) return;
     if (!jwt) {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("redirectAfterAuth", "/meeting/join");
+      }
       router.replace("/?auth=login&reason=meeting");
     }
   }, [jwt, authLoading, restoringAuth, router]);
@@ -149,7 +152,12 @@ const JoinMeetingContent = () => {
       }
       const data = await res.json();
       if (!res.ok) {
-        setCreateError(data.detail || "Failed to join meeting");
+        const detail = Array.isArray(data.detail)
+          ? data.detail[0]?.msg ?? data.detail[0]
+          : data.detail;
+        setCreateError(
+          typeof detail === "string" ? detail : "Failed to join meeting",
+        );
         return;
       }
       const search = new URLSearchParams();
@@ -204,6 +212,8 @@ const JoinMeetingContent = () => {
           joinCode={createdMeeting.join_code}
           passcode={createdMeeting.passcode}
           onJoin={handleJoinCreatedMeeting}
+          onClose={() => setCreatedMeeting(null)}
+          jwt={jwt}
         />
       ) : null}
       <div className="relative flex min-h-screen items-center justify-center bg-[#0f1419] px-4 sm:px-6 lg:px-10 xl:px-16 text-slate-100">

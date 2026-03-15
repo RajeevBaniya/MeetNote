@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth/use-auth";
+import { buildShareMessage, copyMeetingShare } from "@/app/lib/meeting/share-utils";
 import Navbar from "@/app/components/landing/navbar";
+import ShareMeetingModal from "@/app/components/meeting-room/share-meeting-modal";
 
-const MeetingCard = ({ meeting, actionLabel, actionHref, isActive }) => {
+const MeetingCard = ({
+  meeting,
+  actionLabel,
+  actionHref,
+  isActive,
+  onShare,
+  onCopy,
+  isCopied,
+}) => {
   const timestamp = meeting.scheduled_start_at || meeting.created_at;
   const created = timestamp
     ? new Date(timestamp).toLocaleDateString(undefined, {
@@ -17,6 +27,14 @@ const MeetingCard = ({ meeting, actionLabel, actionHref, isActive }) => {
         minute: "2-digit",
       })
     : "";
+
+  const handleShare = useCallback(() => {
+    onShare?.(meeting.id);
+  }, [meeting.id, onShare]);
+
+  const handleCopy = useCallback(() => {
+    onCopy?.(meeting.id);
+  }, [meeting.id, onCopy]);
 
   return (
     <div
@@ -34,16 +52,36 @@ const MeetingCard = ({ meeting, actionLabel, actionHref, isActive }) => {
           <p className="mt-0.5 text-xs text-slate-500">{created}</p>
         ) : null}
       </div>
-      <Link
-        href={actionHref}
-        className={`inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020617] ${
-          isActive
-            ? "bg-emerald-600 text-white hover:bg-emerald-500"
-            : "bg-slate-600 text-slate-100 hover:bg-slate-500"
-        }`}
-      >
-        {actionLabel}
-      </Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href={actionHref}
+          className={`inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020617] ${
+            isActive
+              ? "bg-emerald-600 text-white hover:bg-emerald-500"
+              : "bg-slate-600 text-slate-100 hover:bg-slate-500"
+          }`}
+        >
+          {actionLabel}
+        </Link>
+        {onShare ? (
+          <button
+            type="button"
+            onClick={handleShare}
+            className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-600 text-slate-100 hover:bg-slate-500 transition"
+          >
+            Share
+          </button>
+        ) : null}
+        {onCopy ? (
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-600 text-slate-100 hover:bg-slate-500 transition"
+          >
+            {isCopied ? "Copied to clipboard" : "Copy"}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 };
@@ -80,6 +118,8 @@ const MyMeetingsPage = () => {
   const [upcomingMeetings, setUpcomingMeetings] = useState([]);
   const [activeMeetings, setActiveMeetings] = useState([]);
   const [endedMeetings, setEndedMeetings] = useState([]);
+  const [shareModalMeetingId, setShareModalMeetingId] = useState(null);
+  const [lastCopiedId, setLastCopiedId] = useState(null);
 
   const openAuth = (mode) => {
     router.push(`/?auth=${mode}`);
@@ -127,6 +167,29 @@ const MyMeetingsPage = () => {
     };
   }, [jwt, isAuthenticated, apiUrl]);
 
+  const handleShareMeeting = useCallback((meetingId) => {
+    setShareModalMeetingId(meetingId);
+  }, []);
+
+  const handleCopyMeeting = useCallback(
+    async (meetingId) => {
+      if (!apiUrl || !jwt) return;
+      const base = apiUrl.replace(/\/$/, "");
+      try {
+        const res = await fetch(`${base}/meetings/${meetingId}/share`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const text = buildShareMessage(data);
+        await copyMeetingShare(text);
+        setLastCopiedId(meetingId);
+        setTimeout(() =>         setLastCopiedId(null), 2000);
+      } catch (_) {}
+    },
+    [apiUrl, jwt],
+  );
+
   const pageBackground = (
     <>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.25),transparent_55%)]" />
@@ -167,6 +230,13 @@ const MyMeetingsPage = () => {
     <div className="relative min-h-screen bg-[#0f1419] text-slate-100">
       {pageBackground}
       <Navbar onOpenAuth={openAuth} />
+      {shareModalMeetingId && jwt ? (
+        <ShareMeetingModal
+          meetingId={shareModalMeetingId}
+          jwt={jwt}
+          onClose={() => setShareModalMeetingId(null)}
+        />
+      ) : null}
 
       <main className="relative mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <div className="mb-8">
@@ -234,18 +304,33 @@ const MyMeetingsPage = () => {
                               </p>
                             ) : null}
                           </div>
-                          <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/meeting/${meeting.id}`}
+                              className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 transition"
+                            >
+                              Join
+                            </Link>
                             <button
                               type="button"
-                              disabled
-                              className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-700 text-slate-300 opacity-70 cursor-not-allowed"
+                              onClick={() => handleShareMeeting(meeting.id)}
+                              className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-600 text-slate-100 hover:bg-slate-500 transition"
                             >
-                              Not started
+                              Share
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyMeeting(meeting.id)}
+                              className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-600 text-slate-100 hover:bg-slate-500 transition"
+                            >
+                              {lastCopiedId === meeting.id
+                                ? "Copied to clipboard"
+                                : "Copy"}
                             </button>
                             {icsHref ? (
                               <a
                                 href={icsHref}
-                                className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500"
+                                className="inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold bg-slate-600 text-slate-100 hover:bg-slate-500"
                               >
                                 Download ICS
                               </a>

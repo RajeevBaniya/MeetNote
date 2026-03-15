@@ -244,9 +244,7 @@ const AuthProvider = ({ children }) => {
           method: "POST",
           credentials: "include",
         });
-      } catch {
-        // ignore network errors on logout
-      }
+      } catch {}
     }
     localStorage.removeItem(JWT_STORAGE_KEY);
     setUser(null);

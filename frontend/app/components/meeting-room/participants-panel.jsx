@@ -40,9 +40,7 @@ const ParticipantsPanel = ({
         if (res.ok) {
           onClose?.();
         }
-      } catch {
-        // ignore
-      } finally {
+      } catch {} finally {
         setActioningId(null);
       }
     },
@@ -62,9 +60,7 @@ const ParticipantsPanel = ({
           },
           body: JSON.stringify({ user_id: participantUserId }),
         });
-      } catch {
-        // ignore
-      } finally {
+      } catch {} finally {
         setActioningId(null);
       }
     },

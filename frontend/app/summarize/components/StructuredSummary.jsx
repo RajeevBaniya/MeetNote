@@ -248,7 +248,7 @@ const GENERIC_TERMS = [
   "page",
 ];
 
-function isValidParticipantName(name) {
+const isValidParticipantName = (name) => {
   if (!name || typeof name !== "string") return false;
   const trimmed = name.trim().toLowerCase();
   if (trimmed.length < 2) return false;
@@ -256,7 +256,7 @@ function isValidParticipantName(name) {
   if (trimmed.includes("/") || trimmed.includes("order of")) return false;
   if (trimmed.split(" ").length > 5) return false;
   return true;
-}
+};
 
 const StructuredSummary = ({ structured, manualParticipants = [] }) => {
   const {

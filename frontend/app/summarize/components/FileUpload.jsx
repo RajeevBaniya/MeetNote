@@ -19,23 +19,23 @@ const FILE_TYPE_LABELS = Object.freeze({
   docx: "Word Document",
 });
 
-function getFileExtension(filename) {
+const getFileExtension = (filename) => {
   const lastDot = filename.lastIndexOf(".");
   return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : "";
-}
+};
 
-function isValidFileType(file) {
+const isValidFileType = (file) => {
   const ext = getFileExtension(file.name);
   return (
     ALLOWED_EXTENSIONS.includes(ext) || ALLOWED_MIME_TYPES.includes(file.type)
   );
-}
+};
 
-function isValidFileSize(file) {
+const isValidFileSize = (file) => {
   return file.size <= MAX_FILE_SIZE_BYTES;
-}
+};
 
-function validateFile(file) {
+const validateFile = (file) => {
   if (!file) {
     return { valid: false, error: "No file selected" };
   }
@@ -55,7 +55,7 @@ function validateFile(file) {
   }
 
   return { valid: true, error: null };
-}
+};
 
 const FileUpload = ({ onFileUpload, transcript }) => {
   const [isDragging, setIsDragging] = useState(false);

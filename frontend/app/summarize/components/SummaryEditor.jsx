@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import ExportButton from "./ExportButton";
 
-function renderMarkdown(text) {
+const renderMarkdown = (text) => {
   if (!text) return "";
 
   const lines = text.split("\n");
@@ -102,7 +102,7 @@ function renderMarkdown(text) {
   }
 
   return result.join("");
-}
+};
 
 const SummaryEditor = ({ summary, setSummary, summaryId, meetingTitle }) => {
   const [isEditing, setIsEditing] = useState(false);

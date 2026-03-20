@@ -12,16 +12,14 @@ import MeetingDetails from "./components/MeetingDetails";
 import StructuredSummary from "./components/StructuredSummary";
 import { apiFetch } from "./lib/api";
 
-function getInitialMeetingData() {
-  return {
-    meetingTitle: "",
-    meetingDate: "",
-    meetingType: "",
-    participants: [],
-    location: "",
-    tags: [],
-  };
-}
+const getInitialMeetingData = () => ({
+  meetingTitle: "",
+  meetingDate: "",
+  meetingType: "",
+  participants: [],
+  location: "",
+  tags: [],
+});
 
 const SummarizeContent = () => {
   const searchParams = useSearchParams();

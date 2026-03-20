@@ -12,14 +12,14 @@ export const MEETING_TYPE_LABELS = {
   other: "Other",
 };
 
-export function formatDate(dateString) {
+const formatDate = (dateString) => {
   if (!dateString) return null;
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return null;
   return date.toLocaleString();
-}
+};
 
-export function getDisplayTitle(summary) {
+const getDisplayTitle = (summary) => {
   if (summary.meeting_title) return summary.meeting_title;
   if (summary.title) {
     const titleDate = new Date(summary.title);
@@ -29,16 +29,23 @@ export function getDisplayTitle(summary) {
     return summary.title;
   }
   return formatDate(summary.created_at) || "Untitled";
-}
+};
 
-export function getMeetingDate(summary) {
+const getMeetingDate = (summary) => {
   if (summary.meeting_date) return formatDate(summary.meeting_date);
   return null;
-}
+};
 
-export function getActionItemsCount(summary) {
+const getActionItemsCount = (summary) => {
   if (Array.isArray(summary.action_items)) {
     return summary.action_items.length;
   }
   return 0;
-}
+};
+
+export {
+  formatDate,
+  getDisplayTitle,
+  getMeetingDate,
+  getActionItemsCount,
+};

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 
-const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
+const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone, disabled = false }) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") onClose();
@@ -12,14 +12,16 @@ const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
   }, [onClose]);
 
   const handleLeaveOnly = useCallback(() => {
+    if (disabled) return;
     onClose();
     onLeaveOnly?.();
-  }, [onClose, onLeaveOnly]);
+  }, [disabled, onClose, onLeaveOnly]);
 
   const handleEndForEveryone = useCallback(() => {
+    if (disabled) return;
     onClose();
     onEndForEveryone?.();
-  }, [onClose, onEndForEveryone]);
+  }, [disabled, onClose, onEndForEveryone]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -29,6 +31,7 @@ const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
           <button
             type="button"
             onClick={onClose}
+            disabled={disabled}
             className="text-slate-400 hover:text-slate-100 text-2xl leading-none"
             aria-label="Close"
           >
@@ -42,6 +45,7 @@ const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
           <button
             type="button"
             onClick={handleLeaveOnly}
+            disabled={disabled}
             className="w-full py-3 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium transition"
           >
             Leave meeting
@@ -49,6 +53,7 @@ const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone }) => {
           <button
             type="button"
             onClick={handleEndForEveryone}
+            disabled={disabled}
             className="w-full py-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium transition"
           >
             End meeting for everyone

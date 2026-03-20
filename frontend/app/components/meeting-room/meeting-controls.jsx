@@ -8,6 +8,7 @@ import CameraControl from "./controls/camera-control";
 import ScreenShareControl from "./controls/screen-share-control";
 import ParticipantsButton from "./controls/participants-button";
 import ChatButton from "./controls/chat-button";
+import TranscriptButton from "./controls/transcript-button";
 import RaisedHandControl from "./controls/raised-hand-control";
 import RecordingControl from "./controls/recording-control";
 import ShareControl from "./controls/share-control";
@@ -33,6 +34,13 @@ const MeetingControls = ({
   onOpenChat,
   chatUnreadCount = 0,
   onOpenShare,
+  onToggleTranscript,
+  isTranscriptOpen = false,
+  isLeaving = false,
+  isEnding: isExitEnding = false,
+  onStartLeaving,
+  onStartEnding,
+  resetExitState,
 }) => {
   const call = useCall();
   const {
@@ -50,9 +58,12 @@ const MeetingControls = ({
   const [isToggling, setIsToggling] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const [isRecordingAction, setIsRecordingAction] = useState(false);
+  const [exitRequested, setExitRequested] = useState(false);
+
+  const isExiting = Boolean(isLeaving || isExitEnding || exitRequested);
 
   const handleToggleMic = useCallback(async () => {
-    if (!call || isToggling) return;
+    if (!call || isToggling || isExiting) return;
     setIsToggling(true);
     try {
       await microphone.toggle();
@@ -61,10 +72,10 @@ const MeetingControls = ({
     } finally {
       setIsToggling(false);
     }
-  }, [call, isToggling, microphone]);
+  }, [call, isExiting, isToggling, microphone]);
 
   const handleToggleCamera = useCallback(async () => {
-    if (!call || isToggling) return;
+    if (!call || isToggling || isExiting) return;
     setIsToggling(true);
     try {
       await camera.toggle();
@@ -73,10 +84,10 @@ const MeetingControls = ({
     } finally {
       setIsToggling(false);
     }
-  }, [call, isToggling, camera]);
+  }, [call, camera, isExiting, isToggling]);
 
   const handleScreenShare = useCallback(async () => {
-    if (!call || !screenShare || isToggling) return;
+    if (!call || !screenShare || isToggling || isExiting) return;
     setIsToggling(true);
     try {
       await screenShare.toggle();
@@ -95,21 +106,26 @@ const MeetingControls = ({
     } finally {
       setIsToggling(false);
     }
-  }, [call, screenShare, isToggling]);
+  }, [call, isExiting, isToggling, screenShare]);
 
   const handleLeave = useCallback(async () => {
-    if (!call) return;
+    if (!call || isExiting) return;
+    setExitRequested(true);
+    onStartLeaving?.();
     try {
       await call.leave();
       onLeave?.();
     } catch (err) {
       console.error("Failed to leave call:", err);
-      onLeave?.();
+      resetExitState?.();
+      setExitRequested(false);
     }
-  }, [call, onLeave]);
+  }, [call, isExiting, onLeave, onStartLeaving, resetExitState]);
 
   const handleEndMeeting = useCallback(async () => {
-    if (!call || !onEndMeeting || isEnding) return;
+    if (!call || !onEndMeeting || isEnding || isExiting) return;
+    setExitRequested(true);
+    onStartEnding?.();
     setIsEnding(true);
     try {
       const ok = await onEndMeeting();
@@ -126,10 +142,16 @@ const MeetingControls = ({
       }
     } catch (err) {
       console.error("Failed to end meeting:", err);
+      resetExitState?.();
+      setExitRequested(false);
     } finally {
+      if (!call) {
+        resetExitState?.();
+        setExitRequested(false);
+      }
       setIsEnding(false);
     }
-  }, [call, onEndMeeting, onLeave]);
+  }, [call, isEnding, isExiting, onEndMeeting, onLeave, onStartEnding, resetExitState]);
 
   const handleCloseLeaveModal = useCallback(() => {
     setShowLeaveConfirmModal?.(false);
@@ -194,6 +216,12 @@ const MeetingControls = ({
       />
       <ParticipantsButton onClick={onOpenParticipants} count={participantCount} />
       <ChatButton onClick={onOpenChat} unreadCount={chatUnreadCount} />
+      {onToggleTranscript ? (
+        <TranscriptButton
+          onClick={onToggleTranscript}
+          isOpen={isTranscriptOpen}
+        />
+      ) : null}
       {isHost && onOpenShare ? (
         <ShareControl onClick={onOpenShare} />
       ) : null}
@@ -217,7 +245,7 @@ const MeetingControls = ({
       <EndMeetingControl
         isHost={isHost}
         onEndMeeting={handleEndMeeting}
-        disabled={isEnding}
+        disabled={isEnding || isExiting}
       />
       <LeaveControl
         onLeaveClick={onLeaveClick}
@@ -226,6 +254,7 @@ const MeetingControls = ({
         showLeaveConfirmModal={showLeaveConfirmModal}
         onCloseLeaveModal={handleCloseLeaveModal}
         isHost={isHost}
+        disabled={isExiting}
       />
     </div>
   );

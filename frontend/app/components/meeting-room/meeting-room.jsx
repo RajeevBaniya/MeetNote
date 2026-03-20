@@ -4,12 +4,16 @@ import { useState, useCallback, useEffect } from "react";
 import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
 
 import useMeetingCall from "@/app/lib/meeting/use-meeting-call";
+import { useMeetingExit } from "@/app/lib/meeting/use-meeting-exit";
+import { useLiveTranscript } from "@/app/lib/transcript/use-live-transcript";
+import { useTranscriptPanel } from "@/app/lib/transcript/use-transcript-panel";
 
 import MeetingRoomContent from "./meeting-room-content";
 import MeetingRoomError from "./meeting-room-error";
 import MeetingRoomLoading from "./meeting-room-loading";
 import ConnectionStateBanner from "./connection-state-banner";
 import RecordingBanner from "./recording-banner";
+import MeetingExitLoading from "./meeting-exit-loading";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
@@ -24,6 +28,7 @@ const MeetingRoom = ({
   const [showAssistant, setShowAssistant] = useState(true);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [currentHostId, setCurrentHostId] = useState(hostId || null);
+  const { isLeaving, isEnding, startLeaving, startEnding, resetExitState } = useMeetingExit();
 
   const { call, error, hasLeftRef } = useMeetingCall(
     callId,
@@ -31,6 +36,15 @@ const MeetingRoom = ({
     onLeave,
     onSessionEnded,
   );
+  const { transcripts, connected, connectionError } = useLiveTranscript(
+    callId,
+    jwt,
+  );
+  const {
+    isTranscriptOpen,
+    toggleTranscript,
+    closeTranscript,
+  } = useTranscriptPanel();
   const isHost = Boolean(
     currentHostId && userId && String(currentHostId) === String(userId),
   );
@@ -60,6 +74,10 @@ const MeetingRoom = ({
     setParticipantsOpen(false);
     onLeave?.();
   }, [onLeave]);
+
+  useEffect(() => {
+    if (!callId) resetExitState();
+  }, [callId, resetExitState]);
 
   const handleOpenParticipants = useCallback(() => {
     setParticipantsOpen(true);
@@ -92,24 +110,42 @@ const MeetingRoom = ({
     <StreamTheme>
       <StreamCall call={call}>
         <div className="fixed inset-0 w-full h-full bg-[#020617] text-slate-100 overflow-hidden">
-          <ConnectionStateBanner />
-          <RecordingBanner />
-          <MeetingRoomContent
-            showAssistant={showAssistant}
-            setShowAssistant={setShowAssistant}
-            isHost={isHost}
-            setCurrentHostId={handleHostChanged}
-            pendingCount={0}
-            onOpenWaitingRoom={undefined}
-            onOpenParticipants={handleOpenParticipants}
-            onCloseParticipants={handleCloseParticipants}
-            participantsOpen={participantsOpen}
-            currentUserId={userId}
-            onLeave={onLeave}
-            callId={callId}
-            jwt={jwt}
-            hasLeftRef={hasLeftRef}
-          />
+          <div className="w-full h-full flex flex-col">
+            {(isLeaving || isEnding) ? (
+              <MeetingExitLoading isLeaving={isLeaving} isEnding={isEnding} />
+            ) : null}
+            <ConnectionStateBanner />
+            <RecordingBanner />
+            <div className="flex-1 w-full h-full min-w-0 min-h-0">
+              <MeetingRoomContent
+                showAssistant={showAssistant}
+                setShowAssistant={setShowAssistant}
+                isHost={isHost}
+                setCurrentHostId={handleHostChanged}
+                pendingCount={0}
+                onOpenWaitingRoom={undefined}
+                onOpenParticipants={handleOpenParticipants}
+                onCloseParticipants={handleCloseParticipants}
+                participantsOpen={participantsOpen}
+                currentUserId={userId}
+                onLeave={handleLeave}
+                callId={callId}
+                jwt={jwt}
+                hasLeftRef={hasLeftRef}
+                transcripts={transcripts}
+                transcriptConnected={connected}
+                transcriptConnectionError={connectionError}
+                isTranscriptOpen={isTranscriptOpen}
+                onToggleTranscript={toggleTranscript}
+                onCloseTranscript={closeTranscript}
+                isLeaving={isLeaving}
+                isEnding={isEnding}
+                onStartLeaving={startLeaving}
+                onStartEnding={startEnding}
+                resetExitState={resetExitState}
+              />
+            </div>
+          </div>
         </div>
       </StreamCall>
     </StreamTheme>

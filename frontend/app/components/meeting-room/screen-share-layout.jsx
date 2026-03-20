@@ -6,7 +6,6 @@ import { useCallStateHooks } from "@stream-io/video-react-sdk";
 import ScreenShareView from "./screen-share-view";
 import { isScreenSharePublisher } from "@/app/lib/screenshare/screen-share-utils";
 import ScreenShareParticipantRail from "./screen-share-participant-rail";
-import TranscriptPanel from "./transcript";
 
 const TopBar = ({ sharerName }) => {
   return (
@@ -23,9 +22,6 @@ const ScreenShareLayout = ({
   currentUserId,
   isHost,
   raisedHandUserIds,
-  callId,
-  hasLeftRef,
-  jwt,
 }) => {
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants() || [];
@@ -39,18 +35,19 @@ const ScreenShareLayout = ({
     <div className="relative w-full h-full flex flex-col bg-[#020617] rounded-xl overflow-hidden border border-slate-700/60">
       <TopBar sharerName={sharerName} />
 
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 mt-9">
-        <div className="relative flex-1 min-w-0 min-h-0 bg-[#0a0a0f]">
-          <ScreenShareView />
-        </div>
-
-        <div className="hidden md:block md:w-[200px] lg:w-[240px] xl:w-[260px] 2xl:w-[300px] shrink-0 border-l border-slate-700/60 bg-[#020617]">
-          <ScreenShareParticipantRail
-            showAssistant={showAssistant}
-            currentUserId={currentUserId}
-            isHost={isHost}
-            raisedHandUserIds={raisedSet}
-          />
+      <div className="flex-1 w-full h-full flex flex-col min-w-0 min-h-0 mt-9">
+        <div className="flex w-full h-full">
+          <div className="flex-1 w-full h-full min-w-0 min-h-0 flex items-center justify-center bg-[#0a0a0f] relative overflow-hidden">
+            <ScreenShareView className="max-w-full max-h-full object-contain" />
+          </div>
+          <div className="hidden md:flex w-[320px] shrink-0 border-l border-slate-700/60 bg-[#020617]">
+            <ScreenShareParticipantRail
+              showAssistant={showAssistant}
+              currentUserId={currentUserId}
+              isHost={isHost}
+              raisedHandUserIds={raisedSet}
+            />
+          </div>
         </div>
       </div>
 
@@ -64,9 +61,6 @@ const ScreenShareLayout = ({
         />
       </div>
 
-      <div className="hidden" aria-hidden="true">
-        <TranscriptPanel callId={callId} hasLeftRef={hasLeftRef} jwt={jwt} />
-      </div>
     </div>
   );
 };

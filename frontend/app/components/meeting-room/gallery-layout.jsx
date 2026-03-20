@@ -1,6 +1,8 @@
 "use client";
 
-import TranscriptPanel from "./transcript";
+import { useMemo } from "react";
+import { useCallStateHooks } from "@stream-io/video-react-sdk";
+
 import MeetingContent from "./meeting-content";
 
 const GalleryLayout = ({
@@ -8,23 +10,37 @@ const GalleryLayout = ({
   currentUserId,
   isHost,
   raisedHandUserIds,
-  callId,
-  hasLeftRef,
-  jwt,
 }) => {
-  return (
-    <div className="w-full h-full mx-auto flex-1 flex flex-col gap-2 sm:gap-3 md:gap-4 2xl:gap-2 lg:grid lg:grid-cols-[minmax(0,3.1fr)_minmax(280px,0.7fr)] xl:grid-cols-[minmax(0,3.1fr)_minmax(320px,0.7fr)] 2xl:grid-cols-[minmax(0,3.3fr)_minmax(320px,0.7fr)] lg:items-stretch 2xl:max-w-[1660px]">
-      <div className="relative flex-1 min-h-[200px] sm:min-h-[240px] md:min-h-[260px] rounded-xl sm:rounded-2xl border border-slate-700/60 bg-[#020617] shadow-2xl overflow-hidden">
-        <MeetingContent
-          showAssistant={showAssistant}
-          currentUserId={currentUserId}
-          isHost={isHost}
-          raisedHandUserIds={raisedHandUserIds}
-        />
-      </div>
+  const { useParticipants } = useCallStateHooks();
+  const participants = useParticipants() || [];
+  const isSingleParticipant = useMemo(
+    () => participants.length === 1,
+    [participants.length],
+  );
 
-      <div className="flex flex-1 min-h-[200px] sm:min-h-[240px] md:min-h-[260px] rounded-xl sm:rounded-2xl border border-slate-700/60 bg-[#0f172a] shadow-2xl overflow-hidden">
-        <TranscriptPanel callId={callId} hasLeftRef={hasLeftRef} jwt={jwt} />
+  return (
+    <div className="w-full h-full flex-1 flex items-center justify-center min-h-0 pb-6">
+      <div
+        className={`w-full h-full mx-auto ${
+          isSingleParticipant
+            ? "max-w-[min(1300px,94vw)]"
+            : "max-w-[min(1700px,96vw)]"
+        }`}
+      >
+        <div
+          className={`relative w-full h-full flex-1 min-w-0 min-h-[200px] sm:min-h-[240px] md:min-h-[260px] overflow-hidden flex items-center justify-center ${
+            participants.length > 1
+              ? "rounded-xl sm:rounded-2xl border border-slate-700/40 bg-[#0a0a0f]"
+              : ""
+          }`}
+        >
+          <MeetingContent
+            showAssistant={showAssistant}
+            currentUserId={currentUserId}
+            isHost={isHost}
+            raisedHandUserIds={raisedHandUserIds}
+          />
+        </div>
       </div>
     </div>
   );

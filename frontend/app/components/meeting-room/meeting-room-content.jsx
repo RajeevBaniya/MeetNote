@@ -14,6 +14,7 @@ import RaisedHandsModal from "./raised-hands-modal";
 import ShareMeetingModal from "./share-meeting-modal";
 import ParticipantsOverlay from "./participants-overlay";
 import ChatOverlay from "./chat-overlay";
+import TranscriptPanel from "./transcript-panel";
 
 const MeetingRoomContent = ({
   showAssistant,
@@ -30,6 +31,17 @@ const MeetingRoomContent = ({
   callId,
   jwt,
   hasLeftRef,
+  transcripts = [],
+  transcriptConnected = false,
+  transcriptConnectionError = null,
+  isTranscriptOpen = false,
+  onToggleTranscript,
+  onCloseTranscript,
+  isLeaving = false,
+  isEnding = false,
+  onStartLeaving,
+  onStartEnding,
+  resetExitState,
 }) => {
   const { useParticipants, useHasOngoingScreenShare } = useCallStateHooks();
   const participants = useParticipants() ?? [];
@@ -56,6 +68,7 @@ const MeetingRoomContent = ({
     sendMessage,
     unreadCount,
     markChatRead,
+    removeMessageByClientId,
   } = useMeetingChat(callId, jwt, chatOpen, setCurrentHostId);
 
   const handleLeave = useCallback(() => {
@@ -190,6 +203,13 @@ const MeetingRoomContent = ({
             onOpenChat={handleOpenChat}
             chatUnreadCount={unreadCount}
             onOpenShare={isHost ? handleOpenShare : undefined}
+            onToggleTranscript={onToggleTranscript}
+            isTranscriptOpen={isTranscriptOpen}
+            isLeaving={isLeaving}
+            isEnding={isEnding}
+            onStartLeaving={onStartLeaving}
+            onStartEnding={onStartEnding}
+            resetExitState={resetExitState}
           />
 
           {showRaisedHandsModal ? (
@@ -223,6 +243,7 @@ const MeetingRoomContent = ({
               onClose={handleCloseChat}
               messages={messages}
               onSendMessage={sendMessage}
+              removeMessage={removeMessageByClientId}
               connectionError={connectionError}
               connected={connected}
               inputDisabled={Boolean(connectionError)}
@@ -230,7 +251,17 @@ const MeetingRoomContent = ({
             />
           ) : null}
 
-          {/* Waiting room UI removed */}
+          {isTranscriptOpen ? (
+            <TranscriptPanel
+              segments={transcripts}
+              onClose={onCloseTranscript}
+              connected={transcriptConnected}
+              connectionError={transcriptConnectionError}
+              callId={callId}
+              hasLeftRef={hasLeftRef}
+              jwt={jwt}
+            />
+          ) : null}
         </div>
       </div>
     </div>

@@ -67,7 +67,7 @@ const ScreenShareParticipantRail = ({
   }
 
   return (
-    <div className="w-full h-full overflow-y-auto overflow-x-hidden p-2 space-y-2 custom-scrollbar">
+    <div className="w-full h-full overflow-y-auto overflow-x-hidden p-2 space-y-2.5 custom-scrollbar">
       {sortedParticipants.map((participant) => {
         const key = participant.sessionId || participant.userId;
         const showHostBadge =
@@ -80,7 +80,7 @@ const ScreenShareParticipantRail = ({
         return (
           <div
             key={key}
-            className="w-full aspect-video rounded-md overflow-hidden border border-slate-700/40"
+            className="w-full h-[110px] rounded-md overflow-hidden border border-slate-700/40 hover:border-slate-500/60 transition-colors"
           >
             <ParticipantTile
               participant={participant}

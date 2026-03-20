@@ -5,16 +5,16 @@ import {
   logToConsole,
 } from "@stream-io/video-react-sdk";
 
-function isPermissionDeniedError(err) {
+const isPermissionDeniedError = (err) => {
   if (!err || typeof err !== "object") return false;
   const name = err.name || err?.cause?.name || "";
   const msg = String(err.message || err?.cause?.message || "").toLowerCase();
   return (
     name === "NotAllowedError" || msg.includes("permission denied by user")
   );
-}
+};
 
-function configureDevicesLogger() {
+const configureDevicesLogger = () => {
   if (typeof window === "undefined") return;
   try {
     videoLoggerSystem.configureLoggers({
@@ -35,7 +35,7 @@ function configureDevicesLogger() {
   } catch (err) {
     console.error("Configure devices logger failed:", err);
   }
-}
+};
 
 configureDevicesLogger();
 

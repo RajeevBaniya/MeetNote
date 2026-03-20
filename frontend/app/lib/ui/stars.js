@@ -1,15 +1,15 @@
 const STYLE_DECIMALS = 4;
 
-function seeded(seed) {
+const seeded = (seed) => {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
-}
+};
 
-function styleNum(n) {
+const styleNum = (n) => {
   return Number(n).toFixed(STYLE_DECIMALS);
-}
+};
 
-function buildStarList() {
+const buildStarList = () => {
   const createCluster = (centerX, centerY, count, spread, baseSeed) => {
     return Array.from({ length: count }, (_, i) => {
       const s = baseSeed + i * 7;
@@ -87,6 +87,6 @@ function buildStarList() {
       opacityStr: styleNum(star.opacity),
       boxShadow: `0 0 ${styleNum(star.size * 1.2)}px rgba(16, 185, 129, 0.16), 0 0 ${styleNum(star.size * 2.5)}px rgba(16, 185, 129, 0.08)`,
     }));
-}
+};
 
 export { seeded, styleNum, buildStarList };

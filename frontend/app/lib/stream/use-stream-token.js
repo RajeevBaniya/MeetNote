@@ -3,10 +3,10 @@ import { useAuth } from "@/app/lib/auth/use-auth";
 
 const POLL_INTERVAL_MS = 3000;
 
-function buildUrl(baseUrl, meetingId) {
+const buildUrl = (baseUrl, meetingId) => {
   const base = (baseUrl || "").replace(/\/$/, "");
   return `${base}/meetings/${meetingId}/stream-token`;
-}
+};
 
 export const useStreamTokenFromBackend = (meetingId, jwtProp, displayName, passcode, enabled = true) => {
   const [token, setToken] = useState(null);

@@ -8,6 +8,7 @@ const ChatOverlay = ({
   onClose,
   messages,
   onSendMessage,
+  removeMessage,
   connectionError,
   connected,
   inputDisabled,
@@ -44,6 +45,7 @@ const ChatOverlay = ({
         <ChatPanel
           messages={messages}
           onSendMessage={onSendMessage}
+          removeMessage={removeMessage}
           connectionError={connectionError}
           connected={connected}
           inputDisabled={disabled}

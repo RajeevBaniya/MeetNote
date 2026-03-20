@@ -11,19 +11,22 @@ const LeaveControl = ({
   showLeaveConfirmModal,
   onCloseLeaveModal,
   isHost,
+  disabled = false,
 }) => {
   const handleLeaveButtonClick = useCallback(() => {
+    if (disabled) return;
     if (isHost && onLeaveClick) {
       onLeaveClick();
     } else {
       onLeaveOnly?.();
     }
-  }, [isHost, onLeaveClick, onLeaveOnly]);
+  }, [disabled, isHost, onLeaveClick, onLeaveOnly]);
 
   return (
     <>
       <button
         onClick={handleLeaveButtonClick}
+        disabled={disabled}
         className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors hover:bg-red-500/20 disabled:opacity-50"
         title="Leave Meeting"
       >
@@ -34,7 +37,7 @@ const LeaveControl = ({
             viewBox="0 0 24 24"
             strokeWidth={2}
             stroke="currentColor"
-            className="w-4 h-4 sm:w-5 sm:h-5 text-white rotate-[135deg]"
+            className="w-4 h-4 sm:w-5 sm:h-5 text-white rotate-135"
           >
             <path
               strokeLinecap="round"
@@ -50,6 +53,7 @@ const LeaveControl = ({
           onClose={onCloseLeaveModal}
           onLeaveOnly={onLeaveOnly}
           onEndForEveryone={onEndForEveryone}
+          disabled={disabled}
         />
       ) : null}
     </>

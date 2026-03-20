@@ -2,7 +2,7 @@
  * @param { { title?: string | null; join_code?: string | null; passcode?: string | null; join_url?: string | null } } info
  * @returns {string}
  */
-export function buildShareMessage(info) {
+const buildShareMessage = (info) => {
   if (!info) return "";
   const lines = [
     `Meeting: ${info.title || "Meeting"}`,
@@ -13,23 +13,23 @@ export function buildShareMessage(info) {
     info.join_url ?? "",
   ];
   return lines.join("\n");
-}
+};
 
 /**
  * @param {string} text
  * @returns {Promise<void>}
  */
-export function copyMeetingShare(text) {
+const copyMeetingShare = (text) => {
   if (!text) return Promise.resolve();
   return navigator.clipboard.writeText(text);
-}
+};
 
 /**
  * @param { { title?: string | null; join_code?: string | null; passcode?: string | null; join_url?: string | null } } info
  * @param { (text: string) => Promise<void> } [fallbackCopy]
  * @returns {Promise<void>}
  */
-export async function nativeShareMeeting(info, fallbackCopy = copyMeetingShare) {
+const nativeShareMeeting = async (info, fallbackCopy = copyMeetingShare) => {
   if (!info) return;
   const text = buildShareMessage(info);
   if (typeof navigator.share === "function") {
@@ -44,4 +44,6 @@ export async function nativeShareMeeting(info, fallbackCopy = copyMeetingShare) 
   } else {
     await fallbackCopy(text);
   }
-}
+};
+
+export { buildShareMessage, copyMeetingShare, nativeShareMeeting };

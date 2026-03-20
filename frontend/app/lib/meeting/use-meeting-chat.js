@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/app/lib/auth/use-auth";
 
-function buildChatWsUrl(apiUrl, meetingId, jwt) {
+const buildChatWsUrl = (apiUrl, meetingId, jwt) => {
   const base = (apiUrl || "").replace(/\/$/, "");
   const wsBase = base.replace(/^http:\/\//i, "ws://").replace(/^https:\/\//i, "wss://");
   const token = encodeURIComponent(jwt || "");
   return `${wsBase}/ws/meetings/${meetingId}/chat?token=${token}`;
-}
+};
 
-function closeReasonToMessage(code, reason) {
+const closeReasonToMessage = (code, reason) => {
   const r = (reason || "").toLowerCase();
   if (code === 4408 || r.includes("rate_limit_exceeded")) {
     return "Connection temporarily limited. Please wait a moment.";
@@ -28,17 +29,17 @@ function closeReasonToMessage(code, reason) {
   }
   if (r) return r;
   return "Connection closed.";
-}
+};
 
 const ASSISTANT_USER_ID = "system:assistant";
 const ASSISTANT_DISPLAY_NAME = "Assistant";
 
-function isAssistantMessage(message) {
+const isAssistantMessage = (message) => {
   if (!message) return false;
   const id = typeof message.user_id === "string" ? message.user_id : "";
   const name = typeof message.display_name === "string" ? message.display_name : "";
   return id === ASSISTANT_USER_ID || name === ASSISTANT_DISPLAY_NAME;
-}
+};
 
 export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostChanged) => {
   const [messages, setMessages] = useState([]);
@@ -49,20 +50,70 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
   const mountedRef = useRef(true);
   const isChatVisibleRef = useRef(isChatTabVisible);
   isChatVisibleRef.current = isChatTabVisible;
+  const { user } = useAuth();
+  const currentUserId = user?.id != null ? String(user.id) : null;
+  const currentDisplayName =
+    (user && typeof user.name === "string" && user.name.trim()) ||
+    (user && typeof user.id === "string" && user.id) ||
+    "You";
 
   const markChatRead = useCallback(() => {
     setUnreadCount(0);
   }, []);
 
+  const removeMessageByClientId = useCallback((clientId) => {
+    if (!clientId) return;
+    setMessages((prev) => prev.filter((m) => m.client_id !== clientId));
+  }, []);
+
   const sendMessage = useCallback(
     (text) => {
       const t = typeof text === "string" ? text.trim() : "";
-      if (!t || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+      if (!t) return;
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      const clientId =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+      const optimisticMessage = {
+        type: "chat_message",
+        user_id: currentUserId || "local_user",
+        display_name: currentDisplayName,
+        timestamp: new Date().toISOString(),
+        text: t,
+        optimistic: true,
+        failed: false,
+        client_id: clientId,
+      };
+
+      setMessages((prev) => {
+        const updated = [...prev, optimisticMessage];
+        return updated.slice(-200);
+      });
+
       try {
-        wsRef.current.send(JSON.stringify({ type: "message", text: t }));
-      } catch {}
+        wsRef.current.send(
+          JSON.stringify({
+            type: "message",
+            text: t,
+            client_id: clientId,
+          }),
+        );
+      } catch {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.client_id && msg.client_id === clientId
+              ? { ...msg, failed: true, optimistic: false }
+              : msg,
+          ),
+        );
+      }
     },
-    []
+    [currentDisplayName, currentUserId]
   );
 
   useEffect(() => {
@@ -105,7 +156,8 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
       try {
         const data = JSON.parse(event.data);
         if (data.type === "history" && Array.isArray(data.messages)) {
-          setMessages(data.messages.filter((message) => !isAssistantMessage(message)));
+          const filtered = data.messages.filter((message) => !isAssistantMessage(message));
+          setMessages(filtered.slice(-200));
           return;
         }
         if (data.type === "initial_state" && typeof data.current_host_id === "string") {
@@ -124,7 +176,24 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
           if (isAssistantMessage(data)) {
             return;
           }
-          setMessages((prev) => [...prev, data]);
+          setMessages((prev) => {
+            let replaced = false;
+            const withReplacement = prev.map((msg) => {
+              if (msg.client_id && data.client_id && msg.client_id === data.client_id) {
+                replaced = true;
+                return {
+                  ...msg,
+                  ...data,
+                  optimistic: false,
+                  failed: false,
+                };
+              }
+              return msg;
+            });
+
+            const base = replaced ? withReplacement : [...prev, data];
+            return base.slice(-200);
+          });
           if (!isChatVisibleRef.current) {
             setUnreadCount((count) => count + 1);
           }
@@ -156,8 +225,9 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
     messages,
     connected,
     connectionError,
-    sendMessage,
     unreadCount,
+    sendMessage,
     markChatRead,
+    removeMessageByClientId,
   };
 };

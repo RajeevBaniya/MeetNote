@@ -6,14 +6,14 @@ import { useRouter } from "next/navigation";
 const STORAGE_KEY_LEAVING = "leaving_for_summarize";
 const STORAGE_KEY_TRANSCRIPT = "live_transcript";
 
-function buildTranscriptText(transcripts) {
+const buildTranscriptText = (transcripts) => {
   return transcripts
     .map((t) => {
       const speaker = t.speaker || t.display_name || t.user_id || "Speaker";
       return `${speaker}: ${t.text}`;
     })
     .join("\n");
-}
+};
 
 export const useLeaveAndSummarize = (call, callId, getTranscriptSnapshot, hasLeftRef) => {
   const router = useRouter();

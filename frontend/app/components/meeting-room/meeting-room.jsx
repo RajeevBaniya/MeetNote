@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
 
 import useMeetingCall from "@/app/lib/meeting/use-meeting-call";
@@ -8,12 +8,12 @@ import { useMeetingExit } from "@/app/lib/meeting/use-meeting-exit";
 import { useLiveTranscript } from "@/app/lib/transcript/use-live-transcript";
 import { useTranscriptPanel } from "@/app/lib/transcript/use-transcript-panel";
 
-import MeetingRoomContent from "./meeting-room-content";
-import MeetingRoomError from "./meeting-room-error";
-import MeetingRoomLoading from "./meeting-room-loading";
-import ConnectionStateBanner from "./connection-state-banner";
-import RecordingBanner from "./recording-banner";
-import MeetingExitLoading from "./meeting-exit-loading";
+import ConnectionStateBanner from "./shell/connection-state-banner";
+import MeetingExitLoading from "./shell/meeting-exit-loading";
+import MeetingRoomContent from "./shell/meeting-room-content";
+import MeetingRoomError from "./shell/meeting-room-error";
+import MeetingRoomLoading from "./shell/meeting-room-loading";
+import RecordingBanner from "./shell/recording-banner";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
@@ -28,7 +28,8 @@ const MeetingRoom = ({
   const [showAssistant, setShowAssistant] = useState(true);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [currentHostId, setCurrentHostId] = useState(hostId || null);
-  const { isLeaving, isEnding, startLeaving, startEnding, resetExitState } = useMeetingExit();
+  const { isLeaving, isEnding, startLeaving, startEnding, resetExitState } =
+    useMeetingExit();
 
   const { call, error, hasLeftRef } = useMeetingCall(
     callId,
@@ -36,15 +37,14 @@ const MeetingRoom = ({
     onLeave,
     onSessionEnded,
   );
-  const { transcripts, connected, connectionError } = useLiveTranscript(
-    callId,
-    jwt,
-  );
   const {
-    isTranscriptOpen,
-    toggleTranscript,
-    closeTranscript,
-  } = useTranscriptPanel();
+    transcripts,
+    connected,
+    reconnecting,
+    connectionError,
+  } = useLiveTranscript(callId, jwt);
+  const { isTranscriptOpen, toggleTranscript, closeTranscript } =
+    useTranscriptPanel();
   const isHost = Boolean(
     currentHostId && userId && String(currentHostId) === String(userId),
   );
@@ -111,7 +111,7 @@ const MeetingRoom = ({
       <StreamCall call={call}>
         <div className="fixed inset-0 w-full h-full bg-[#020617] text-slate-100 overflow-hidden">
           <div className="w-full h-full flex flex-col">
-            {(isLeaving || isEnding) ? (
+            {isLeaving || isEnding ? (
               <MeetingExitLoading isLeaving={isLeaving} isEnding={isEnding} />
             ) : null}
             <ConnectionStateBanner />
@@ -134,6 +134,7 @@ const MeetingRoom = ({
                 hasLeftRef={hasLeftRef}
                 transcripts={transcripts}
                 transcriptConnected={connected}
+                transcriptReconnecting={reconnecting}
                 transcriptConnectionError={connectionError}
                 isTranscriptOpen={isTranscriptOpen}
                 onToggleTranscript={toggleTranscript}

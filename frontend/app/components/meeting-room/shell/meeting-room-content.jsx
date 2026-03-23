@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
-import useRaisedHands from "@/app/lib/meeting/use-raised-hands";
-import { useMeetingChat } from "@/app/lib/meeting/use-meeting-chat";
 import iconsData from "@/app/components/icons/icons.json";
+import { useMeetingChat } from "@/app/lib/meeting/use-meeting-chat";
+import useRaisedHands from "@/app/lib/meeting/use-raised-hands";
 
-import GalleryLayout from "./gallery-layout";
-import ScreenShareLayout from "./screen-share-layout";
-import MeetingControls from "./meeting-controls";
-import RaisedHandsModal from "./raised-hands-modal";
-import ShareMeetingModal from "./share-meeting-modal";
-import ParticipantsOverlay from "./participants-overlay";
-import ChatOverlay from "./chat-overlay";
-import TranscriptPanel from "./transcript-panel";
+import ChatOverlay from "../chat/chat-overlay";
+import GalleryLayout from "../layout/gallery-layout";
+import ScreenShareLayout from "../layout/screen-share-layout";
+import ShareMeetingModal from "../modals/share-meeting-modal";
+import ParticipantsOverlay from "../participants/participants-overlay";
+import RaisedHandsModal from "../participants/raised-hands-modal";
+import TranscriptPanel from "../transcript/transcript-panel";
+import MeetingControls from "../toolbar/meeting-controls";
 
 const MeetingRoomContent = ({
   showAssistant,
@@ -33,6 +33,7 @@ const MeetingRoomContent = ({
   hasLeftRef,
   transcripts = [],
   transcriptConnected = false,
+  transcriptReconnecting = false,
   transcriptConnectionError = null,
   isTranscriptOpen = false,
   onToggleTranscript,
@@ -53,6 +54,7 @@ const MeetingRoomContent = ({
     raisedHandCount,
     raiseHand,
     lowerHand,
+    lowerHandForUser,
     isHandRaised,
   } = useRaisedHands(currentUserId);
 
@@ -64,6 +66,7 @@ const MeetingRoomContent = ({
   const {
     messages,
     connected,
+    reconnecting,
     connectionError,
     sendMessage,
     unreadCount,
@@ -90,11 +93,15 @@ const MeetingRoomContent = ({
   const onEndMeeting = useCallback(async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl || !callId || !jwt) return false;
-    const res = await fetch(`${apiUrl}/meetings/${callId}/end`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${jwt}` },
-    });
-    return res.ok;
+    try {
+      const res = await fetch(`${apiUrl}/meetings/${callId}/end`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }, [callId, jwt]);
 
   const handleOpenRaisedHandsModal = useCallback(() => {
@@ -216,6 +223,8 @@ const MeetingRoomContent = ({
             <RaisedHandsModal
               onClose={handleCloseRaisedHandsModal}
               raisedHandUserIds={raisedHandUserIds}
+              isHost={isHost}
+              onLowerHandForUser={lowerHandForUser}
             />
           ) : null}
 
@@ -235,6 +244,7 @@ const MeetingRoomContent = ({
               callId={callId}
               jwt={jwt}
               raisedHandUserIds={raisedHandUserIds}
+              onLowerHandForUser={lowerHandForUser}
             />
           ) : null}
 
@@ -246,6 +256,7 @@ const MeetingRoomContent = ({
               removeMessage={removeMessageByClientId}
               connectionError={connectionError}
               connected={connected}
+              reconnecting={reconnecting}
               inputDisabled={Boolean(connectionError)}
               currentUserId={currentUserId}
             />
@@ -256,6 +267,7 @@ const MeetingRoomContent = ({
               segments={transcripts}
               onClose={onCloseTranscript}
               connected={transcriptConnected}
+              reconnecting={transcriptReconnecting}
               connectionError={transcriptConnectionError}
               callId={callId}
               hasLeftRef={hasLeftRef}

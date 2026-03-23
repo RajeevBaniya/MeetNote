@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
 const ParticipantsPanel = ({
@@ -11,6 +11,7 @@ const ParticipantsPanel = ({
   jwt,
   raisedHandUserIds = [],
   embedded = false,
+  onLowerHandForUser,
 }) => {
   const { useParticipants, useLocalParticipant } = useCallStateHooks();
   const participants = useParticipants() ?? [];
@@ -20,6 +21,9 @@ const ParticipantsPanel = ({
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const canModerate = Boolean(isHost && apiUrl && callId && jwt);
   const raisedSet = new Set(raisedHandUserIds ?? []);
+  const canLowerOthersHand = Boolean(
+    isHost && typeof onLowerHandForUser === "function",
+  );
 
   const removeParticipant = useCallback(
     async (participantUserId) => {
@@ -40,7 +44,8 @@ const ParticipantsPanel = ({
         if (res.ok) {
           onClose?.();
         }
-      } catch {} finally {
+      } catch {
+      } finally {
         setActioningId(null);
       }
     },
@@ -60,7 +65,8 @@ const ParticipantsPanel = ({
           },
           body: JSON.stringify({ user_id: participantUserId }),
         });
-      } catch {} finally {
+      } catch {
+      } finally {
         setActioningId(null);
       }
     },
@@ -187,7 +193,9 @@ const ParticipantsPanel = ({
                         />
                       </svg>
                     )}
-                    <span className={`text-xs font-medium ${micMuted ? "text-red-400" : "text-green-400"}`}>
+                    <span
+                      className={`text-xs font-medium ${micMuted ? "text-red-400" : "text-green-400"}`}
+                    >
                       {micMuted ? "Muted" : "Mic"}
                     </span>
                   </span>
@@ -233,7 +241,9 @@ const ParticipantsPanel = ({
                         />
                       </svg>
                     )}
-                    <span className={`text-xs font-medium ${cameraOn ? "text-green-400" : "text-red-400"}`}>
+                    <span
+                      className={`text-xs font-medium ${cameraOn ? "text-green-400" : "text-red-400"}`}
+                    >
                       {cameraOn ? "Cam" : "Off"}
                     </span>
                   </span>
@@ -241,6 +251,16 @@ const ParticipantsPanel = ({
               </div>
               {canModerate && !isLocal ? (
                 <div className="flex items-center gap-2 shrink-0">
+                  {canLowerOthersHand && p.userId && raisedSet.has(p.userId) ? (
+                    <button
+                      type="button"
+                      onClick={() => onLowerHandForUser(p.userId)}
+                      className="px-2 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 text-xs font-medium transition-all duration-200"
+                      title="Lower hand"
+                    >
+                      Lower hand
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => muteParticipant(p.userId)}

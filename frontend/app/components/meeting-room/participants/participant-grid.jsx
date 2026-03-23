@@ -5,9 +5,10 @@ import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 
 import {
   filterAssistant,
-  sortParticipants,
   isAssistantParticipant,
-} from "@/app/lib/participants/participant-helpers";
+  sortParticipants,
+} from "@/app/lib/participants/participants-sort";
+
 import ParticipantTile from "./participant-tile";
 
 const ParticipantGrid = ({

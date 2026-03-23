@@ -11,6 +11,7 @@ const ParticipantsOverlay = ({
   callId,
   jwt,
   raisedHandUserIds = [],
+  onLowerHandForUser,
 }) => {
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -75,6 +76,7 @@ const ParticipantsOverlay = ({
           callId={callId}
           jwt={jwt}
           raisedHandUserIds={raisedHandUserIds}
+          onLowerHandForUser={onLowerHandForUser}
         />
       </div>
     </div>

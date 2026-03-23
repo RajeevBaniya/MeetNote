@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const formatTime = (ts) => {
   if (!ts || typeof ts !== "string") return "";
@@ -28,6 +28,7 @@ const ChatPanel = ({
   removeMessage,
   connectionError,
   connected,
+  reconnecting,
   inputDisabled,
   currentUserId,
 }) => {
@@ -129,6 +130,11 @@ const ChatPanel = ({
           {connectionError}
         </div>
       ) : null}
+      {!connectionError && reconnecting && !connected ? (
+        <div className="shrink-0 px-4 py-2 bg-amber-900/20 border-b border-amber-700/30 text-amber-200 text-sm">
+          Reconnecting…
+        </div>
+      ) : null}
       <div className="relative flex-1 min-h-0">
         <ul
           ref={listRef}
@@ -155,7 +161,7 @@ const ChatPanel = ({
                       <span className="text-xs text-slate-500">{time}</span>
                     ) : null}
                   </div>
-                  <p className="text-sm text-slate-200 break-words">
+                      <p className="text-sm text-slate-200 wrap-break-word">
                     {msg.text}
                     {msg.failed ? (
                       <>

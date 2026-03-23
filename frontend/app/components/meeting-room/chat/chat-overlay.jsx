@@ -11,6 +11,7 @@ const ChatOverlay = ({
   removeMessage,
   connectionError,
   connected,
+  reconnecting,
   inputDisabled,
   currentUserId,
 }) => {
@@ -48,6 +49,7 @@ const ChatOverlay = ({
           removeMessage={removeMessage}
           connectionError={connectionError}
           connected={connected}
+          reconnecting={reconnecting}
           inputDisabled={disabled}
           currentUserId={currentUserId}
         />

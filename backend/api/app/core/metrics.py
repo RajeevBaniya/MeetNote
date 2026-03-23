@@ -36,7 +36,10 @@ async def _metrics_worker() -> None:
                 for attempt in range(retries):
                     try:
                         redis = await get_redis()
-                        await redis.incrby(f"metrics:{name}", amount)
+                        key = f"metrics:{name}"
+                        new_value = await redis.incrby(key, amount)
+                        if new_value < 0:
+                            await redis.set(key, 0)
                         break
                     except Exception as exc:
                         if _should_log_redis_error():
@@ -85,7 +88,7 @@ def init_metrics_worker() -> None:
 
 
 def incr(name: str, amount: int = 1) -> None:
-    if amount <= 0:
+    if amount == 0:
         return
     if _queue is None:
         if _should_log_redis_error():
@@ -105,6 +108,21 @@ def incr(name: str, amount: int = 1) -> None:
                 extra={"metric": name},
                 exc_info=exc,
             )
+
+
+async def set_gauge(name: str, value: int) -> None:
+    """
+    Sets a metrics gauge-like value in Redis directly.
+
+    This is used for snapshot-style metrics (for example, startup counts).
+    """
+    try:
+        redis = await get_redis()
+        normalized = max(0, int(value))
+        await redis.set(f"metrics:{name}", normalized)
+    except Exception as exc:
+        if _should_log_redis_error():
+            logger.warning("metrics_set_gauge_failed", exc_info=exc)
 
 
 async def snapshot() -> Dict[str, int]:

@@ -12,7 +12,7 @@ from app.core.config import (
 )
 from app.core.database_setup import ensure_database_schema
 from app.core.error_monitoring import initialize_error_monitoring, run_worker_with_sentry
-from app.core.metrics import init_metrics_worker
+from app.core.metrics import init_metrics_worker, set_gauge
 from app.core.redis import get_redis_url
 from app.db.base import engine
 from app.db.models import Meeting
@@ -95,5 +95,6 @@ async def _publish_active_meetings_snapshot() -> None:
         )
         meetings = list(result.scalars().all())
 
+    await set_gauge("active_meetings", len(meetings))
     if meetings:
         await publish_meeting_snapshot([m.id for m in meetings])

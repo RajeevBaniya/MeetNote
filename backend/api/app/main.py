@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -60,7 +61,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         origin = CORS_ORIGINS[0] if CORS_ORIGINS else "*"
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={"error": "Internal Server Error", "request_id": request_id},
         headers={
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
@@ -98,6 +99,31 @@ async def healthz() -> dict[str, str]:
 @app.get("/healthz/deep")
 async def healthz_deep() -> JSONResponse:
     return await comprehensive_health_check()
+
+
+@app.get("/health")
+async def health() -> JSONResponse:
+    try:
+        resp = await comprehensive_health_check()
+        data = json.loads(resp.body.decode("utf-8"))
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "redis": "fail", "db": "fail"},
+        )
+
+    redis_ok = data.get("redis") == "ok"
+    db_ok = data.get("db") == "ok"
+    ok = redis_ok and db_ok
+
+    return JSONResponse(
+        status_code=200 if ok else 503,
+        content={
+            "status": "ok" if ok else "degraded",
+            "redis": "ok" if redis_ok else "fail",
+            "db": "ok" if db_ok else "fail",
+        },
+    )
 
 
 @app.get("/metrics")

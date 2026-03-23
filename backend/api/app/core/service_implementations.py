@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -22,8 +23,11 @@ from app.modules.stream_tokens.service import (
     end_stream_call,
     query_stream_call_members,
 )
+from app.modules.transcripts.summarization import ensure_summary_chunks_for_meeting_end
 from app.modules.transcripts.service import expire_transcript_keys
 from app.state.client import get_redis
+
+logger = logging.getLogger(__name__)
 
 
 class StreamService(StreamServiceInterface):
@@ -112,6 +116,13 @@ class TranscriptService(TranscriptServiceInterface):
         meeting_id: UUID
     ) -> None:
         redis = await get_redis()
+        try:
+            await ensure_summary_chunks_for_meeting_end(redis, meeting_id)
+        except Exception:
+            logger.exception(
+                "ensure_summary_chunks_for_meeting_end_failed meeting_id=%s",
+                meeting_id,
+            )
         await expire_transcript_keys(redis, meeting_id)
 
 

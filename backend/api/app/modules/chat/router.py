@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
 from app.core.jwt import decode_access_token
+from app.core.metrics import incr
 from app.db.session import async_session_factory
 from app.modules.chat.service import append_message
 from app.modules.chat.websocket import _connections, _send_json
@@ -81,6 +82,8 @@ async def post_assistant_message(
         ts,
         text,
     )
+    incr("chat_messages_total")
+    incr("assistant_responses_total")
     payload_out = {
         "type": "chat_message",
         "user_id": SYSTEM_USER_ID,

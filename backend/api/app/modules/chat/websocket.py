@@ -8,6 +8,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from app.core.jwt import get_user_id_from_token
 from app.core.rate_limit import rate_limit_ws_for_user
+from app.core.ws_message_rate_limiter import allow_ws_message
 from app.db.session import async_session_factory
 from app.modules.chat.service import (
     append_message,
@@ -125,6 +126,11 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
     if not user_id:
         await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Invalid or expired token")
         return
+    client_ip = (
+        websocket.client.host
+        if websocket.client and websocket.client.host
+        else "unknown"
+    )
     allowed = await rate_limit_ws_for_user(user_id)
     if not allowed:
         await websocket.close(code=4408, reason="rate_limit_exceeded")
@@ -151,6 +157,7 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
     if removed:
         await websocket.close(code=WS_CLOSE_FORBIDDEN, reason="You were removed from this meeting")
         return
+    registered = False
 
     initial_host_id = meeting.current_host_id
     try:
@@ -181,6 +188,8 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
         logger.warning("restore_original_host_failed", exc_info=True)
 
     _register(meeting_id, websocket, user_id)
+    registered = True
+    incr("active_ws_connections")
     try:
         recent = await get_recent_messages(redis, meeting_id)
         await _send_json(websocket, {"type": "history", "messages": recent})
@@ -195,6 +204,9 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
             text = (data.get("text") or "").strip()
             if not text:
                 continue
+            allowed = await allow_ws_message(user_id, client_ip)
+            if not allowed:
+                continue
             display_name = await get_user_display_name(user_id)
             ts = datetime.now(timezone.utc).isoformat()
             payload = {
@@ -205,6 +217,7 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
                 "text": text,
             }
             await append_message(redis, meeting_id, user_id, display_name, ts, text)
+            incr("chat_messages_total")
             for ws, _ in _connections.get(meeting_id, []):
                 try:
                     await _send_json(ws, payload)
@@ -222,4 +235,6 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
         except Exception:
             logger.warning("ws_close_on_error_failed", exc_info=True)
     finally:
+        if registered:
+            incr("active_ws_connections", amount=-1)
         _unregister(meeting_id, websocket)

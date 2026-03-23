@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CreateMeetingIn(BaseModel):
@@ -57,6 +57,7 @@ class TranscriptSegmentOut(BaseModel):
 
 class TranscriptOut(BaseModel):
     segments: list[TranscriptSegmentOut]
+    chunk_summaries: list[str] = Field(default_factory=list)
 
 
 class MeetingListItemOut(BaseModel):
@@ -71,6 +72,19 @@ class MyMeetingsOut(BaseModel):
     upcoming: list[MeetingListItemOut]
     active: list[MeetingListItemOut]
     ended: list[MeetingListItemOut]
+
+
+class MeetingMyItemOut(BaseModel):
+    """Extended list row: host or participant; has_summary is always false from API."""
+
+    id: UUID
+    title: str
+    created_at: datetime
+    ended_at: datetime | None
+    is_active: bool
+    participant_count: int
+    has_summary: bool = False
+    scheduled_start_at: datetime | None = None
 
 
 class MeetingAnalyticsMeetingOut(BaseModel):

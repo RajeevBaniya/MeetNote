@@ -12,12 +12,17 @@ from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.schemas import (
     CheckRemovedOut,
     MeetingListItemOut,
+    MeetingMyItemOut,
     MeetingOut,
     MeetingParticipantsOut,
     MeetingStatusOut,
     MyMeetingsOut,
 )
-from app.modules.meetings.service import get_meeting_by_id, get_meetings_for_host
+from app.modules.meetings.service import (
+    get_meeting_by_id,
+    get_meetings_for_host,
+    list_meetings_for_user_host_or_participant,
+)
 from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
 from app.modules.stream_tokens.service import (
     is_user_removed,
@@ -62,6 +67,28 @@ async def get_my_meetings(
     ]
     upcoming_items.sort(key=lambda item: item.scheduled_start_at or item.created_at)
     return MyMeetingsOut(upcoming=upcoming_items, active=active_items, ended=ended_items)
+
+
+@router.get("/my", response_model=list[MeetingMyItemOut])
+async def list_my_meetings_host_or_participant(
+    user_id: UUID = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+    _: None = Depends(rate_limit_general),
+):
+    rows = await list_meetings_for_user_host_or_participant(session, user_id)
+    return [
+        MeetingMyItemOut(
+            id=m.id,
+            title=m.title,
+            created_at=m.created_at,
+            ended_at=m.ended_at,
+            is_active=m.is_active,
+            participant_count=count,
+            has_summary=False,
+            scheduled_start_at=m.scheduled_start_at,
+        )
+        for m, count in rows
+    ]
 
 
 @router.get("/{meeting_id}", response_model=MeetingOut)

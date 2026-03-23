@@ -58,7 +58,6 @@ async def select_next_host_candidate(
             user_uuid = UUID(uid)
         except Exception:
             continue  # skip non-UUID string when selecting host candidate
-            continue
             
         return user_uuid
     

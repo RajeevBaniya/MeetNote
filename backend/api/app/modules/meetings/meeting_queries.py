@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, distinct, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Meeting
+from app.db.models import Meeting, MeetingAnalytics, MeetingParticipantStats
 
 JOIN_CODE_LENGTH = 12
 
@@ -39,6 +39,29 @@ async def get_meeting_by_id(
     """
     result = await session.execute(select(Meeting).where(Meeting.id == meeting_id))
     return result.scalar_one_or_none()
+
+
+async def user_was_meeting_member(
+    session: AsyncSession,
+    meeting_id: UUID,
+    user_id: UUID,
+) -> bool:
+    meeting = await get_meeting_by_id(session, meeting_id)
+    if not meeting:
+        return False
+    if user_id in (
+        meeting.host_id,
+        meeting.original_host_id,
+        meeting.current_host_id,
+    ):
+        return True
+    row = await session.execute(
+        select(MeetingParticipantStats.user_id).where(
+            MeetingParticipantStats.meeting_id == meeting_id,
+            MeetingParticipantStats.user_id == user_id,
+        ).limit(1)
+    )
+    return row.scalar_one_or_none() is not None
 
 
 async def get_meeting_by_join_code(
@@ -97,3 +120,50 @@ async def get_meetings_for_host(
     ended_meetings = list(ended_result.scalars().all())
 
     return active_meetings, ended_meetings
+
+
+async def list_meetings_for_user_host_or_participant(
+    session: AsyncSession,
+    user_id: UUID,
+    *,
+    limit: int = 200,
+) -> list[tuple[Meeting, int]]:
+    """
+    Meetings where the user is host (any host role field) or has participant stats.
+    Participant count prefers analytics total_participants, else count of participant rows.
+    """
+    user_is_participant = exists(
+        select(MeetingParticipantStats.user_id).where(
+            MeetingParticipantStats.meeting_id == Meeting.id,
+            MeetingParticipantStats.user_id == user_id,
+        )
+    )
+    user_is_host_family = or_(
+        Meeting.host_id == user_id,
+        Meeting.original_host_id == user_id,
+        Meeting.current_host_id == user_id,
+    )
+    stats_count = (
+        select(func.count(distinct(MeetingParticipantStats.user_id)))
+        .select_from(MeetingParticipantStats)
+        .where(MeetingParticipantStats.meeting_id == Meeting.id)
+        .scalar_subquery()
+    )
+    participant_count_expr = func.coalesce(
+        MeetingAnalytics.total_participants,
+        stats_count,
+        0,
+    )
+    stmt = (
+        select(Meeting, participant_count_expr)
+        .outerjoin(MeetingAnalytics, MeetingAnalytics.meeting_id == Meeting.id)
+        .where(or_(user_is_host_family, user_is_participant))
+        .order_by(desc(Meeting.created_at))
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    rows = result.all()
+    out: list[tuple[Meeting, int]] = []
+    for meeting, p_count in rows:
+        out.append((meeting, int(p_count or 0)))
+    return out

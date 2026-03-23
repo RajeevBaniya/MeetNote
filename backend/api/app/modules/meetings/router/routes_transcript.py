@@ -1,7 +1,9 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from pydantic import BaseModel
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
@@ -9,14 +11,18 @@ from app.core.metrics import incr
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.schemas import TranscriptOut
+from app.modules.meetings.meeting_queries import user_was_meeting_member
 from app.modules.meetings.service import get_meeting_by_id
 from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
 from app.modules.stream_tokens.service import get_stream_transcript_segments
 from app.state.client import get_redis
+from app.modules.transcripts.summarization import ensure_summary_chunks_for_meeting_end
+from app.modules.transcripts.summary_chunks_read import fetch_summary_chunk_summaries
 from app.modules.transcripts.service import (
     append_transcript_segment,
     generate_final_summary,
     get_live_transcript,
+    get_transcript_history_segments,
     get_transcript_segments,
     has_user_left,
     delete_transcript_state,
@@ -28,6 +34,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 ASSISTANT_SPEAKER_IDS = {"system:assistant", "meeting-assistant-bot", "Assistant"}
+
+
+class TranscriptHistorySegmentOut(BaseModel):
+    sequence: int
+    speaker_id: str
+    speaker_name: str
+    text: str
+    timestamp: str
+
+
+class TranscriptHistoryOut(BaseModel):
+    segments: list[TranscriptHistorySegmentOut]
 
 
 @router.get("/{meeting_id}/transcript", response_model=TranscriptOut)
@@ -43,10 +61,10 @@ async def get_meeting_transcript(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting not found",
         )
-    if meeting.is_active:
+    if not await user_was_meeting_member(session, meeting_id, user_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Meeting has not ended",
+            detail="Not authorized to access this meeting transcript",
         )
     try:
         raw_segments = await get_stream_transcript_segments(
@@ -65,7 +83,26 @@ async def get_meeting_transcript(
         for segment in raw_segments
         if (segment.get("speaker_id") or "") not in ASSISTANT_SPEAKER_IDS
     ]
-    return TranscriptOut(segments=segments)
+    chunk_summaries: list[str] = []
+    try:
+        redis = await get_redis()
+        if redis:
+            try:
+                await ensure_summary_chunks_for_meeting_end(redis, meeting_id)
+            except Exception:
+                logger.debug(
+                    "ensure_summary_chunks_lazy_failed meeting_id=%s",
+                    meeting_id,
+                    exc_info=True,
+                )
+            chunk_summaries = await fetch_summary_chunk_summaries(redis, meeting_id)
+    except Exception:
+        logger.debug(
+            "summary_chunk_summaries_read_failed meeting_id=%s",
+            meeting_id,
+            exc_info=True,
+        )
+    return TranscriptOut(segments=segments, chunk_summaries=chunk_summaries)
 
 
 @router.post("/{meeting_id}/transcript/segment", status_code=status.HTTP_202_ACCEPTED)
@@ -162,6 +199,36 @@ async def get_live_transcript_segments_api(
         for item in items
     ]
     return TranscriptOut(segments=segments)
+
+
+@router.get("/{meeting_id}/transcript/history", response_model=TranscriptHistoryOut)
+async def get_transcript_history_api(
+    meeting_id: UUID,
+    limit: int = Query(default=200),
+    user_id: UUID = Depends(get_current_user_id),
+    _: None = Depends(rate_limit_general),
+):
+    incr("transcript_restore_requests_total")
+    try:
+        segments = await get_transcript_history_segments(
+            meeting_id,
+            user_id=user_id,
+            limit=limit,
+        )
+    except PermissionError:
+        incr("transcript_user_blocked_total")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="transcript_unavailable",
+        )
+    except Exception:
+        logger.exception("get_transcript_history_failed meeting_id=%s", meeting_id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to load transcript history",
+        )
+
+    return TranscriptHistoryOut(segments=segments)
 
 
 @router.post("/{meeting_id}/generate-final-summary")

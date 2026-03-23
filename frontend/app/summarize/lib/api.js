@@ -1,4 +1,4 @@
-export async function apiFetch(path, options = {}) {
+const apiFetch = async (path, options = {}) => {
   const baseUrl = process.env.NEXT_PUBLIC_SUMMARY_API_URL || "http://localhost:5000";
   const url = `${baseUrl}${path}`;
 
@@ -33,4 +33,6 @@ export async function apiFetch(path, options = {}) {
   }
 
   return response.json();
-}
+};
+
+export { apiFetch };

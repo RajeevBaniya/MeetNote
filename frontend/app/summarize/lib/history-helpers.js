@@ -1,6 +1,4 @@
-/** Helpers for summary history: formatting, labels, and display values. */
-
-export const MEETING_TYPE_LABELS = {
+const MEETING_TYPE_LABELS = {
   team: "Team Meeting",
   "one-on-one": "1-on-1",
   client: "Client Meeting",
@@ -44,6 +42,7 @@ const getActionItemsCount = (summary) => {
 };
 
 export {
+  MEETING_TYPE_LABELS,
   formatDate,
   getDisplayTitle,
   getMeetingDate,

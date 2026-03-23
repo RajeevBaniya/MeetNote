@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
+    "@sentry/nextjs": "^10.45.0",
     "@stream-io/node-sdk": "^0.7.17",
     "@stream-io/video-react-sdk": "^1.25.0",
     "class-variance-authority": "^0.7.1",

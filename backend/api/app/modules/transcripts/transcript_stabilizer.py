@@ -14,6 +14,7 @@ from app.modules.transcripts.broadcaster import publish_segment
 from app.modules.transcripts.redis_keys import (
     ACTIVE_MEETING_TTL_SECONDS,
     buffer_key,
+    speakers_key,
     segments_key,
     seen_key,
     seq_key,
@@ -72,12 +73,30 @@ async def _commit_segment(
             incr("transcript_segments_deduplicated_total")
             return
 
+    speaker_id_value = segment.get("speaker_id")
+    speaker_name_value = segment.get("speaker_name")
+    speaker_id_str = str(speaker_id_value) if speaker_id_value is not None else None
+    speakers_hkey = speakers_key(meeting_id)
+    final_speaker_name = speaker_name_value
+
+    if speaker_id_str:
+        stored_name = await redis.hget(speakers_hkey, speaker_id_str)
+        if stored_name:
+            if isinstance(stored_name, (bytes, bytearray)):
+                final_speaker_name = stored_name.decode("utf-8", errors="replace")
+            else:
+                final_speaker_name = str(stored_name)
+        elif (
+            isinstance(speaker_name_value, str) and speaker_name_value.strip()
+        ):
+            await redis.hset(speakers_hkey, speaker_id_str, speaker_name_value.strip())
+
     segment_id = segment.get("segment_id")
     if not segment_id:
         hasher = hashlib.sha256()
-        hasher.update((segment.get("speaker_id") or "").encode("utf-8"))
+        hasher.update((speaker_id_str or "").encode("utf-8"))
         hasher.update(b"|")
-        hasher.update((segment.get("speaker_name") or "").encode("utf-8"))
+        hasher.update((final_speaker_name or "").encode("utf-8"))
         hasher.update(b"|")
         hasher.update(text.encode("utf-8"))
         hasher.update(b"|")
@@ -89,6 +108,17 @@ async def _commit_segment(
         return
     await redis.sadd(sk, segment_id)
     await redis.expire(sk, ACTIVE_MEETING_TTL_SECONDS)
+
+    # Soft commit-stage rate limit: max 5 committed segments/second/meeting.
+    # This applies after stabilization/dedup/idempotency checks.
+    ts_for_rate = datetime.now(timezone.utc)
+    rate_key = f"transcript:rate:{meeting_id}:{int(ts_for_rate.timestamp())}"
+    rate_count = await redis.incr(rate_key)
+    if rate_count == 1:
+        await redis.expire(rate_key, 2)
+    if rate_count > 5:
+        incr("transcript_segments_rate_limited_total")
+        return
 
     ts_raw = segment.get("timestamp")
     if ts_raw is not None:
@@ -102,8 +132,8 @@ async def _commit_segment(
 
     record: dict[str, Any] = {
         "segment_id": segment_id,
-        "speaker_id": segment.get("speaker_id"),
-        "speaker_name": segment.get("speaker_name"),
+        "speaker_id": speaker_id_str,
+        "speaker_name": final_speaker_name,
         "text": text,
         "start_time": ts,
         "end_time": ts,
@@ -117,8 +147,8 @@ async def _commit_segment(
 
     stream_payload = {
         "text": text,
-        "speaker_id": segment.get("speaker_id"),
-        "speaker": segment.get("speaker_name"),
+        "speaker_id": speaker_id_str,
+        "speaker": final_speaker_name,
         "timestamp": ts,
         "sequence": int(sequence),
     }

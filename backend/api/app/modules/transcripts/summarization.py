@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 import httpx
@@ -10,10 +11,90 @@ from app.modules.transcripts.redis_keys import (
     CHUNK_LOCK_TTL_SECONDS,
     TRANSCRIPT_SEGMENT_THRESHOLD,
     buffer_key,
+    chunks_initialized_key,
     chunks_key,
     lock_key,
 )
-from app.modules.transcripts.segment_storage import get_live_transcript
+from app.modules.transcripts.segment_storage import get_live_transcript, get_transcript_segments
+
+logger = logging.getLogger(__name__)
+
+
+async def _mark_chunks_ensure_initialized(redis: Redis, meeting_id: UUID) -> None:
+    ikey = chunks_initialized_key(meeting_id)
+    await redis.set(ikey, "1", ex=ACTIVE_MEETING_TTL_SECONDS)
+
+
+async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) -> None:
+    try:
+        if await redis.get(chunks_initialized_key(meeting_id)):
+            return
+    except Exception:
+        logger.exception("ensure_summary_chunks_init_flag_read_failed meeting_id=%s", meeting_id)
+        return
+
+    ckey = chunks_key(meeting_id)
+    try:
+        n_chunks = await redis.llen(ckey)
+    except Exception:
+        logger.exception("ensure_summary_chunks_llen_failed meeting_id=%s", meeting_id)
+        return
+    if int(n_chunks or 0) > 0:
+        try:
+            await _mark_chunks_ensure_initialized(redis, meeting_id)
+        except Exception:
+            logger.exception(
+                "ensure_summary_chunks_init_flag_set_failed meeting_id=%s",
+                meeting_id,
+            )
+        return
+
+    try:
+        segments = await get_transcript_segments(redis, meeting_id)
+    except Exception:
+        logger.exception("ensure_summary_chunks_read_segments_failed meeting_id=%s", meeting_id)
+        return
+    if not segments:
+        return
+
+    batch_size = TRANSCRIPT_SEGMENT_THRESHOLD
+    pushed_any = False
+    for start in range(0, len(segments), batch_size):
+        batch = segments[start : start + batch_size]
+        lines: List[str] = []
+        for seg in batch:
+            if not isinstance(seg, dict):
+                continue
+            text = (seg.get("text") or "").strip()
+            if not text:
+                continue
+            speaker = (seg.get("speaker_name") or seg.get("speaker_id") or "Speaker")
+            lines.append(f"{speaker}: {text}")
+        if not lines:
+            continue
+        chunk_text = "\n".join(lines)
+        try:
+            summary = await _summarize_text(chunk_text, purpose="chunk")
+        except Exception:
+            logger.exception(
+                "ensure_summary_chunks_batch_failed meeting_id=%s offset=%s",
+                meeting_id,
+                start,
+            )
+            continue
+        if summary:
+            await redis.rpush(ckey, summary)
+            await redis.expire(ckey, ACTIVE_MEETING_TTL_SECONDS)
+            pushed_any = True
+
+    if pushed_any:
+        try:
+            await _mark_chunks_ensure_initialized(redis, meeting_id)
+        except Exception:
+            logger.exception(
+                "ensure_summary_chunks_init_flag_set_failed meeting_id=%s",
+                meeting_id,
+            )
 
 
 async def process_transcript_chunk(redis: Redis, meeting_id: UUID) -> None:

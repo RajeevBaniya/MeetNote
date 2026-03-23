@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/lib/auth/use-auth";
 import { getErrorMessage, isRateLimitError } from "@/app/lib/ui/error-messages";
 import ErrorBanner from "@/app/lib/ui/error-banner";
-import MeetingCreatedModal from "@/app/components/meeting-room/meeting-info-modal";
+import MeetingCreatedModal from "@/app/components/meeting-room/modals/meeting-info-modal";
 
 const JoinMeetingContent = () => {
   const router = useRouter();

@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth/use-auth";
 import { buildShareMessage, copyMeetingShare } from "@/app/lib/meeting/share-utils";
 import Navbar from "@/app/components/landing/navbar";
-import ShareMeetingModal from "@/app/components/meeting-room/share-meeting-modal";
+import MeetingsSection from "@/app/components/meetings-section";
+import ShareMeetingModal from "@/app/components/meeting-room/modals/share-meeting-modal";
 
 const MeetingCard = ({
   meeting,
@@ -166,6 +167,14 @@ const MyMeetingsPage = () => {
       cancelled = true;
     };
   }, [jwt, isAuthenticated, apiUrl]);
+
+  const excludeFromMineIds = useMemo(() => {
+    const ids = [];
+    for (const m of upcomingMeetings) ids.push(String(m.id));
+    for (const m of activeMeetings) ids.push(String(m.id));
+    for (const m of endedMeetings) ids.push(String(m.id));
+    return ids;
+  }, [upcomingMeetings, activeMeetings, endedMeetings]);
 
   const handleShareMeeting = useCallback((meetingId) => {
     setShareModalMeetingId(meetingId);
@@ -389,7 +398,7 @@ const MyMeetingsPage = () => {
                       <MeetingCard
                         meeting={meeting}
                         actionLabel="View summary"
-                        actionHref={`/meeting/${meeting.id}/summary`}
+                        actionHref={`/summarize?meetingId=${encodeURIComponent(meeting.id)}`}
                         isActive={false}
                       />
                     </li>
@@ -397,6 +406,15 @@ const MyMeetingsPage = () => {
                 </ul>
               )}
             </section>
+
+            <MeetingsSection
+              jwt={jwt}
+              apiUrl={apiUrl}
+              excludeMeetingIds={excludeFromMineIds}
+              onShareMeeting={handleShareMeeting}
+              onCopyMeeting={handleCopyMeeting}
+              lastCopiedId={lastCopiedId}
+            />
           </div>
         )}
       </main>

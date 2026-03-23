@@ -8,7 +8,7 @@ import MeetingRoom from "@/app/components/meeting-room/meeting-room";
 import { StreamTheme } from "@stream-io/video-react-sdk";
 import { useAuth } from "@/app/lib/auth/use-auth";
 import { useStreamTokenFromBackend } from "@/app/lib/stream/use-stream-token";
-import { checkLeavingForSummarizeAndRedirect } from "@/app/lib/meeting/use-leave-and-summarize";
+import { checkLeavingForSummarizeAndRedirect } from "@/app/lib/meeting/leave-summary";
 
 const REDIRECT_DELAY_MS = 2500;
 const REFRESH_SAFETY_SECONDS = 300;

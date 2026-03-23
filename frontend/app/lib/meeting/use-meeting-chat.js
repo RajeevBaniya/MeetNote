@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/app/lib/auth/use-auth";
+import { getReconnectDelayMs } from "@/app/lib/websocket/reconnect-backoff";
 
 const buildChatWsUrl = (apiUrl, meetingId, jwt) => {
   const base = (apiUrl || "").replace(/\/$/, "");
@@ -44,11 +45,17 @@ const isAssistantMessage = (message) => {
 export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostChanged) => {
   const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const wsRef = useRef(null);
   const mountedRef = useRef(true);
   const isChatVisibleRef = useRef(isChatTabVisible);
+  const shouldReconnectRef = useRef(true);
+  const meetingEndedRef = useRef(false);
+  const isConnectingRef = useRef(false);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef(null);
   isChatVisibleRef.current = isChatTabVisible;
   const { user } = useAuth();
   const currentUserId = user?.id != null ? String(user.id) : null;
@@ -120,6 +127,14 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      shouldReconnectRef.current = false;
+      meetingEndedRef.current = true;
+      isConnectingRef.current = false;
+      reconnectAttemptRef.current = 0;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -130,6 +145,7 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
   useEffect(() => {
     if (!meetingId || !jwt) {
       setConnected(false);
+      setReconnecting(false);
       setConnectionError(null);
       setMessages([]);
       return;
@@ -141,82 +157,153 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
     }
     setConnectionError(null);
     setMessages([]);
-    const url = buildChatWsUrl(apiUrl, meetingId, jwt);
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
 
-    ws.onopen = () => {
-      if (!mountedRef.current) return;
-      setConnected(true);
-      setConnectionError(null);
+    shouldReconnectRef.current = true;
+    meetingEndedRef.current = false;
+    isConnectingRef.current = false;
+    reconnectAttemptRef.current = 0;
+    setReconnecting(false);
+
+    const scheduleReconnect = (closeEvent) => {
+      if (!shouldReconnectRef.current) return;
+      if (meetingEndedRef.current) return;
+      if (reconnectTimerRef.current) return;
+      isConnectingRef.current = false;
+
+      const code = closeEvent?.code;
+      const reason = closeEvent?.reason;
+      const message = closeReasonToMessage(code, reason);
+      setConnectionError(message);
+
+      const isMeetingEnded =
+        code === 4400 || (typeof reason === "string" && reason.toLowerCase().includes("meeting ended"));
+      const isPermanent =
+        code === 4401 || code === 4403 || code === 4400;
+      if (isMeetingEnded || isPermanent) {
+        meetingEndedRef.current = true;
+        shouldReconnectRef.current = false;
+        setReconnecting(false);
+        return;
+      }
+
+      setReconnecting(true);
+      const delayMs = getReconnectDelayMs(reconnectAttemptRef.current);
+      reconnectAttemptRef.current += 1;
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        isConnectingRef.current = false;
+        if (!mountedRef.current) return;
+        connectWs();
+      }, delayMs);
     };
 
-    ws.onmessage = (event) => {
-      if (!mountedRef.current) return;
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "history" && Array.isArray(data.messages)) {
-          const filtered = data.messages.filter((message) => !isAssistantMessage(message));
-          setMessages(filtered.slice(-200));
-          return;
-        }
-        if (data.type === "initial_state" && typeof data.current_host_id === "string") {
-          try {
-            onHostChanged?.(data.current_host_id);
-          } catch {}
-          return;
-        }
-        if (data.type === "host_changed" && typeof data.new_host_id === "string") {
-          try {
-            onHostChanged?.(data.new_host_id);
-          } catch {}
-          return;
-        }
-        if (data.type === "chat_message") {
-          if (isAssistantMessage(data)) {
+    const connectWs = () => {
+      if (!shouldReconnectRef.current) return;
+      if (meetingEndedRef.current) return;
+      if (isConnectingRef.current) return;
+      if (!meetingId || !jwt) return;
+
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+
+      isConnectingRef.current = true;
+
+      const url = buildChatWsUrl(apiUrl, meetingId, jwt);
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (!mountedRef.current) return;
+        setConnected(true);
+        setConnectionError(null);
+        setReconnecting(false);
+        reconnectAttemptRef.current = 0;
+        isConnectingRef.current = false;
+      };
+
+      ws.onmessage = (event) => {
+        if (!mountedRef.current) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "history" && Array.isArray(data.messages)) {
+            const filtered = data.messages.filter((message) => !isAssistantMessage(message));
+            setMessages(filtered.slice(-200));
             return;
           }
-          setMessages((prev) => {
-            let replaced = false;
-            const withReplacement = prev.map((msg) => {
-              if (msg.client_id && data.client_id && msg.client_id === data.client_id) {
-                replaced = true;
-                return {
-                  ...msg,
-                  ...data,
-                  optimistic: false,
-                  failed: false,
-                };
-              }
-              return msg;
-            });
-
-            const base = replaced ? withReplacement : [...prev, data];
-            return base.slice(-200);
-          });
-          if (!isChatVisibleRef.current) {
-            setUnreadCount((count) => count + 1);
+          if (data.type === "initial_state" && typeof data.current_host_id === "string") {
+            try {
+              onHostChanged?.(data.current_host_id);
+            } catch {}
+            return;
           }
-        }
-      } catch {}
+          if (data.type === "host_changed" && typeof data.new_host_id === "string") {
+            try {
+              onHostChanged?.(data.new_host_id);
+            } catch {}
+            return;
+          }
+          if (data.type === "chat_message") {
+            if (isAssistantMessage(data)) {
+              return;
+            }
+            setMessages((prev) => {
+              let replaced = false;
+              const withReplacement = prev.map((msg) => {
+                if (msg.client_id && data.client_id && msg.client_id === data.client_id) {
+                  replaced = true;
+                  return {
+                    ...msg,
+                    ...data,
+                    optimistic: false,
+                    failed: false,
+                  };
+                }
+                return msg;
+              });
+
+              const base = replaced ? withReplacement : [...prev, data];
+              return base.slice(-200);
+            });
+            if (!isChatVisibleRef.current) {
+              setUnreadCount((count) => count + 1);
+            }
+          }
+        } catch {}
+      };
+
+      ws.onclose = (event) => {
+        wsRef.current = null;
+        if (!mountedRef.current) return;
+        setConnected(false);
+        isConnectingRef.current = false;
+        scheduleReconnect(event);
+      };
+
+      ws.onerror = () => {
+        if (!mountedRef.current) return;
+        setConnected(false);
+        setConnectionError((prev) => prev || "Connection failed.");
+        setReconnecting(true);
+        isConnectingRef.current = false;
+        scheduleReconnect({ code: 0, reason: "error" });
+      };
     };
 
-    ws.onclose = (event) => {
-      wsRef.current = null;
-      if (!mountedRef.current) return;
-      setConnected(false);
-      const msg = closeReasonToMessage(event.code, event.reason);
-      setConnectionError(msg);
-    };
-
-    ws.onerror = () => {
-      if (!mountedRef.current) return;
-      setConnected(false);
-      setConnectionError((prev) => prev || "Connection failed.");
-    };
+    connectWs();
 
     return () => {
-      ws.close();
+      shouldReconnectRef.current = false;
+      setReconnecting(false);
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      const ws = wsRef.current;
+      if (ws) {
+        ws.close();
+      }
       wsRef.current = null;
     };
   }, [meetingId, jwt]);
@@ -224,6 +311,7 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
   return {
     messages,
     connected,
+    reconnecting,
     connectionError,
     unreadCount,
     sendMessage,

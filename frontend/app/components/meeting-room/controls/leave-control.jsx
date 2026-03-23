@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 
-import LeaveConfirmModal from "../leave-confirm-modal";
+import LeaveConfirmModal from "../modals/leave-confirm-modal";
 
 const LeaveControl = ({
   onLeaveClick,

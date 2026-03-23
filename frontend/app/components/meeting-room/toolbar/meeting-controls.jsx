@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 
-import MicControl from "./controls/mic-control";
-import CameraControl from "./controls/camera-control";
-import ScreenShareControl from "./controls/screen-share-control";
-import ParticipantsButton from "./controls/participants-button";
-import ChatButton from "./controls/chat-button";
-import TranscriptButton from "./controls/transcript-button";
-import RaisedHandControl from "./controls/raised-hand-control";
-import RecordingControl from "./controls/recording-control";
-import ShareControl from "./controls/share-control";
-import EndMeetingControl from "./controls/end-meeting-control";
-import LeaveControl from "./controls/leave-control";
+import CameraControl from "../controls/camera-control";
+import ChatButton from "../controls/chat-button";
+import EndMeetingControl from "../controls/end-meeting-control";
+import LeaveControl from "../controls/leave-control";
+import MicControl from "../controls/mic-control";
+import ParticipantsButton from "../controls/participants-button";
+import RaisedHandControl from "../controls/raised-hand-control";
+import RecordingControl from "../controls/recording-control";
+import ScreenShareControl from "../controls/screen-share-control";
+import ShareControl from "../controls/share-control";
+import TranscriptButton from "../controls/transcript-button";
 
 const MeetingControls = ({
   onLeave,

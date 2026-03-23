@@ -19,12 +19,20 @@ def chunks_key(meeting_id: UUID) -> str:
     return f"summary_chunks:{meeting_id}"
 
 
+def chunks_initialized_key(meeting_id: UUID) -> str:
+    return f"summary_chunks_initialized:{meeting_id}"
+
+
 def lock_key(meeting_id: UUID) -> str:
     return f"chunk_lock:{meeting_id}"
 
 
 def seen_key(meeting_id: UUID) -> str:
     return f"transcript_seen:{meeting_id}"
+
+
+def speakers_key(meeting_id: UUID) -> str:
+    return f"transcript:speakers:{meeting_id}"
 
 
 def segments_key(meeting_id: UUID) -> str:

@@ -7,10 +7,12 @@ from redis.asyncio import Redis
 from app.modules.transcripts.redis_keys import (
     POST_MEETING_TTL_SECONDS,
     buffer_key,
+    chunks_initialized_key,
     chunks_key,
     left_users_key,
     live_key,
     lock_key,
+    speakers_key,
     segments_key,
     seq_key,
     seen_key,
@@ -51,8 +53,19 @@ async def get_live_transcript(redis: Redis, meeting_id: UUID) -> list[str]:
 async def get_transcript_segments(
     redis: Redis,
     meeting_id: UUID,
+    limit: int | None = None,
 ) -> list[dict[str, Any]]:
-    raw_items = await redis.lrange(segments_key(meeting_id), 0, -1)
+    if limit is None:
+        raw_items = await redis.lrange(segments_key(meeting_id), 0, -1)
+    else:
+        normalized_limit = int(limit)
+        if normalized_limit <= 0:
+            return []
+        raw_items = await redis.lrange(
+            segments_key(meeting_id),
+            -normalized_limit,
+            -1,
+        )
     segments: list[dict[str, Any]] = []
     for raw in raw_items or []:
         try:
@@ -77,8 +90,10 @@ async def expire_transcript_keys(redis: Redis, meeting_id: UUID) -> None:
         live_key(meeting_id),
         buffer_key(meeting_id),
         chunks_key(meeting_id),
+        chunks_initialized_key(meeting_id),
         lock_key(meeting_id),
         segments_key(meeting_id),
+        speakers_key(meeting_id),
         seq_key(meeting_id),
         seen_key(meeting_id),
     ]
@@ -90,10 +105,12 @@ async def expire_transcript_keys(redis: Redis, meeting_id: UUID) -> None:
 async def delete_transcript_state(redis: Redis, meeting_id: UUID) -> None:
     await redis.delete(
         segments_key(meeting_id),
+        speakers_key(meeting_id),
         left_users_key(meeting_id),
         live_key(meeting_id),
         buffer_key(meeting_id),
         chunks_key(meeting_id),
+        chunks_initialized_key(meeting_id),
         lock_key(meeting_id),
         seen_key(meeting_id),
         seq_key(meeting_id),

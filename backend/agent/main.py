@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from agent.config.env_loader import load_and_validate_env
-from agent.core.assistant_core import install_agent_log_filters
+from agent.core.agent_logging import install_agent_log_filters
 from agent.manager.agent_manager import AgentManager
 
 

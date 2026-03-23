@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 
-import { isScreenSharePublisher } from "@/app/lib/screenshare/screen-share-utils";
+import { isScreenSharePublisher } from "@/app/lib/screenshare/screen-share";
 
 const ScreenShareView = () => {
   const call = useCall();

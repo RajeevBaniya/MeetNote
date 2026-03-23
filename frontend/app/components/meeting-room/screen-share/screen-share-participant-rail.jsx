@@ -2,12 +2,14 @@
 
 import { useMemo } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
-import ParticipantTile from "./participant-tile";
+
 import {
   filterAssistant,
-  sortParticipants,
   isAssistantParticipant,
-} from "@/app/lib/participants/participant-helpers";
+  sortParticipants,
+} from "@/app/lib/participants/participants-sort";
+
+import ParticipantTile from "../participants/participant-tile";
 
 const ScreenShareParticipantRail = ({
   showAssistant = false,

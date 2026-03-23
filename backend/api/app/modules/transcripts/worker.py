@@ -64,6 +64,9 @@ async def run_transcript_worker() -> None:
         logger.warning("transcript_worker_invalid_meeting_id payload=%s", payload)
         continue
 
+      if not segment_text.strip():
+        continue
+
       await append_transcript_segment(
         redis,
         meeting_id,

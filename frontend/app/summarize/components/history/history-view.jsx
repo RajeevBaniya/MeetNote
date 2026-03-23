@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { apiFetch } from "../lib/api";
-import ConfirmDialog from "./ui/confirm-dialog";
-import FilterPanel, { FilterPanelExpanded } from "./FilterPanel";
-import SortDropdown from "./SortDropdown";
+import { apiFetch } from "../../lib/api";
+import ConfirmDialog from "../ui/confirm-dialog";
+import FilterPanel, { FilterPanelExpanded } from "./filter-panel";
+import SortDropdown from "./sort-dropdown";
 import HistoryList from "./history-list";
 
 const HistoryView = ({ onSelectSummary, uploadOnly = false }) => {

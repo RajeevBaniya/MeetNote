@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { apiFetch } from "../lib/api";
-import { Button } from "./ui/button";
+
+import { apiFetch } from "../../lib/api";
+import { Button } from "../ui/button";
 
 const ALLOWED_EXTENSIONS = Object.freeze([".txt", ".pdf", ".docx"]);
 const ALLOWED_MIME_TYPES = Object.freeze([

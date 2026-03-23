@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { apiFetch } from "../lib/api";
-import { Button } from "./ui/button";
+
+import { apiFetch } from "../../lib/api";
+import { Button } from "../ui/button";
 
 const PRESET_INSTRUCTIONS = [
   "Summarize in bullet points for executives",
@@ -21,6 +22,8 @@ const SummaryGenerator = ({
   meetingData,
   setSummaryId,
   meetingId,
+  onLiveGenerate = null,
+  isGeneratingRef = null,
 }) => {
   const [instruction, setInstruction] = useState("");
   const [error, setError] = useState("");
@@ -33,6 +36,21 @@ const SummaryGenerator = ({
 
     if (!instruction.trim()) {
       setError("Please provide an instruction");
+      return;
+    }
+
+    if (typeof onLiveGenerate === "function") {
+      setIsLoading(true);
+      setError("");
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        await onLiveGenerate(instruction.trim());
+      } catch (err) {
+        const message = err?.message || "Generation failed";
+        setError(message);
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -122,7 +140,12 @@ const SummaryGenerator = ({
 
         <Button
           onClick={generateSummary}
-          disabled={isLoading || !transcript.trim() || !instruction.trim()}
+          disabled={
+            isLoading ||
+            !transcript.trim() ||
+            !instruction.trim() ||
+            Boolean(isGeneratingRef?.current)
+          }
           className="w-auto px-12"
           size="default"
         >

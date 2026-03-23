@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { apiFetch } from "../lib/api";
-import { Button } from "./ui/button";
+
+import { apiFetch } from "../../lib/api";
+import { Button } from "../ui/button";
 
 const EmailSender = ({ summary }) => {
   const [recipients, setRecipients] = useState([""]);

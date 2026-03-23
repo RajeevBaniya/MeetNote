@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "./ui/button";
-import ExportButton from "./ExportButton";
+
+import { Button } from "../ui/button";
+import ExportButton from "./export-button";
 
 const renderMarkdown = (text) => {
   if (!text) return "";

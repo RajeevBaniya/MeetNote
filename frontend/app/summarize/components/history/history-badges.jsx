@@ -1,14 +1,14 @@
 "use client";
 
-import { MEETING_TYPE_LABELS } from "../lib/historyHelpers";
+import { MEETING_TYPE_LABELS } from "../../lib/history-helpers";
 
-export const MeetingTypeBadge = ({ type }) => {
+const MeetingTypeBadge = ({ type }) => {
   if (!type) return null;
   const label = MEETING_TYPE_LABELS[type] || type;
   return <span className="meeting-type-badge">{label}</span>;
 };
 
-export const ParticipantsBadge = ({ participants }) => {
+const ParticipantsBadge = ({ participants }) => {
   if (!participants || participants.length === 0) return null;
   const displayCount = Math.min(participants.length, 2);
   const remaining = participants.length - displayCount;
@@ -33,7 +33,7 @@ export const ParticipantsBadge = ({ participants }) => {
   );
 };
 
-export const ActionItemsCount = ({ count }) => {
+const ActionItemsCount = ({ count }) => {
   if (!count || count === 0) return null;
   return (
     <span className="action-indicator">
@@ -55,7 +55,7 @@ export const ActionItemsCount = ({ count }) => {
   );
 };
 
-export const TagsBadge = ({ tags }) => {
+const TagsBadge = ({ tags }) => {
   if (!tags || tags.length === 0) return null;
   return (
     <div className="flex items-center gap-1 flex-wrap">
@@ -69,4 +69,11 @@ export const TagsBadge = ({ tags }) => {
       )}
     </div>
   );
+};
+
+export {
+  ActionItemsCount,
+  MeetingTypeBadge,
+  ParticipantsBadge,
+  TagsBadge,
 };

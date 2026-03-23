@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "./ui/button";
+
+import { Button } from "../ui/button";
 
 const ExportButton = ({ summaryId, fileName, variant = "outline" }) => {
   const [isExporting, setIsExporting] = useState(false);

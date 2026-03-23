@@ -2,20 +2,20 @@
 
 import { useCallback } from "react";
 
-import { Button } from "./ui/button";
-import ExportButton from "./ExportButton";
-import {
-  MeetingTypeBadge,
-  ParticipantsBadge,
-  ActionItemsCount,
-  TagsBadge,
-} from "./history-item-badges";
 import {
   formatDate,
   getDisplayTitle,
   getMeetingDate,
   getActionItemsCount,
-} from "../lib/historyHelpers";
+} from "../../lib/history-helpers";
+import ExportButton from "../summary/export-button";
+import { Button } from "../ui/button";
+import {
+  ActionItemsCount,
+  MeetingTypeBadge,
+  ParticipantsBadge,
+  TagsBadge,
+} from "./history-badges";
 
 const HistoryItem = ({ summary, onSelect, onRequestDelete }) => {
   const displayTitle = getDisplayTitle(summary);

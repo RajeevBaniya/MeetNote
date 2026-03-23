@@ -1,6 +1,6 @@
 "use client";
 
-const Navbar = () => {
+const SummarizeNavbar = () => {
   return (
     <nav className="navbar-main">
       <div className="navbar-wrapper">
@@ -19,4 +19,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default SummarizeNavbar;

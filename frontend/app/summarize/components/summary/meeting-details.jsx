@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Button } from "./ui/button";
-import TagsEditor from "./TagsEditor";
+import { useRef, useState } from "react";
+
 import { SlCalender } from "react-icons/sl";
+
+import { Button } from "../ui/button";
+import TagsEditor from "./tags-editor";
 
 const MEETING_TYPES = [
   { value: "", label: "Select type..." },

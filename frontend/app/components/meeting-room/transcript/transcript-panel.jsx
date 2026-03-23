@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { Loader2, X } from "lucide-react";
-
-import { useLeaveAndSummarize } from "@/app/lib/meeting/use-leave-and-summarize";
 import { useCall } from "@stream-io/video-react-sdk";
+
+import { useLeaveAndSummarize } from "@/app/lib/meeting/leave-summary";
 
 const useEscapeKey = (onClose) => {
   useEffect(() => {
@@ -50,6 +50,7 @@ const TranscriptPanel = ({
   segments = [],
   onClose,
   connected,
+  reconnecting,
   connectionError,
   callId,
   hasLeftRef,
@@ -113,7 +114,9 @@ const TranscriptPanel = ({
           </div>
         ) : null}
         {!connected && !connectionError ? (
-          <div className="px-4 py-3 text-sm text-slate-400">Connecting…</div>
+          <div className="px-4 py-3 text-sm text-slate-400">
+            {reconnecting ? "Reconnecting…" : "Connecting…"}
+          </div>
         ) : null}
         <div
           ref={scrollRef}

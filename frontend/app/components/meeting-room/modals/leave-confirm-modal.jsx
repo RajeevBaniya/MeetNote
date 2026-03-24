@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect } from "react";
 
-const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone, disabled = false }) => {
+const LeaveConfirmModal = ({
+  onClose,
+  onLeaveOnly,
+  onEndForEveryone,
+  disabled = false,
+}) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") onClose();
@@ -27,7 +32,9 @@ const LeaveConfirmModal = ({ onClose, onLeaveOnly, onEndForEveryone, disabled = 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-xl bg-slate-800 border border-slate-600 p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-slate-100">Leave meeting?</h2>
+          <h2 className="text-xl font-semibold text-slate-100">
+            Leave meeting?
+          </h2>
           <button
             type="button"
             onClick={onClose}

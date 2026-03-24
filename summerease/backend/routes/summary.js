@@ -17,6 +17,7 @@ router.post('/generate', async (req, res) => {
     tags,
     extractStructured,
     meetingId,
+    persist,
   } = req.body;
 
   if (!transcript) {
@@ -35,24 +36,29 @@ router.post('/generate', async (req, res) => {
       shouldExtract
     );
 
-    const saved = await saveSummary({
-      transcript,
-      summary,
-      instruction,
-      title: title ?? null,
-      meetingTitle: meetingTitle ?? null,
-      meetingDate: meetingDate ? new Date(meetingDate) : null,
-      meetingType: meetingType ?? null,
-      participants: participants ?? [],
-      location: location ?? null,
-      tags: tags ?? [],
-      actionItems: structured?.actionItems ?? [],
-      decisions: structured?.decisions ?? [],
-      deadlines: structured?.deadlines ?? [],
-      extractedParticipants: structured?.participants ?? [],
-      meetingId: meetingId ?? null,
-      userId: req.user.id,
-    });
+    let saved = null;
+    if (persist === false) {
+      saved = null;
+    } else {
+      saved = await saveSummary({
+        transcript,
+        summary,
+        instruction,
+        title: title ?? null,
+        meetingTitle: meetingTitle ?? null,
+        meetingDate: meetingDate ? new Date(meetingDate) : null,
+        meetingType: meetingType ?? null,
+        participants: participants ?? [],
+        location: location ?? null,
+        tags: tags ?? [],
+        actionItems: structured?.actionItems ?? [],
+        decisions: structured?.decisions ?? [],
+        deadlines: structured?.deadlines ?? [],
+        extractedParticipants: structured?.participants ?? [],
+        meetingId: meetingId ?? null,
+        userId: req.user.id,
+      });
+    }
 
     res.json({
       success: true,

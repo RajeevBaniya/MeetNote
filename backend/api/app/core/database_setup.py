@@ -16,6 +16,8 @@ async def ensure_database_schema(engine: AsyncEngine) -> None:
             await _add_meeting_columns(conn)
             await _create_analytics_tables(conn)
             await _create_analytics_indexes(conn)
+            await _create_recordings_table(conn)
+            await _create_recordings_indexes(conn)
             await _ensure_lifecycle_constraints(conn)
     except Exception as exc:
         logger.exception("database_schema_setup_failed")
@@ -137,6 +139,33 @@ async def _create_analytics_indexes(conn):
         text(
             "CREATE INDEX IF NOT EXISTS idx_meeting_analytics_meeting "
             "ON meeting_analytics(meeting_id)"
+        )
+    )
+
+
+async def _create_recordings_table(conn):
+    """Create recordings table if it doesn't exist (metadata only)."""
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS recordings ("
+            "id UUID PRIMARY KEY,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "file_name VARCHAR(255) NULL,"
+            "duration_seconds INT NOT NULL DEFAULT 0,"
+            "started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "ended_at TIMESTAMPTZ NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+            ")"
+        )
+    )
+
+
+async def _create_recordings_indexes(conn):
+    """Create indexes for recordings table."""
+    await conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_recordings_meeting_started "
+            "ON recordings(meeting_id, started_at DESC)"
         )
     )
 

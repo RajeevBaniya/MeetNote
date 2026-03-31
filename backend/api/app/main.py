@@ -20,6 +20,7 @@ from app.modules.meetings.router import router as meetings_router
 from app.modules.stream_tokens.router import router as stream_tokens_router
 from app.modules.chat.router import router as chat_router
 from app.modules.chat.websocket import chat_websocket
+from app.modules.recordings.router import router as recordings_router
 from app.modules.transcripts.webhook import router as transcript_webhook_router
 from app.modules.transcripts.websocket import transcript_websocket
 from app.state.client import close_redis
@@ -86,6 +87,7 @@ app.include_router(meetings_router)
 app.include_router(join_router)
 app.include_router(stream_tokens_router)
 app.include_router(chat_router)
+app.include_router(recordings_router)
 app.include_router(transcript_webhook_router)
 app.websocket("/ws/meetings/{meeting_id}/chat")(chat_websocket)
 app.websocket("/ws/meetings/{meeting_id}/transcript")(transcript_websocket)

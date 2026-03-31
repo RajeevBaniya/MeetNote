@@ -14,6 +14,7 @@ import MeetingRoomContent from "./shell/meeting-room-content";
 import MeetingRoomError from "./shell/meeting-room-error";
 import MeetingRoomLoading from "./shell/meeting-room-loading";
 import RecordingBanner from "./shell/recording-banner";
+import RecordingProvider from "./recording/recording-provider";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
@@ -109,45 +110,47 @@ const MeetingRoom = ({
   return (
     <StreamTheme>
       <StreamCall call={call}>
-        <div className="fixed inset-0 w-full h-full bg-[#020617] text-slate-100 overflow-hidden">
-          <div className="w-full h-full flex flex-col">
-            {isLeaving || isEnding ? (
-              <MeetingExitLoading isLeaving={isLeaving} isEnding={isEnding} />
-            ) : null}
-            <ConnectionStateBanner />
-            <RecordingBanner />
-            <div className="flex-1 w-full h-full min-w-0 min-h-0">
-              <MeetingRoomContent
-                showAssistant={showAssistant}
-                setShowAssistant={setShowAssistant}
-                isHost={isHost}
-                setCurrentHostId={handleHostChanged}
-                pendingCount={0}
-                onOpenWaitingRoom={undefined}
-                onOpenParticipants={handleOpenParticipants}
-                onCloseParticipants={handleCloseParticipants}
-                participantsOpen={participantsOpen}
-                currentUserId={userId}
-                onLeave={handleLeave}
-                callId={callId}
-                jwt={jwt}
-                hasLeftRef={hasLeftRef}
-                transcripts={transcripts}
-                transcriptConnected={connected}
-                transcriptReconnecting={reconnecting}
-                transcriptConnectionError={connectionError}
-                isTranscriptOpen={isTranscriptOpen}
-                onToggleTranscript={toggleTranscript}
-                onCloseTranscript={closeTranscript}
-                isLeaving={isLeaving}
-                isEnding={isEnding}
-                onStartLeaving={startLeaving}
-                onStartEnding={startEnding}
-                resetExitState={resetExitState}
-              />
+        <RecordingProvider meetingId={callId} jwt={jwt}>
+          <div className="fixed inset-0 w-full h-full bg-[#020617] text-slate-100 overflow-hidden">
+            <div className="w-full h-full flex flex-col">
+              {isLeaving || isEnding ? (
+                <MeetingExitLoading isLeaving={isLeaving} isEnding={isEnding} />
+              ) : null}
+              <ConnectionStateBanner />
+              <RecordingBanner />
+              <div className="flex-1 w-full h-full min-w-0 min-h-0">
+                <MeetingRoomContent
+                  showAssistant={showAssistant}
+                  setShowAssistant={setShowAssistant}
+                  isHost={isHost}
+                  setCurrentHostId={handleHostChanged}
+                  pendingCount={0}
+                  onOpenWaitingRoom={undefined}
+                  onOpenParticipants={handleOpenParticipants}
+                  onCloseParticipants={handleCloseParticipants}
+                  participantsOpen={participantsOpen}
+                  currentUserId={userId}
+                  onLeave={handleLeave}
+                  callId={callId}
+                  jwt={jwt}
+                  hasLeftRef={hasLeftRef}
+                  transcripts={transcripts}
+                  transcriptConnected={connected}
+                  transcriptReconnecting={reconnecting}
+                  transcriptConnectionError={connectionError}
+                  isTranscriptOpen={isTranscriptOpen}
+                  onToggleTranscript={toggleTranscript}
+                  onCloseTranscript={closeTranscript}
+                  isLeaving={isLeaving}
+                  isEnding={isEnding}
+                  onStartLeaving={startLeaving}
+                  onStartEnding={startEnding}
+                  resetExitState={resetExitState}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </RecordingProvider>
       </StreamCall>
     </StreamTheme>
   );

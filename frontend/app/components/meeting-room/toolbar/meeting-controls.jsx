@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 
 import CameraControl from "../controls/camera-control";
@@ -14,6 +14,8 @@ import RecordingControl from "../controls/recording-control";
 import ScreenShareControl from "../controls/screen-share-control";
 import ShareControl from "../controls/share-control";
 import TranscriptButton from "../controls/transcript-button";
+import ConfirmModal from "../../common/confirm-modal";
+import { useRecording } from "../recording/recording-context";
 
 const MeetingControls = ({
   onLeave,
@@ -48,17 +50,20 @@ const MeetingControls = ({
     useCameraState,
     useScreenShareState,
     useHasOngoingScreenShare,
-    useIsCallRecordingInProgress,
   } = useCallStateHooks();
   const { microphone, isMute: isMicMuted } = useMicrophoneState();
   const { camera, isMute: isCameraOff } = useCameraState();
   const { screenShare } = useScreenShareState();
   const isScreenSharing = useHasOngoingScreenShare();
-  const isRecording = useIsCallRecordingInProgress();
   const [isToggling, setIsToggling] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
-  const [isRecordingAction, setIsRecordingAction] = useState(false);
   const [exitRequested, setExitRequested] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const pendingActionRef = useRef(null);
+  const rec = useRecording();
+  const isRecording = Boolean(rec?.isRecording);
+  const isRecordingAction = Boolean(rec?.isRecordingAction);
 
   const isExiting = Boolean(isLeaving || isExitEnding || exitRequested);
 
@@ -108,7 +113,7 @@ const MeetingControls = ({
     }
   }, [call, isExiting, isToggling, screenShare]);
 
-  const handleLeave = useCallback(async () => {
+  const proceedLeave = useCallback(async () => {
     if (!call || isExiting) return;
     setExitRequested(true);
     onStartLeaving?.();
@@ -122,7 +127,7 @@ const MeetingControls = ({
     }
   }, [call, isExiting, onLeave, onStartLeaving, resetExitState]);
 
-  const handleEndMeeting = useCallback(async () => {
+  const proceedEndMeeting = useCallback(async () => {
     if (!call || !onEndMeeting || isEnding || isExiting) return;
     setExitRequested(true);
     onStartEnding?.();
@@ -151,54 +156,91 @@ const MeetingControls = ({
       }
       setIsEnding(false);
     }
-  }, [call, isEnding, isExiting, onEndMeeting, onLeave, onStartEnding, resetExitState]);
+  }, [
+    call,
+    isEnding,
+    isExiting,
+    onEndMeeting,
+    onLeave,
+    onStartEnding,
+    resetExitState,
+  ]);
+
+  const openRecordingConfirm = useCallback((action) => {
+    pendingActionRef.current = action;
+    setPendingAction(action);
+    setConfirmOpen(true);
+  }, []);
+
+  const handleLeave = useCallback(async () => {
+    if (isRecording) {
+      openRecordingConfirm("leave");
+      return;
+    }
+    await proceedLeave();
+  }, [isRecording, openRecordingConfirm, proceedLeave]);
+
+  const handleEndMeeting = useCallback(async () => {
+    if (isRecording) {
+      openRecordingConfirm("end");
+      return;
+    }
+    await proceedEndMeeting();
+  }, [isRecording, openRecordingConfirm, proceedEndMeeting]);
+
+  const handleConfirmCancel = useCallback(() => {
+    setConfirmOpen(false);
+    setPendingAction(null);
+    pendingActionRef.current = null;
+  }, []);
+
+  const handleConfirmStopRecording = useCallback(() => {
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    setPendingAction(null);
+    setConfirmOpen(false);
+    const cb = () => {
+      if (action === "leave") {
+        proceedLeave();
+        return;
+      }
+      if (action === "end") {
+        proceedEndMeeting();
+      }
+    };
+    if (typeof rec?.stopRecordingWithCallback === "function") {
+      rec.stopRecordingWithCallback(cb);
+      return;
+    }
+    rec?.stopRecording?.();
+  }, [proceedEndMeeting, proceedLeave, rec]);
 
   const handleCloseLeaveModal = useCallback(() => {
     setShowLeaveConfirmModal?.(false);
   }, [setShowLeaveConfirmModal]);
 
-  const handleStartRecording = useCallback(async () => {
-    if (!callId || !jwt || isRecordingAction) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return;
-    setIsRecordingAction(true);
-    try {
-      const res = await fetch(`${apiUrl}/meetings/${callId}/recording/start`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
-      if (!res.ok) {
-        console.error("Failed to start recording:", res.status);
-      }
-    } catch (err) {
-      console.error("Failed to start recording:", err);
-    } finally {
-      setIsRecordingAction(false);
-    }
-  }, [callId, jwt, isRecordingAction]);
+  const handleStartRecording = useCallback(() => {
+    if (!isHost || !callId || !jwt) return;
+    rec?.startRecording?.();
+  }, [callId, isHost, jwt, rec]);
 
-  const handleStopRecording = useCallback(async () => {
-    if (!callId || !jwt || isRecordingAction) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return;
-    setIsRecordingAction(true);
-    try {
-      const res = await fetch(`${apiUrl}/meetings/${callId}/recording/stop`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
-      if (!res.ok) {
-        console.error("Failed to stop recording:", res.status);
-      }
-    } catch (err) {
-      console.error("Failed to stop recording:", err);
-    } finally {
-      setIsRecordingAction(false);
-    }
-  }, [callId, jwt, isRecordingAction]);
+  const handleStopRecording = useCallback(() => {
+    if (!isHost || !callId || !jwt) return;
+    rec?.stopRecording?.();
+  }, [callId, isHost, jwt, rec]);
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
+    <>
+      <ConfirmModal
+        isOpen={confirmOpen}
+        title="Recording in progress"
+        message="Stop recording before leaving?"
+        onConfirm={handleConfirmStopRecording}
+        onCancel={handleConfirmCancel}
+        confirmLabel="Stop Recording"
+        cancelLabel="Cancel"
+      />
+      <div className="flex items-center gap-2 sm:gap-3">
       <MicControl
         onToggle={handleToggleMic}
         disabled={isToggling}
@@ -256,7 +298,8 @@ const MeetingControls = ({
         isHost={isHost}
         disabled={isExiting}
       />
-    </div>
+      </div>
+    </>
   );
 };
 

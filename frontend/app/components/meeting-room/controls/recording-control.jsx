@@ -41,7 +41,7 @@ const RecordingControl = ({
         className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
         title="Stop recording"
       >
-        <Disc className={iconClass} />
+        <Disc className={`${iconClass} animate-pulse`} />
       </button>
     );
   }

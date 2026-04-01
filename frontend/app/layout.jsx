@@ -1,5 +1,6 @@
 import "./globals.css";
 import AuthProvider from "@/app/providers/auth-provider";
+import ToastProvider from "@/app/providers/toast-provider";
 
 export const metadata = {
   title: "MeetNote",
@@ -15,7 +16,9 @@ const RootLayout = ({ children }) => {
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth/use-auth";
-import { buildShareMessage, copyMeetingShare } from "@/app/lib/meeting/share-utils";
+import {
+  buildShareMessage,
+  copyMeetingShare,
+} from "@/app/lib/meeting/share-utils";
 import Navbar from "@/app/components/landing/navbar";
 import MeetingsSection from "@/app/components/meetings-section";
 import ShareMeetingModal from "@/app/components/meeting-room/modals/share-meeting-modal";
@@ -193,7 +196,7 @@ const MyMeetingsPage = () => {
         const text = buildShareMessage(data);
         await copyMeetingShare(text);
         setLastCopiedId(meetingId);
-        setTimeout(() =>         setLastCopiedId(null), 2000);
+        setTimeout(() => setLastCopiedId(null), 2000);
       } catch (_) {}
     },
     [apiUrl, jwt],

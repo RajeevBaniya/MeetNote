@@ -18,14 +18,14 @@ const formatWhen = (iso) => {
   }
 };
 
-function MeetingsSection({
+const MeetingsSection = ({
   jwt,
   apiUrl,
   onShareMeeting,
   onCopyMeeting,
   lastCopiedId,
   excludeMeetingIds,
-}) {
+}) => {
   const { meetings, loading, summariesLoading, error } = useMeetingList(
     jwt,
     apiUrl,
@@ -146,6 +146,6 @@ function MeetingsSection({
       )}
     </section>
   );
-}
+};
 
 export default MeetingsSection;

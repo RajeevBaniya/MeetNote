@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-function MeetingRow({
+const MeetingRow = ({
   title,
   subtitle,
   statusLabel,
@@ -9,7 +9,7 @@ function MeetingRow({
   primaryHref,
   primaryLabel,
   children,
-}) {
+}) => {
   return (
     <div className="group flex flex-col gap-3 rounded-xl border border-slate-700/60 bg-slate-800/40 px-4 py-4 transition hover:border-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
       <div className="min-w-0 flex-1">
@@ -46,6 +46,6 @@ function MeetingRow({
       </div>
     </div>
   );
-}
+};
 
 export default MeetingRow;

@@ -3,7 +3,11 @@
 import { useMemo } from "react";
 import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
-function RaisedHandsPanel({ raisedHandUserIds = [], isHost = false, onLowerHandForUser }) {
+const RaisedHandsPanel = ({
+  raisedHandUserIds = [],
+  isHost = false,
+  onLowerHandForUser,
+}) => {
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants() ?? [];
 
@@ -66,6 +70,6 @@ function RaisedHandsPanel({ raisedHandUserIds = [], isHost = false, onLowerHandF
       )}
     </ul>
   );
-}
+};
 
 export default RaisedHandsPanel;

@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
-export default function MeetingLayout({ children }) {
+const MeetingLayout = ({ children }) => {
   const pathname = usePathname();
 
   useEffect(() => {
@@ -23,4 +23,6 @@ export default function MeetingLayout({ children }) {
       {children}
     </div>
   );
-}
+};
+
+export default MeetingLayout;

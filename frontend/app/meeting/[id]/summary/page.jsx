@@ -8,36 +8,43 @@ import MeetingInsights from "../meeting-insights";
 import MeetingSummariesSection from "./meeting-summaries-section";
 
 const RecordingSection = ({ recordings }) => {
-  const first = Array.isArray(recordings) && recordings.length > 0 ? recordings[0] : null;
-  const hasUrl = first && typeof first.url === "string" && first.url.trim() !== "";
-
-  if (!hasUrl) {
-    return <p className="text-slate-500 text-sm">Recording will be available soon.</p>;
+  if (!Array.isArray(recordings) || recordings.length === 0) {
+    return (
+      <p className="text-slate-500 text-sm">
+        No recordings saved for this meeting.
+      </p>
+    );
   }
 
   return (
-    <div className="flex flex-wrap gap-3">
-      <a
-        href={first.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1419]"
-      >
-        <span>Play recording</span>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-        </svg>
-      </a>
-      <a
-        href={first.url}
-        download={first.filename || "recording.mp4"}
-        className="inline-flex items-center gap-2 rounded-lg bg-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1419]"
-      >
-        <span>Download</span>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-        </svg>
-      </a>
+    <div className="space-y-2">
+      <p className="text-slate-400 text-sm">
+        Recordings are saved on the device that recorded them.
+      </p>
+      <ul className="space-y-1.5">
+        {recordings.map((r) => {
+          const name = r?.file_name ? String(r.file_name) : "Recording";
+          const duration =
+            typeof r?.duration_seconds === "number"
+              ? `${Math.max(0, r.duration_seconds)}s`
+              : "";
+          const started = r?.started_at ? String(r.started_at) : "";
+          return (
+            <li
+              key={r?.id || `${name}-${started}`}
+              className="rounded-lg border border-slate-700/60 bg-slate-900/30 px-3 py-2 text-sm text-slate-200"
+            >
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-medium text-white">{name}</span>
+                {duration ? <span className="text-slate-400">{duration}</span> : null}
+              </div>
+              {started ? (
+                <div className="mt-1 text-xs text-slate-500">Started: {started}</div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 };

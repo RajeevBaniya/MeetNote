@@ -25,17 +25,7 @@ const useMeetingCall = (callId, userId, onLeave, onSessionEnded) => {
     const init = async () => {
       try {
         const myCall = client.call(CALL_TYPE, callId);
-        await myCall.join({
-          create: true,
-          data: {
-            settings_override: {
-              screensharing: {
-                enabled: true,
-                access_request_enabled: false,
-              },
-            },
-          },
-        });
+        await myCall.join({ create: true });
 
         await myCall.startClosedCaptions({ language: CLOSED_CAPTIONS_LANGUAGE });
 

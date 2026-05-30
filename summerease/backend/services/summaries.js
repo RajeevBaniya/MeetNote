@@ -148,10 +148,20 @@ export async function listSummaries(options = {}, userId) {
 }
 
 export async function getSummaryById(id, userId) {
-  const result = await pool.query(
-    'SELECT * FROM summaries WHERE id = $1 AND user_id = $2',
-    [id, userId]
-  );
+  if (!userId) {
+    throw new Error("userId is required for getSummaryById");
+  }
+
+  const query = 'SELECT * FROM summaries WHERE id = $1 AND user_id = $2';
+  const result = await pool.query(query, [id, userId]);
+
+  return rowToSummary(result.rows[0]);
+}
+
+export async function getSummaryForExport(id) {
+  const query = 'SELECT * FROM summaries WHERE id = $1';
+  const result = await pool.query(query, [id]);
+
   return rowToSummary(result.rows[0]);
 }
 

@@ -1,7 +1,7 @@
 import express from 'express';
 import { generatePDF } from '../services/export/pdfGenerator.js';
 import { generateWordDocument } from '../services/export/wordGenerator.js';
-import { getSummaryById } from '../services/summaries.js';
+import { getSummaryForExport } from '../services/summaries.js';
 import { Packer } from 'docx';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/pdf/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const summary = await getSummaryById(id);
+    const summary = await getSummaryForExport(id);
 
     if (!summary) {
       return res.status(404).json({ error: 'Summary not found' });
@@ -66,7 +66,7 @@ router.get('/pdf/:id', async (req, res) => {
 router.get('/word/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const summary = await getSummaryById(id);
+    const summary = await getSummaryForExport(id);
 
     if (!summary) {
       return res.status(404).json({ error: 'Summary not found' });

@@ -1,1 +1,0 @@
-ALTER TABLE summaries ADD COLUMN IF NOT EXISTS meeting_id UUID NULL;

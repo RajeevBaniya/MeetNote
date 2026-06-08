@@ -52,23 +52,39 @@ export const useStreamClients = ({ apiKey, user, getToken }) => {
     if (!user || !apiKey || typeof getToken !== "function") return;
 
     let isMounted = true;
+    let clientInstance = null;
 
     const tokenProvider = () => {
       const t = getTokenRef.current ? getTokenRef.current() : null;
       return Promise.resolve(t != null ? t : "");
     };
 
-    const initClient = () => {
+    const initClient = async () => {
+      console.log("[Stream] Client creation start...");
       try {
         const myVideoClient = new StreamVideoClient({
           apiKey,
-          user,
-          tokenProvider,
         });
+        clientInstance = myVideoClient;
+        console.log("[Stream] Client instantiated successfully.");
+
+        console.log("[Stream] connectUser start for user:", user.id);
+        const token = await tokenProvider();
+        await myVideoClient.connectUser(user, token);
+        console.log("[Stream] connectUser success for user:", user.id);
+
+        if (!isMounted) {
+          console.log("[Stream] Component unmounted during connection. Disconnecting...");
+          myVideoClient.disconnectUser().catch((err) => {
+            console.error("[Stream] Disconnect user failed during clean up:", err);
+          });
+          return;
+        }
+
         clientRef.current = myVideoClient;
-        if (isMounted) setVideoClient(myVideoClient);
+        setVideoClient(myVideoClient);
       } catch (err) {
-        console.error("Client initialization error:", err);
+        console.error("[Stream] connectUser failure:", err);
       }
     };
 
@@ -76,11 +92,14 @@ export const useStreamClients = ({ apiKey, user, getToken }) => {
 
     return () => {
       isMounted = false;
-      const client = clientRef.current;
+      const client = clientRef.current || clientInstance;
       clientRef.current = null;
-      if (client) client.disconnectUser().catch((err) => {
-        console.error("Disconnect user failed:", err);
-      });
+      if (client) {
+        console.log("[Stream] disconnectUser called for cleanup.");
+        client.disconnectUser().catch((err) => {
+          console.error("[Stream] Disconnect user failed during unmount cleanup:", err);
+        });
+      }
     };
   }, [apiKey, user, getToken]);
 

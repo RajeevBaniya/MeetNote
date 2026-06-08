@@ -7,10 +7,7 @@ const SummarizeNavbar = () => {
         <div className="flex justify-between items-center">
           <a href="/" className="navbar-brand">
             <span className="brand-badge" aria-hidden="true">
-              S
-            </span>
-            <span className="brand-text">
-              Summer<span className="brand-accent">Ease</span>
+              MN
             </span>
           </a>
         </div>

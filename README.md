@@ -15,13 +15,14 @@ MeetNote is a real‑time meeting platform delivering:
 ### High‑Level Data Flow
 ```mermaid
 graph LR
-    Browser[Browser (Next.js)] --> API[Backend API (FastAPI)]
-    API --> Redis[Redis]
-    Redis --> Postgres[PostgreSQL (Neon)]
-    API --> Agent[Meeting Agent (Python)]
-    Agent --> Stream[Stream Video SDK]
-    Stream --> Summarize[Summarize Service (FastAPI)]
+    Browser["Browser (Next.js)"] --> API["Backend API (FastAPI)"]
+    API --> Redis["Redis"]
+    Redis --> Postgres["PostgreSQL (Neon)"]
+    API --> Agent["Meeting Agent (Python)"]
+    Agent --> Stream["Stream Video SDK"]
+    Stream --> Summarize["Summarize Service (FastAPI)"]
 ```
+
 
 ## Core Features
 - **Meeting lifecycle** – create, join (code & passcode), end, host transfer.

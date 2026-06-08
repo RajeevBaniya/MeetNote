@@ -19,7 +19,7 @@ const ExportButton = ({ summaryId, fileName, variant = "outline" }) => {
 
     try {
       const baseUrl =
-        process.env.NEXT_PUBLIC_SUMMARY_API_URL || "http://localhost:5000";
+        process.env.NEXT_PUBLIC_SUMMARY_API_URL || "http://localhost:8002";
       const response = await fetch(
         `${baseUrl}/api/export/${type}/${summaryId}`,
         {

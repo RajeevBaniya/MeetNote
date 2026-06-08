@@ -1,100 +1,71 @@
 # MeetNote
 
 ## Project Overview
+MeetNote is a real‑time meeting platform delivering:
+- **Web client** built with Next.js for meeting UI, live transcript, chat, and AI‑generated summary screens.
+- **Backend API** (FastAPI) handling authentication, meeting lifecycle, transcript ingestion, chat, and analytics.
+- **Meeting Agent** (Python) that runs the AI assistant, processes transcript events and posts assistant messages.
+- **Summarize Service** (FastAPI) that generates meeting summaries and provides PDF/DOCX export endpoints.
+- **Neon PostgreSQL** for persistent data storage.
+- **Groq** for LLM inference.
+- **Stream Video SDK** for video and real‑time events.
 
-MeetNote is a meeting application with four connected parts:
+## Architecture
 
-- a web client for meeting UI, transcript, chat, and summary screens
-- a FastAPI backend for meeting/auth/join/transcript/chat APIs
-- a Python agent process for assistant behavior during meetings
-- a separate Node backend for summary generation and summary history
-
-Core user flow:
-
-1. User creates or joins a meeting.
-2. Meeting runs with video, transcript, chat, and assistant.
-3. Transcript content is used to generate a summary.
-4. Summary is stored and managed in the Node summarization service.
-
-## System Architecture
-
-Main components:
-
-- `frontend/` (Next.js)
-- `backend/api/` (FastAPI + Redis + PostgreSQL)
-- `backend/agent/` (Python assistant runtime)
-- `summerease/backend/` (Node.js summary service)
-
-High-level request/data path:
-
-```text
-Browser (Next.js)
-    |
-    v
-FastAPI API  <----> Redis
-    |  \
-    |   \----> PostgreSQL
-    |
-    v
-Agent (Python)
-    |
-    v
-Stream events (calls/transcript)
-    |
-    v
-Summarization Backend (Node.js)
+### High‑Level Data Flow
+```mermaid
+graph LR
+    Browser[Browser (Next.js)] --> API[Backend API (FastAPI)]
+    API --> Redis[Redis]
+    Redis --> Postgres[PostgreSQL (Neon)]
+    API --> Agent[Meeting Agent (Python)]
+    Agent --> Stream[Stream Video SDK]
+    Stream --> Summarize[Summarize Service (FastAPI)]
 ```
 
 ## Core Features
+- **Meeting lifecycle** – create, join (code & passcode), end, host transfer.
+- **Video & Stream** – real‑time video with Stream SDK, event handling.
+- **Live transcript** – webhook ingestion, stabilization, deduplication, WebSocket streaming.
+- **Chat** – Redis‑backed message buffer, WebSocket broadcast.
+- **AI Assistant** – context‑aware responses posted to chat.
+- **Summarization** – AI‑generated summaries, PDF/DOCX export, email.
 
-- Meeting lifecycle:
-  - create meeting
-  - join with join code and passcode
-  - end meeting
-- Meeting room:
-  - gallery and screen-share layouts
-  - overlay panels for participants, chat, transcript
-- Transcript:
-  - webhook ingestion
-  - queue + worker processing
-  - stabilization and deduplication before commit
-  - live WebSocket streaming to clients
-- Chat:
-  - Redis-backed message buffer
-  - chat WebSocket broadcast to connected users
-- Assistant:
-  - assistant message path integrated with chat/transcript context
-- Summarization:
-  - upload and live transcript-based generation paths
-  - saved summaries, export, and email
 
-## Data Flow
+## Local Development Setup
+```bash
+# Clone repo
+git clone 
+cd MeetNote
 
-### Transcript Flow
+# Backend services (run each in separate terminals)
+uv run python backend/agent/main.py                 # Meeting Agent
+uv run python -m uvicorn backend/api/app/main:app --port 8001   # API
+uv run python -m uvicorn backend/summarize/app/main:app --port 8002   # Summarize
 
-1. Stream transcript webhook reaches FastAPI transcript webhook handler.
-2. Event is queued into Redis (`transcript_events`).
-3. Transcript worker consumes queued events.
-4. Stabilizer logic applies commit window, dedupe, confidence checks.
-5. Final segments are saved to Redis segment keys.
-6. Transcript WebSocket pushes finalized segments to meeting clients.
+# Frontend
+cd frontend
+npm install
+npm run dev   # Next.js dev server (http://localhost:3000)
+```
 
-### Chat Flow
+## Environment Variables (names only)
+- `DATABASE_URL`
+- `REDIS_URL`
+- `STREAM_API_KEY`
+- `STREAM_API_SECRET`
+- `GROQ_API_KEY`
+- `JWT_SECRET`
+- `CLOAK_CLIENT_ID`
+- `CLOAK_CLIENT_SECRET`
 
-1. Frontend sends chat messages through chat WebSocket.
-2. FastAPI validates and appends message to Redis meeting chat list.
-3. FastAPI broadcasts message to active sockets in that meeting.
-4. Frontend reconciles optimistic messages with server messages.
+## Current Project Status
+- **Authentication** – ✅ Complete (JWT & Clerk integration)
+- **Meeting Lifecycle** – ✅ Production‑grade
+- **Video Integration** – ✅ Fixed SDK race condition
+- **Assistant Agent** – ✅ Stable
+- **Summarization Service** – ✅ FastAPI implementation, replaces legacy Node.js service
+- **Database Migration** – ✅ Switched to Neon PostgreSQL
+- **Export Design** – ✅ Professional PDF/DOCX layouts
 
-### Assistant Flow
-
-1. Assistant runtime listens to meeting/transcript-related state.
-2. Assistant generates response text.
-3. Response is posted into chat message flow and rendered in meeting UI.
-
-### Summarization Flow
-
-1. Frontend sends transcript text + instruction to Node summary API.
-2. Node summary service generates summary and structured sections.
-3. Summary can be persisted and returned with a summary ID.
-4. Frontend loads summaries from Node summary history endpoints.
+  

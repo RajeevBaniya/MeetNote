@@ -570,6 +570,7 @@ nav {
   background: linear-gradient(135deg, #10b981, #059669);
   color: white;
   font-weight: 700;
+  font-size: 0.75rem;
   letter-spacing: .5px;
   box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
 }
@@ -579,6 +580,7 @@ nav {
     width: 2rem;
     height: 2rem;
     border-radius: .6rem;
+    font-size: 0.875rem;
   }
 }
 

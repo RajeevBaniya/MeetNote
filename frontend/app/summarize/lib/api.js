@@ -1,5 +1,5 @@
 const apiFetch = async (path, options = {}) => {
-  const baseUrl = process.env.NEXT_PUBLIC_SUMMARY_API_URL || "http://localhost:5000";
+  const baseUrl = process.env.NEXT_PUBLIC_SUMMARY_API_URL || "http://localhost:8002";
   const url = `${baseUrl}${path}`;
 
   const defaultHeaders = {};

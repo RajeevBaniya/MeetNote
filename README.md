@@ -57,8 +57,6 @@ npm run dev   # Next.js dev server (http://localhost:3000)
 - `STREAM_API_SECRET`
 - `GROQ_API_KEY`
 - `JWT_SECRET`
-- `CLOAK_CLIENT_ID`
-- `CLOAK_CLIENT_SECRET`
 
 ## Current Project Status
 - **Authentication** – ✅ Complete (JWT & Clerk integration)

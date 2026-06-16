@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+import json
 import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
@@ -9,7 +10,6 @@ from app.core.jwt import decode_access_token
 from app.core.metrics import incr
 from app.db.session import async_session_factory
 from app.modules.chat.service import append_message
-from app.modules.chat.websocket import _connections, _send_json
 from app.modules.meetings.service import get_meeting_by_id
 from app.state.client import get_redis
 
@@ -34,7 +34,7 @@ async def post_assistant_message(
     meeting_id: UUID,
     body: AssistantMessageIn,
     request: Request,
-):
+) -> None:
     auth_header = request.headers.get("authorization") or ""
     prefix = "bearer "
     if not auth_header.lower().startswith(prefix):
@@ -91,9 +91,13 @@ async def post_assistant_message(
         "timestamp": ts,
         "text": text,
     }
-    for ws, _ in _connections.get(meeting_id, []):
-        try:
-            await _send_json(ws, payload_out)
-        except Exception:
-            logger.warning("chat_broadcast_send_failed", exc_info=True)
+    try:
+        pub_data = {
+            "event": "chat_message",
+            "payload": payload_out
+        }
+        await redis.publish(f"chat:broadcast:{meeting_id}", json.dumps(pub_data))
+        logger.info("Published assistant message to Redis for meeting %s", meeting_id)
+    except Exception as exc:
+        logger.error("Failed to publish assistant message to Redis for meeting %s: %s", meeting_id, exc)
 

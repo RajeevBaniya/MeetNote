@@ -224,12 +224,30 @@ async def close_chat_connections_for_user(meeting_id: UUID, user_id: UUID) -> No
 async def broadcast_host_changed(meeting_id: UUID, new_host_id: UUID) -> None:
     try:
         redis = await get_redis()
+        # 1. Update host cache key in Redis
+        await redis.set(f"meeting:host_id:{meeting_id}", str(new_host_id))
+        
+        # 2. Clear pending_q and ext_approved to prevent approval leakage
+        await redis.delete(
+            f"assistant:pending_q:{meeting_id}",
+            f"assistant:ext_approved:{meeting_id}"
+        )
+        
+        # 3. Broadcast to client chat socket
         payload = {
             "event": "host_changed",
             "payload": {"type": "host_changed", "new_host_id": str(new_host_id)}
         }
         await redis.publish(f"chat:broadcast:{meeting_id}", json.dumps(payload))
-        logger.info("Published host_changed event to Redis for meeting %s", meeting_id)
+        
+        # 4. Publish transfer event to agent channel
+        transfer_payload = {
+            "meeting_id": str(meeting_id),
+            "new_host_id": str(new_host_id)
+        }
+        await redis.publish("meeting:host_transfer", json.dumps(transfer_payload))
+        
+        logger.info("Published host_changed event to Redis for meeting %s, new host %s", meeting_id, new_host_id)
     except Exception as exc:
         logger.error("Failed to publish host_changed event to Redis for meeting %s: %s", meeting_id, exc)
 

@@ -4,8 +4,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update, text, CursorResult
 
 from app.core.metrics import incr
 from app.db.models import Meeting, MeetingAnalytics, MeetingParticipantStats
@@ -90,9 +89,7 @@ async def record_participant_join(
                         "existing_left_at": str(existing.left_at),
                     },
                 )
-                corrected_left_at = existing.left_at
                 if existing.left_at < existing.joined_at:
-                    corrected_left_at = existing.joined_at
                     logger.warning(
                         "timestamp_anomaly_corrected",
                         extra={
@@ -216,7 +213,7 @@ async def record_participant_leave(
                     "user_id": user_id,
                 },
             )
-            if result.rowcount == 0:
+            if isinstance(result, CursorResult) and result.rowcount == 0:
                 return
         incr("analytics_updates_total")
         logger.info(
@@ -238,10 +235,10 @@ async def add_speaking_time(
         return
     async with async_session_factory() as session:
         async with session.begin():
-            result = await session.execute(
+            active_result = await session.execute(
                 select(Meeting.is_active).where(Meeting.id == meeting_id)
             )
-            meeting_row = result.scalar_one_or_none()
+            meeting_row = active_result.scalar_one_or_none()
 
             if meeting_row is not True:
                 logger.info(
@@ -256,7 +253,7 @@ async def add_speaking_time(
                 incr("analytics_mutations_blocked_after_end_total")
                 return
 
-            result = await session.execute(
+            stats_result = await session.execute(
                 select(MeetingParticipantStats)
                 .where(
                     MeetingParticipantStats.meeting_id == meeting_id,
@@ -264,14 +261,14 @@ async def add_speaking_time(
                 )
                 .with_for_update()
             )
-            row = result.scalar_one_or_none()
-            if row is None:
-                row = MeetingParticipantStats(
+            stats_row = stats_result.scalar_one_or_none()
+            if stats_row is None:
+                stats_row = MeetingParticipantStats(
                     meeting_id=meeting_id,
                     user_id=user_id,
                     joined_at=datetime.now(timezone.utc),
                 )
-                session.add(row)
+                session.add(stats_row)
                 await session.flush()
             await session.execute(
                 update(MeetingParticipantStats)

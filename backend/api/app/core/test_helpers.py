@@ -18,9 +18,9 @@ from app.core.interfaces import (
 class MockStreamService(StreamServiceInterface):
     """Mock Stream service for testing."""
     
-    def __init__(self):
-        self.query_call_members = AsyncMock(return_value=[])
-        self.end_call = AsyncMock()
+    def __init__(self) -> None:
+        self.query_call_members = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        self.end_call = AsyncMock()  # type: ignore[method-assign]
     
     async def query_call_members(
         self, 
@@ -42,10 +42,10 @@ class MockStreamService(StreamServiceInterface):
 class MockCacheService(CacheServiceInterface):
     """Mock cache service for testing."""
     
-    def __init__(self):
-        self.set_with_expiry = AsyncMock(return_value=True)
-        self.delete_keys = AsyncMock()
-        self.ping = AsyncMock()
+    def __init__(self) -> None:
+        self.set_with_expiry = AsyncMock(return_value=True)  # type: ignore[method-assign]
+        self.delete_keys = AsyncMock()  # type: ignore[method-assign]
+        self.ping = AsyncMock()  # type: ignore[method-assign]
     
     async def set_with_expiry(
         self, 
@@ -54,7 +54,7 @@ class MockCacheService(CacheServiceInterface):
         expiry_seconds: int, 
         only_if_not_exists: bool = False
     ) -> bool:
-        return await self.set_with_expiry(key, value, expiry_seconds, only_if_not_exists)
+        return bool(await self.set_with_expiry(key, value, expiry_seconds, only_if_not_exists))
     
     async def delete_keys(self, *keys: str) -> None:
         await self.delete_keys(*keys)
@@ -66,10 +66,10 @@ class MockCacheService(CacheServiceInterface):
 class MockAnalyticsService(AnalyticsServiceInterface):
     """Mock analytics service for testing."""
     
-    def __init__(self):
-        self.initialize_meeting_analytics = AsyncMock()
-        self.finalize_meeting_analytics = AsyncMock()
-        self.record_host_transfer = AsyncMock()
+    def __init__(self) -> None:
+        self.initialize_meeting_analytics = AsyncMock()  # type: ignore[method-assign]
+        self.finalize_meeting_analytics = AsyncMock()  # type: ignore[method-assign]
+        self.record_host_transfer = AsyncMock()  # type: ignore[method-assign]
     
     async def initialize_meeting_analytics(
         self, 

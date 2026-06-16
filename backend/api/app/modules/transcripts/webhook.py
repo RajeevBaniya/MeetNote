@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Header, Request, status
 
@@ -21,7 +22,7 @@ async def stream_transcript_webhook(
     request: Request,
     x_signature: str | None = Header(default=None, alias="X-Signature"),
     x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
-) -> dict:
+) -> dict[str, Any]:
     start_time = datetime.now(timezone.utc)
     result = await verify_and_dedupe_webhook(request, x_signature, x_api_key)
     if result is None:

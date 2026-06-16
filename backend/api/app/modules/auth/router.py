@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
+from app.db.models import User
 from app.modules.auth.deps import get_current_user_id
 from app.modules.auth.schemas import LoginIn, RegisterIn, TokenOut, UserOut
 from app.modules.auth.service import authenticate_user, get_user_by_id, register_user
@@ -18,7 +19,7 @@ async def register(
     body: RegisterIn,
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> User:
     user = await register_user(session, body.email, body.password, body.name)
     if not user:
         raise HTTPException(
@@ -34,7 +35,7 @@ async def login(
     response: Response,
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> TokenOut:
     user, token = await authenticate_user(session, body.email, body.password)
     if not user or not token:
         raise HTTPException(
@@ -50,7 +51,7 @@ async def login(
 async def me(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-):
+) -> User:
     user = await get_user_by_id(session, user_id)
     if not user:
         raise HTTPException(

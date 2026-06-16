@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 class AssistantIntentMixin:
+    pending_question: Optional[str]
+    assistant_active: bool
+
     async def _handle_pending_question_response(self: Any, text_lower: str) -> bool:
         if not self.pending_question:
             return False

@@ -1,4 +1,5 @@
 import json
+from typing import Any
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -27,7 +28,7 @@ async def get_user_display_name(user_id: UUID) -> str:
 async def append_message(
     redis: Redis,
     meeting_id: UUID,
-    user_id: UUID,
+    user_id: UUID | str,
     display_name: str,
     timestamp: str,
     text: str,
@@ -44,7 +45,7 @@ async def append_message(
     await redis.expire(key, CHAT_BUFFER_TTL_SECONDS)
 
 
-async def get_recent_messages(redis: Redis, meeting_id: UUID) -> list[dict]:
+async def get_recent_messages(redis: Redis, meeting_id: UUID) -> list[dict[str, Any]]:
     key = _chat_buffer_key(meeting_id)
     raw = await redis.lrange(key, -CHAT_BUFFER_MAX_LEN, -1)
     out = []

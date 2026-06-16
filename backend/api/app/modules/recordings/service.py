@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import text
+from sqlalchemy import text, CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -60,13 +61,15 @@ async def finalize_recording(
     )
     result = await session.execute(text(q), updates)
     await session.commit()
-    return (result.rowcount or 0) > 0
+    if isinstance(result, CursorResult):
+        return (result.rowcount or 0) > 0
+    return False
 
 
 async def list_recordings_for_meeting(
     session: AsyncSession,
     meeting_id: UUID,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     result = await session.execute(
         text(
             "SELECT id, meeting_id, file_name, duration_seconds, started_at, ended_at "

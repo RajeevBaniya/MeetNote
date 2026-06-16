@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -10,7 +11,7 @@ from app.core.rate_limit import rate_limit_general
 from app.core.metrics import incr
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
-from app.modules.meetings.schemas import TranscriptOut
+from app.modules.meetings.schemas import TranscriptOut, TranscriptSegmentOut
 from app.modules.meetings.meeting_queries import user_was_meeting_member
 from app.modules.meetings.service import get_meeting_by_id
 from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
@@ -21,7 +22,6 @@ from app.modules.transcripts.summary_chunks_read import fetch_summary_chunk_summ
 from app.modules.transcripts.service import (
     append_transcript_segment,
     generate_final_summary,
-    get_live_transcript,
     get_transcript_history_segments,
     get_transcript_segments,
     has_user_left,
@@ -102,16 +102,17 @@ async def get_meeting_transcript(
             meeting_id,
             exc_info=True,
         )
-    return TranscriptOut(segments=segments, chunk_summaries=chunk_summaries)
+    segments_out = [TranscriptSegmentOut(**s) for s in segments]
+    return TranscriptOut(segments=segments_out, chunk_summaries=chunk_summaries)
 
 
 @router.post("/{meeting_id}/transcript/segment", status_code=status.HTTP_202_ACCEPTED)
 async def ingest_transcript_segment(
     meeting_id: UUID,
-    body: dict = Body(...),
+    body: dict[str, Any] = Body(...),
     _user_id: UUID = Depends(get_current_user_id),
     _: None = Depends(rate_limit_general),
-):
+) -> dict[str, Any]:
     text = ""
     if isinstance(body, dict):
         raw = body.get("text")
@@ -133,12 +134,10 @@ async def ingest_transcript_segment(
     return {"accepted": True}
 
 
-@router.get("/{meeting_id}/live-transcript", response_model=TranscriptOut)
-async def get_live_transcript_api(
+async def _get_live_transcript_common(
     meeting_id: UUID,
-    user_id: UUID = Depends(get_current_user_id),
-    _: None = Depends(rate_limit_general),
-):
+    user_id: UUID,
+) -> TranscriptOut:
     incr("transcript_restore_requests_total")
     try:
         redis = await get_redis()
@@ -164,7 +163,17 @@ async def get_live_transcript_api(
         }
         for item in items
     ]
-    return TranscriptOut(segments=segments)
+    segments_out = [TranscriptSegmentOut(**s) for s in segments]
+    return TranscriptOut(segments=segments_out)
+
+
+@router.get("/{meeting_id}/live-transcript", response_model=TranscriptOut)
+async def get_live_transcript_api(
+    meeting_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    _: None = Depends(rate_limit_general),
+) -> TranscriptOut:
+    return await _get_live_transcript_common(meeting_id, user_id)
 
 
 @router.get("/{meeting_id}/transcript/live", response_model=TranscriptOut)
@@ -172,33 +181,8 @@ async def get_live_transcript_segments_api(
     meeting_id: UUID,
     user_id: UUID = Depends(get_current_user_id),
     _: None = Depends(rate_limit_general),
-):
-    incr("transcript_restore_requests_total")
-    try:
-        redis = await get_redis()
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service temporarily unavailable",
-        )
-    if await has_user_left(redis, meeting_id, user_id):
-        incr("transcript_user_blocked_total")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="transcript_unavailable",
-        )
-    items = await get_transcript_segments(redis, meeting_id)
-    segments = [
-        {
-            "type": "speech",
-            "start_time": item.get("start_time", ""),
-            "stop_time": item.get("end_time", ""),
-            "speaker_id": item.get("speaker_id"),
-            "text": item.get("text", ""),
-        }
-        for item in items
-    ]
-    return TranscriptOut(segments=segments)
+) -> TranscriptOut:
+    return await _get_live_transcript_common(meeting_id, user_id)
 
 
 @router.get("/{meeting_id}/transcript/history", response_model=TranscriptHistoryOut)
@@ -207,7 +191,7 @@ async def get_transcript_history_api(
     limit: int = Query(default=200),
     user_id: UUID = Depends(get_current_user_id),
     _: None = Depends(rate_limit_general),
-):
+) -> TranscriptHistoryOut:
     incr("transcript_restore_requests_total")
     try:
         segments = await get_transcript_history_segments(
@@ -227,8 +211,24 @@ async def get_transcript_history_api(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to load transcript history",
         )
-
-    return TranscriptHistoryOut(segments=segments)
+    segments_out = []
+    for s in segments:
+        seq = s.get("sequence")
+        spk_id = s.get("speaker_id")
+        spk_name = s.get("speaker_name")
+        txt = s.get("text")
+        ts = s.get("timestamp")
+        
+        segments_out.append(
+            TranscriptHistorySegmentOut(
+                sequence=seq if isinstance(seq, int) else 0,
+                speaker_id=spk_id if isinstance(spk_id, str) else "",
+                speaker_name=spk_name if isinstance(spk_name, str) else "",
+                text=txt if isinstance(txt, str) else "",
+                timestamp=ts if isinstance(ts, str) else "",
+            )
+        )
+    return TranscriptHistoryOut(segments=segments_out)
 
 
 @router.post("/{meeting_id}/generate-final-summary")
@@ -236,7 +236,7 @@ async def post_generate_final_summary(
     meeting_id: UUID,
     _user_id: UUID = Depends(get_current_user_id),
     _: None = Depends(rate_limit_general),
-):
+) -> dict[str, Any]:
     try:
         redis = await get_redis()
     except Exception:
@@ -261,7 +261,7 @@ async def post_transcript_cleanup(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> None:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(

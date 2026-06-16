@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +19,46 @@ async def ensure_database_schema(engine: AsyncEngine) -> None:
             await _create_recordings_table(conn)
             await _create_recordings_indexes(conn)
             await _ensure_lifecycle_constraints(conn)
+            await _create_outbox_table(conn)
     except Exception as exc:
         logger.exception("database_schema_setup_failed")
         raise RuntimeError("Database schema setup failed") from exc
 
 
-async def _add_user_columns(conn):
+async def _create_outbox_table(conn: AsyncConnection) -> None:
+    """Create meeting_outbox table and index if they don't exist."""
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS meeting_outbox ("
+            "id UUID PRIMARY KEY,"
+            "event_type VARCHAR(50) NOT NULL,"
+            "payload JSONB NOT NULL,"
+            "status VARCHAR(20) NOT NULL DEFAULT 'pending',"
+            "attempts INT NOT NULL DEFAULT 0,"
+            "max_attempts INT NOT NULL DEFAULT 5,"
+            "last_attempt_at TIMESTAMPTZ NULL,"
+            "processing_started_at TIMESTAMPTZ NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "error_message TEXT NULL"
+            ")"
+        )
+    )
+    await conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_meeting_outbox_status_attempts "
+            "ON meeting_outbox(status, attempts)"
+        )
+    )
+
+
+async def _add_user_columns(conn: AsyncConnection) -> None:
     """Add missing columns to users table."""
     await conn.execute(
         text("ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255) NULL")
     )
 
 
-async def _add_meeting_columns(conn):
+async def _add_meeting_columns(conn: AsyncConnection) -> None:
     """Add missing columns to meetings table."""
     await conn.execute(
         text(
@@ -89,7 +116,7 @@ async def _add_meeting_columns(conn):
     )
 
 
-async def _create_analytics_tables(conn):
+async def _create_analytics_tables(conn: AsyncConnection) -> None:
     """Create analytics tables if they don't exist."""
     await conn.execute(
         text(
@@ -121,7 +148,7 @@ async def _create_analytics_tables(conn):
     )
 
 
-async def _create_analytics_indexes(conn):
+async def _create_analytics_indexes(conn: AsyncConnection) -> None:
     """Create indexes for analytics tables."""
     await conn.execute(
         text(
@@ -143,7 +170,7 @@ async def _create_analytics_indexes(conn):
     )
 
 
-async def _create_recordings_table(conn):
+async def _create_recordings_table(conn: AsyncConnection) -> None:
     """Create recordings table if it doesn't exist (metadata only)."""
     await conn.execute(
         text(
@@ -160,7 +187,7 @@ async def _create_recordings_table(conn):
     )
 
 
-async def _create_recordings_indexes(conn):
+async def _create_recordings_indexes(conn: AsyncConnection) -> None:
     """Create indexes for recordings table."""
     await conn.execute(
         text(
@@ -170,7 +197,7 @@ async def _create_recordings_indexes(conn):
     )
 
 
-async def _ensure_lifecycle_constraints(conn):
+async def _ensure_lifecycle_constraints(conn: AsyncConnection) -> None:
     """Ensure meeting lifecycle constraints are properly set up."""
     # Check if is_active column exists
     check_result = await conn.execute(
@@ -206,7 +233,7 @@ async def _ensure_lifecycle_constraints(conn):
             "WHERE NOT ((is_active = true AND ended_at IS NULL) OR (is_active = false AND ended_at IS NOT NULL))"
         )
     )
-    invalid_count = result.scalar()
+    invalid_count = result.scalar() or 0
     
     if invalid_count > 0:
         logger.warning(

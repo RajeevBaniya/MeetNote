@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Any
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -23,6 +25,8 @@ from app.modules.meetings.service import (
 from app.modules.stream_tokens.service import is_user_removed
 from app.state.client import get_redis
 from app.core.metrics import incr
+from app.core.dependencies import get_service
+from app.core.interfaces import ChatServiceInterface
 
 WS_CLOSE_UNAUTHORIZED = 4401
 WS_CLOSE_FORBIDDEN = 4403
@@ -68,55 +72,169 @@ def _unregister(meeting_id: UUID, websocket: WebSocket) -> None:
         del _connections[meeting_id]
 
 
-async def close_chat_connections(meeting_id: UUID) -> None:
-    if meeting_id not in _connections:
-        return
-    sockets = list(_connections.pop(meeting_id))
-    for ws, _ in sockets:
-        try:
-            await ws.close(code=WS_CLOSE_MEETING_ENDED, reason="Meeting ended")
-        except Exception:
-            logger.warning("ws_close_failed", exc_info=True)
-
-
-async def close_chat_connections_for_user(meeting_id: UUID, user_id: UUID) -> None:
-    if meeting_id not in _connections:
-        return
-    sockets: list[WebSocket] = []
-    remaining: list[tuple[WebSocket, UUID]] = []
-    for ws, uid in _connections[meeting_id]:
-        if uid == user_id:
-            sockets.append(ws)
-        else:
-            remaining.append((ws, uid))
-    if remaining:
-        _connections[meeting_id] = remaining
-    else:
-        del _connections[meeting_id]
-    for ws in sockets:
-        try:
-            await ws.close(
-                code=WS_CLOSE_FORBIDDEN,
-                reason="You were removed from this meeting",
-            )
-        except Exception:
-            logger.warning("ws_close_failed", exc_info=True)
-
-
-async def _send_json(websocket: WebSocket, obj: dict) -> None:
+async def _send_json(websocket: WebSocket, obj: dict[str, Any]) -> None:
     await websocket.send_text(json.dumps(obj))
 
 
+class ChatSubscriptionManager:
+    def __init__(self) -> None:
+        self._tasks: dict[UUID, asyncio.Task[None]] = {}
+        self._pubsubs: dict[UUID, Any] = {}
+        self._locks: dict[UUID, asyncio.Lock] = {}
+
+    async def register_client(self, meeting_id: UUID, websocket: WebSocket, user_id: UUID) -> None:
+        lock = self._locks.setdefault(meeting_id, asyncio.Lock())
+        async with lock:
+            _register(meeting_id, websocket, user_id)
+            if meeting_id not in self._tasks:
+                try:
+                    redis = await get_redis()
+                    pubsub = redis.pubsub()
+                    channel = f"chat:broadcast:{meeting_id}"
+                    await pubsub.subscribe(channel)
+                    self._pubsubs[meeting_id] = pubsub
+                    self._tasks[meeting_id] = asyncio.create_task(
+                        self._broadcast_loop(meeting_id, pubsub)
+                    )
+                    logger.info("Created shared Redis PubSub subscriber task for meeting %s", meeting_id)
+                except Exception as exc:
+                    logger.error("Failed to initialize PubSub subscriber for meeting %s: %s", meeting_id, exc, exc_info=exc)
+
+    async def unregister_client(self, meeting_id: UUID, websocket: WebSocket) -> None:
+        lock = self._locks.setdefault(meeting_id, asyncio.Lock())
+        async with lock:
+            _unregister(meeting_id, websocket)
+            if meeting_id not in _connections or not _connections[meeting_id]:
+                task = self._tasks.pop(meeting_id, None)
+                if task:
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                pubsub = self._pubsubs.pop(meeting_id, None)
+                if pubsub:
+                    try:
+                        channel = f"chat:broadcast:{meeting_id}"
+                        await pubsub.unsubscribe(channel)
+                        await pubsub.aclose()
+                        logger.info("Cleaned up shared Redis PubSub subscriber for meeting %s", meeting_id)
+                    except Exception as exc:
+                        logger.warning("Failed to close pubsub during cleanup for meeting %s: %s", meeting_id, exc)
+
+    async def _broadcast_loop(self, meeting_id: UUID, pubsub: Any) -> None:
+        channel = f"chat:broadcast:{meeting_id}"
+        current_pubsub = pubsub
+        while True:
+            try:
+                msg = await current_pubsub.get_message(ignore_subscribe_messages=True, timeout=0.01)
+                if msg and msg.get("type") == "message":
+                    try:
+                        data = json.loads(msg["data"])
+                    except Exception:
+                        continue
+
+                    event = data.get("event")
+                    payload = data.get("payload")
+
+                    if event == "chat_message":
+                        for ws, _ in _connections.get(meeting_id, []):
+                            try:
+                                await _send_json(ws, payload)
+                            except Exception:
+                                pass
+                    elif event == "host_changed":
+                        for ws, _ in _connections.get(meeting_id, []):
+                            try:
+                                await _send_json(ws, payload)
+                            except Exception:
+                                pass
+                    elif event == "close_connections":
+                        sockets = list(_connections.get(meeting_id, []))
+                        for ws, _ in sockets:
+                            try:
+                                await ws.close(code=WS_CLOSE_MEETING_ENDED, reason="Meeting ended")
+                            except Exception:
+                                pass
+                    elif event == "close_connections_for_user":
+                        target_user_id = payload.get("user_id") if payload else None
+                        if target_user_id:
+                            user_sockets = [ws for ws, uid in _connections.get(meeting_id, []) if str(uid) == str(target_user_id)]
+                            for ws in user_sockets:
+                                try:
+                                    await ws.close(code=WS_CLOSE_FORBIDDEN, reason="You were removed from this meeting")
+                                except Exception:
+                                    pass
+                await asyncio.sleep(0.01)
+            except asyncio.CancelledError:
+                logger.info("Chat broadcast loop cancelled for meeting %s", meeting_id)
+                break
+            except Exception as exc:
+                logger.error("Exception in chat broadcast loop for meeting %s: %s. Reconnecting pubsub...", meeting_id, exc)
+                try:
+                    await current_pubsub.aclose()
+                except Exception:
+                    pass
+                await asyncio.sleep(1.0)
+                try:
+                    redis = await get_redis()
+                    current_pubsub = redis.pubsub()
+                    await current_pubsub.subscribe(channel)
+                    self._pubsubs[meeting_id] = current_pubsub
+                    logger.info("Successfully re-subscribed to channel %s", channel)
+                except Exception as reconnect_exc:
+                    logger.error("Failed to re-subscribe to channel %s: %s", channel, reconnect_exc)
+
+
+subscription_manager = ChatSubscriptionManager()
+
+
+async def close_chat_connections(meeting_id: UUID) -> None:
+    try:
+        redis = await get_redis()
+        payload = {
+            "event": "close_connections",
+            "payload": {}
+        }
+        await redis.publish(f"chat:broadcast:{meeting_id}", json.dumps(payload))
+        logger.info("Published close_connections event to Redis for meeting %s", meeting_id)
+    except Exception as exc:
+        logger.error("Failed to publish close_connections event to Redis for meeting %s: %s", meeting_id, exc)
+
+
+try:
+    get_service(ChatServiceInterface).register_close_handler(close_chat_connections)  # type: ignore[type-abstract]
+except Exception as err:
+    logger.warning("Failed to register close_chat_connections handler: %s", err)
+
+
+async def close_chat_connections_for_user(meeting_id: UUID, user_id: UUID) -> None:
+    try:
+        redis = await get_redis()
+        payload = {
+            "event": "close_connections_for_user",
+            "payload": {"user_id": str(user_id)}
+        }
+        await redis.publish(f"chat:broadcast:{meeting_id}", json.dumps(payload))
+        logger.info("Published close_connections_for_user event to Redis for meeting %s, user %s", meeting_id, user_id)
+    except Exception as exc:
+        logger.error("Failed to publish close_connections_for_user event to Redis for meeting %s, user %s: %s", meeting_id, user_id, exc)
+
+
 async def broadcast_host_changed(meeting_id: UUID, new_host_id: UUID) -> None:
-    payload = {"type": "host_changed", "new_host_id": str(new_host_id)}
-    for ws, _ in _connections.get(meeting_id, []):
-        try:
-            await _send_json(ws, payload)
-        except Exception:
-            logger.warning("broadcast_host_changed_send_failed", exc_info=True)
+    try:
+        redis = await get_redis()
+        payload = {
+            "event": "host_changed",
+            "payload": {"type": "host_changed", "new_host_id": str(new_host_id)}
+        }
+        await redis.publish(f"chat:broadcast:{meeting_id}", json.dumps(payload))
+        logger.info("Published host_changed event to Redis for meeting %s", meeting_id)
+    except Exception as exc:
+        logger.error("Failed to publish host_changed event to Redis for meeting %s: %s", meeting_id, exc)
 
 
-async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
+async def chat_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
     await websocket.accept()
     token = _get_bearer_token(websocket)
     if not token:
@@ -187,7 +305,7 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
     except Exception:
         logger.warning("restore_original_host_failed", exc_info=True)
 
-    _register(meeting_id, websocket, user_id)
+    await subscription_manager.register_client(meeting_id, websocket, user_id)
     registered = True
     incr("active_ws_connections")
     try:
@@ -209,6 +327,11 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
                 continue
             display_name = await get_user_display_name(user_id)
             ts = datetime.now(timezone.utc).isoformat()
+            client_id = data.get("client_id")
+            
+            await append_message(redis, meeting_id, user_id, display_name, ts, text)
+            incr("chat_messages_total")
+            
             payload = {
                 "type": "chat_message",
                 "user_id": str(user_id),
@@ -216,13 +339,14 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
                 "timestamp": ts,
                 "text": text,
             }
-            await append_message(redis, meeting_id, user_id, display_name, ts, text)
-            incr("chat_messages_total")
-            for ws, _ in _connections.get(meeting_id, []):
-                try:
-                    await _send_json(ws, payload)
-                except Exception:
-                    logger.warning("chat_broadcast_send_failed", exc_info=True)
+            if client_id:
+                payload["client_id"] = str(client_id)
+                
+            pub_data = {
+                "event": "chat_message",
+                "payload": payload
+            }
+            await redis.publish(f"chat:broadcast:{meeting_id}", json.dumps(pub_data))
     except WebSocketDisconnect:
         logger.info(
             "ws_disconnected",
@@ -237,4 +361,4 @@ async def chat_websocket(websocket: WebSocket, meeting_id: UUID):
     finally:
         if registered:
             incr("active_ws_connections", amount=-1)
-        _unregister(meeting_id, websocket)
+        await subscription_manager.unregister_client(meeting_id, websocket)

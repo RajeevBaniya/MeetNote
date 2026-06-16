@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -26,7 +27,7 @@ async def add_removed_user(redis: Redis, meeting_id: UUID, user_id: UUID) -> Non
 
 async def is_user_removed(redis: Redis, meeting_id: UUID, user_id: UUID) -> bool:
     key = _removed_users_key(meeting_id)
-    return await redis.sismember(key, str(user_id))
+    return bool(await redis.sismember(key, str(user_id)))
 
 
 def create_stream_token(user_id: UUID, name: str | None = None) -> str:
@@ -41,14 +42,14 @@ def create_stream_token(user_id: UUID, name: str | None = None) -> str:
     )
     client.upsert_users(user_request)
     token = client.create_token(uid, expiration=STREAM_TOKEN_EXPIRY_SECONDS)
-    return token
+    return str(token)
 
 
 def _create_server_token(user_id: UUID, expiration_seconds: int = 60) -> str:
     api_key = get_stream_api_key()
     api_secret = get_stream_api_secret()
     client = Stream(api_key=api_key, api_secret=api_secret)
-    return client.create_token(str(user_id), expiration=expiration_seconds)
+    return str(client.create_token(str(user_id), expiration=expiration_seconds))
 
 
 async def end_stream_call(call_type: str, call_id: str, host_user_id: UUID) -> None:
@@ -140,7 +141,7 @@ async def list_stream_transcriptions(
     call_type: str,
     call_id: str,
     user_id: UUID,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     api_key = get_stream_api_key()
     token = _create_server_token(user_id)
     url = f"{STREAM_VIDEO_BASE}/call/{call_type}/{call_id}/transcriptions"
@@ -162,14 +163,15 @@ async def list_stream_transcriptions(
             )
             return []
         data = resp.json()
+        items_data: Any = None
         if isinstance(data, list):
-            items = data
+            items_data = data
         else:
-            items = data.get("transcriptions") if isinstance(data, dict) else None
-        if not isinstance(items, list):
+            items_data = data.get("transcriptions") if isinstance(data, dict) else None
+        if not isinstance(items_data, list):
             return []
-        out: list[dict] = []
-        for r in items:
+        out: list[dict[str, Any]] = []
+        for r in items_data:
             if not isinstance(r, dict):
                 continue
             url_val = r.get("url")
@@ -191,7 +193,7 @@ async def get_stream_transcript_segments(
     call_type: str,
     call_id: str,
     user_id: UUID,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     items = await list_stream_transcriptions(call_type, call_id, user_id)
     if not items:
         return []
@@ -212,7 +214,7 @@ async def get_stream_transcript_segments(
             )
             return []
         text = resp.text
-    segments: list[dict] = []
+    segments: list[dict[str, Any]] = []
     for line in text.splitlines():
         line = line.strip()
         if not line:
@@ -241,7 +243,7 @@ async def query_stream_call_members(
     call_type: str,
     call_id: str,
     acting_user_id: UUID,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     api_key = get_stream_api_key()
     token = _create_server_token(acting_user_id)
     url = f"{STREAM_VIDEO_BASE}/call/members"
@@ -269,11 +271,13 @@ async def query_stream_call_members(
     members = data.get("members") if isinstance(data, dict) else None
     if not isinstance(members, list):
         return []
-    out: list[dict] = []
+    out: list[dict[str, Any]] = []
     for m in members:
         if not isinstance(m, dict):
             continue
-        user = m.get("user") if isinstance(m.get("user"), dict) else {}
+        user = m.get("user")
+        if not isinstance(user, dict):
+            user = {}
         uid = user.get("id") or m.get("user_id")
         if not uid or not isinstance(uid, str):
             continue

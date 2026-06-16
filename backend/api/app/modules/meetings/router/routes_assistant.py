@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
@@ -26,7 +26,7 @@ async def get_assistant_preference(
     _user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> AssistantPreferenceOut:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(
@@ -49,7 +49,7 @@ async def put_assistant_preference(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> AssistantPreferenceOut:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(

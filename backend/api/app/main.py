@@ -2,11 +2,11 @@ import asyncio
 import logging
 import json
 from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
 
 from app.core.health_checks import basic_health_check, comprehensive_health_check
 from app.core.logging import configure_logging
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     worker_task = await initialize_application()
     yield
     if worker_task is not None:
@@ -107,7 +107,7 @@ async def healthz_deep() -> JSONResponse:
 async def health() -> JSONResponse:
     try:
         resp = await comprehensive_health_check()
-        data = json.loads(resp.body.decode("utf-8"))
+        data = json.loads(bytes(resp.body).decode("utf-8"))
     except Exception:
         return JSONResponse(
             status_code=503,

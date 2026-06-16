@@ -1,8 +1,9 @@
 """Meeting query routes: GET /mine, /{id}, /{id}/status, /{id}/participants, /{id}/check-removed."""
 
-from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
+from app.db.models import Meeting
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +21,7 @@ from app.modules.meetings.schemas import (
 )
 from app.modules.meetings.service import (
     get_meeting_by_id,
-    get_meetings_for_host,
+    get_my_meetings_dashboard_data,
     list_meetings_for_user_host_or_participant,
 )
 from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
@@ -38,34 +39,38 @@ async def get_my_meetings(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
-    active, ended = await get_meetings_for_host(session, user_id, ended_limit=20)
-    now_utc = datetime.now(timezone.utc)
-    upcoming_items: list[MeetingListItemOut] = []
-    active_items: list[MeetingListItemOut] = []
-    for meeting in active:
-        item = MeetingListItemOut(
-            id=meeting.id,
-            title=meeting.title,
-            is_active=meeting.is_active,
-            created_at=meeting.created_at,
-            scheduled_start_at=meeting.scheduled_start_at,
+) -> MyMeetingsOut:
+    data = await get_my_meetings_dashboard_data(session, user_id, ended_limit=20)
+    upcoming_items = [
+        MeetingListItemOut(
+            id=m.id,
+            title=m.title,
+            is_active=m.is_active,
+            created_at=m.created_at,
+            scheduled_start_at=m.scheduled_start_at,
         )
-        if meeting.scheduled_start_at and meeting.scheduled_start_at > now_utc:
-            upcoming_items.append(item)
-        else:
-            active_items.append(item)
+        for m in data["upcoming"]
+    ]
+    active_items = [
+        MeetingListItemOut(
+            id=m.id,
+            title=m.title,
+            is_active=m.is_active,
+            created_at=m.created_at,
+            scheduled_start_at=m.scheduled_start_at,
+        )
+        for m in data["active"]
+    ]
     ended_items = [
         MeetingListItemOut(
-            id=meeting.id,
-            title=meeting.title,
-            is_active=meeting.is_active,
-            created_at=meeting.created_at,
-            scheduled_start_at=meeting.scheduled_start_at,
+            id=m.id,
+            title=m.title,
+            is_active=m.is_active,
+            created_at=m.created_at,
+            scheduled_start_at=m.scheduled_start_at,
         )
-        for meeting in ended
+        for m in data["ended"]
     ]
-    upcoming_items.sort(key=lambda item: item.scheduled_start_at or item.created_at)
     return MyMeetingsOut(upcoming=upcoming_items, active=active_items, ended=ended_items)
 
 
@@ -74,7 +79,7 @@ async def list_my_meetings_host_or_participant(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> list[MeetingMyItemOut]:
     rows = await list_meetings_for_user_host_or_participant(session, user_id)
     return [
         MeetingMyItemOut(
@@ -97,7 +102,7 @@ async def get_meeting(
     _user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> Meeting:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(
@@ -113,7 +118,7 @@ async def get_meeting_status(
     _user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> MeetingStatusOut:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(
@@ -129,7 +134,7 @@ async def get_meeting_participants(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> dict[str, Any]:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(
@@ -147,7 +152,7 @@ async def get_meeting_participants(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Service temporarily unavailable",
         )
-    items: list[dict] = []
+    items: list[dict[str, Any]] = []
     for m in members:
         uid = m.get("user_id")
         if not isinstance(uid, str):
@@ -176,7 +181,7 @@ async def get_check_removed(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> CheckRemovedOut:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(

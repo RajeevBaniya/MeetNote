@@ -32,7 +32,7 @@ async def post_end_meeting(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> EndMeetingOut:
     try:
         meeting = await end_meeting(session, meeting_id, user_id)
     except ValueError as exc:
@@ -72,7 +72,7 @@ async def post_remove_participant(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> None:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(
@@ -127,7 +127,7 @@ async def post_mute_participant(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> None:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(
@@ -165,7 +165,7 @@ async def post_leave_meeting(
     meeting_id: UUID,
     user_id: UUID = Depends(get_current_user_id),
     _: None = Depends(rate_limit_general),
-):
+) -> None:
     try:
         redis = await get_redis()
     except Exception:

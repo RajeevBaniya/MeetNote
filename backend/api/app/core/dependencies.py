@@ -1,4 +1,4 @@
-from typing import TypeVar, Type
+from typing import TypeVar, Type, Any
 
 from app.core.interfaces import (
     AnalyticsServiceInterface,
@@ -28,8 +28,8 @@ class ServiceContainer:
     Provides singleton instances of services throughout the application.
     """
     
-    def __init__(self):
-        self._services: dict[Type, object] = {}
+    def __init__(self) -> None:
+        self._services: dict[Type[Any], object] = {}
         self._setup_default_services()
     
     def _setup_default_services(self) -> None:
@@ -42,7 +42,7 @@ class ServiceContainer:
         self.register(ChatServiceInterface, ChatService())
         self.register(MetricsServiceInterface, MetricsService())
     
-    def register(self, interface: Type[T], implementation: T) -> None:
+    def register(self, interface: Type[Any], implementation: Any) -> None:
         """Register a service implementation for an interface."""
         self._services[interface] = implementation
     
@@ -75,7 +75,7 @@ def get_service(interface: Type[T]) -> T:
     return _container.get(interface)
 
 
-def register_service(interface: Type[T], implementation: T) -> None:
+def register_service(interface: Type[Any], implementation: Any) -> None:
     """
     Register a service implementation in the global container.
     Useful for testing or custom implementations.

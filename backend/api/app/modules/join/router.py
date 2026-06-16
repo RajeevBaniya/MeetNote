@@ -9,7 +9,7 @@ from app.core.rate_limit import rate_limit_meeting_join
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.join.schemas import JoinMeetingIn, JoinMeetingOut
-from app.modules.meetings.service import get_meeting_by_id, get_meeting_by_join_code, ensure_host_started
+from app.modules.meetings.service import get_meeting_by_join_code, ensure_host_started
 from app.modules.stream_tokens.service import is_user_removed
 from app.state.client import get_redis
 
@@ -23,7 +23,7 @@ async def join_meeting(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_meeting_join),
-):
+) -> JoinMeetingOut:
     if not body.join_code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -31,7 +31,11 @@ async def _metrics_worker() -> None:
     while True:
         try:
             try:
-                name, amount = await asyncio.wait_for(_queue.get(), timeout=flush_interval)  # type: ignore[arg-type]
+                queue = _queue
+                if queue is None:
+                    await asyncio.sleep(1.0)
+                    continue
+                name, amount = await asyncio.wait_for(queue.get(), timeout=flush_interval)
                 retries = 2
                 for attempt in range(retries):
                     try:
@@ -54,7 +58,7 @@ async def _metrics_worker() -> None:
                 pass
             finally:
                 if _queue is not None and not _queue.empty():
-                    _queue.task_done()  # type: ignore[union-attr]
+                    _queue.task_done()
 
             now = time.monotonic()
             if now - last_flush >= flush_interval and _metrics_dropped_local > 0:

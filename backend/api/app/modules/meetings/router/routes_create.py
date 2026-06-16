@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
+from app.db.models import Meeting
 from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.schemas import CreateMeetingIn, MeetingOut
 from app.modules.meetings.service import create_meeting
@@ -21,7 +22,7 @@ async def post_meeting(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> Meeting:
     title = (body.title if body else None) or ""
     scheduled_start_at = None
     if body and body.scheduled_start_at is not None:

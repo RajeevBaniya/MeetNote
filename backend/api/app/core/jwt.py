@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from typing import Any
 from uuid import UUID
 
 from jose import JWTError, jwt
@@ -15,12 +16,15 @@ def create_access_token(user_id: UUID, email: str) -> str:
         "email": email,
         "exp": expire,
     }
-    return jwt.encode(payload, secret, algorithm="HS256")
+    return str(jwt.encode(payload, secret, algorithm="HS256"))
 
 
-def decode_access_token(token: str) -> dict:
+def decode_access_token(token: str) -> dict[str, Any]:
     secret = get_jwt_secret()
-    return jwt.decode(token, secret, algorithms=["HS256"])
+    payload = jwt.decode(token, secret, algorithms=["HS256"])
+    if not isinstance(payload, dict):
+        raise JWTError("Invalid payload type")
+    return payload
 
 
 def get_user_id_from_token(token: str) -> UUID | None:

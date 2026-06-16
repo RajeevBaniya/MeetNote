@@ -2,7 +2,7 @@ import hashlib
 import json
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Tuple
+from typing import Any, Tuple
 from uuid import UUID
 
 from fastapi import Response
@@ -78,7 +78,7 @@ async def issue_session_tokens(user_id: UUID, email: str) -> Tuple[str, str]:
     return access_token, refresh_token
 
 
-async def _get_refresh_payload(token: str) -> dict | None:
+async def _get_refresh_payload(token: str) -> dict[str, Any] | None:
     redis = await get_redis()
     token_hash = _hash_token(token)
     raw = await redis.get(f"{REFRESH_PREFIX}{token_hash}")
@@ -88,10 +88,13 @@ async def _get_refresh_payload(token: str) -> dict | None:
         data = json.loads(raw)
     except Exception:
         return None
-    user_id = data.get("user_id")
+    if not isinstance(data, dict):
+        return None
+    payload_dict: dict[str, Any] = data
+    user_id = payload_dict.get("user_id")
     if not user_id:
         return None
-    expires_at_raw = data.get("expires_at")
+    expires_at_raw = payload_dict.get("expires_at")
     if expires_at_raw:
         try:
             expires_at = datetime.fromisoformat(expires_at_raw)
@@ -99,7 +102,7 @@ async def _get_refresh_payload(token: str) -> dict | None:
                 return None
         except Exception:
             return None
-    return data
+    return payload_dict
 
 
 async def rotate_refresh_token(token: str) -> Tuple[UUID | None, str | None]:

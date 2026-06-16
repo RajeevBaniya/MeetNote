@@ -2,12 +2,12 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
-from uuid import UUID
 
 from fastapi import HTTPException, status
 
 from app.core.metrics import incr
 from app.state.client import get_redis
+from app.state.redis_client import redis_rpush
 from app.modules.transcripts.webhooks.utils import parse_meeting_id
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ async def handle_transcript_event(
         "speaker_name": speaker_name,
         "timestamp": timestamp_str,
     }
-    await redis.rpush("transcript_events", json.dumps(payload))
+    await redis_rpush(redis, "transcript_events", json.dumps(payload))
 
     processing_ms = int(
         (datetime.now(timezone.utc) - start_time).total_seconds() * 1000

@@ -53,7 +53,7 @@ async def handle_call_event(
     request: Request,
     start_time: datetime,
 ) -> Dict[str, bool]:
-    event_type = body.get("type")
+    event_type = str(body.get("type") or "")
     call_cid = str(body.get("call_cid") or "")
     meeting_id = parse_meeting_id(call_cid)
     if meeting_id is None:

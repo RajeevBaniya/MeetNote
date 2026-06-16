@@ -7,6 +7,7 @@ from app.core.metrics import incr
 from app.modules.chat.websocket import broadcast_host_changed
 from app.modules.meetings.service import transfer_host_if_current_disconnected
 from app.state.client import get_redis
+from app.state.redis_client import redis_set
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,8 @@ async def run_debounced_host_transfer(
         return False
 
     lock_key = f"host_transfer_lock:{meeting_id}"
-    got_lock = await redis.set(
-        lock_key, "1", ex=HOST_TRANSFER_LOCK_TTL_SECONDS, nx=True
+    got_lock = await redis_set(
+        redis, lock_key, "1", ex=HOST_TRANSFER_LOCK_TTL_SECONDS, nx=True
     )
     if not got_lock:
         return False

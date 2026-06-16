@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,7 +16,7 @@ async def get_meeting_share(
     meeting_id: UUID,
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-):
+) -> dict[str, Any]:
     info = await get_share_info(session, meeting_id, user_id)
     if not info:
         raise HTTPException(

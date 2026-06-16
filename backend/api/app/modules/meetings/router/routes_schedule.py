@@ -29,7 +29,7 @@ async def get_meeting_ics(
     _user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> Response:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(

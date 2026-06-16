@@ -1,9 +1,10 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.jwt import decode_access_token
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
@@ -78,4 +79,52 @@ async def put_assistant_preference(
         )
     await publish_meeting_assistant_preference(meeting_id, body.enabled)
     return AssistantPreferenceOut(enabled=body.enabled)
+
+
+@router.get("/{meeting_id}/host-id", response_model=str)
+async def get_meeting_host_id(
+    meeting_id: UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> str:
+    auth_header = request.headers.get("authorization") or ""
+    prefix = "bearer "
+    if not auth_header.lower().startswith(prefix):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid token",
+        )
+    token = auth_header[len(prefix) :].strip()
+    try:
+        payload = decode_access_token(token)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+    sub = payload.get("sub")
+    
+    # Allow system:assistant or a valid UUID
+    is_assistant = (sub == "system:assistant")
+    is_user = False
+    if not is_assistant:
+        try:
+            UUID(sub)
+            is_user = True
+        except ValueError:
+            pass
+            
+    if not is_assistant and not is_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden",
+        )
+        
+    meeting = await get_meeting_by_id(session, meeting_id)
+    if not meeting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found",
+        )
+    return str(meeting.current_host_id)
 

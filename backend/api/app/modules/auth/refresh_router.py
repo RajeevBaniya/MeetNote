@@ -1,4 +1,3 @@
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +8,6 @@ from app.modules.auth.service import get_user_by_id
 from app.modules.auth.refresh_service import (
     clear_refresh_cookie,
     create_access_token_for_user,
-    issue_session_tokens,
     revoke_refresh_token,
     rotate_refresh_token,
     set_refresh_cookie,

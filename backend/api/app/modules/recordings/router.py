@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -30,7 +31,7 @@ async def start_recording(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> RecordingStartOut:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
@@ -47,7 +48,7 @@ async def stop_recording(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> None:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
@@ -74,7 +75,7 @@ async def get_recordings(
     user_id: UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     _: None = Depends(rate_limit_general),
-):
+) -> dict[str, Any]:
     allowed = await user_was_meeting_member(session, meeting_id, user_id)
     if not allowed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")

@@ -129,9 +129,15 @@ class TranscriptService(TranscriptServiceInterface):
 class ChatService(ChatServiceInterface):
     """Concrete implementation of chat service."""
     
+    def __init__(self) -> None:
+        self._close_handler = None
+
+    def register_close_handler(self, handler: Any) -> None:
+        self._close_handler = handler
+    
     async def close_meeting_connections(self, meeting_id: UUID) -> None:
-        from app.modules.chat.websocket import close_chat_connections
-        await close_chat_connections(meeting_id)
+        if self._close_handler:
+            await self._close_handler(meeting_id)
 
 
 class MetricsService(MetricsServiceInterface):

@@ -60,7 +60,7 @@ async def _check_redis_health() -> str:
         return "error"
     
     try:
-        cache_service = get_service(CacheServiceInterface)
+        cache_service = get_service(CacheServiceInterface)  # type: ignore[type-abstract]
         await cache_service.ping()
         return "ok"
     except Exception:

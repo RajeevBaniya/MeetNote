@@ -63,6 +63,13 @@ def get_groq_chunk_model() -> str:
     return model.strip() or "llama-3.1-8b-instant"
 
 
+def get_groq_transcript_correction_key() -> str:
+    key = os.getenv("GROQ_TRANSCRIPT_CORRECTION")
+    if not key or not key.strip():
+        raise ValueError("GROQ_TRANSCRIPT_CORRECTION is required")
+    return key.strip()
+
+
 def get_rate_limit_requests() -> int:
     raw = os.getenv("RATE_LIMIT_REQUESTS", "60")
     try:
@@ -125,3 +132,49 @@ def get_frontend_base_url_required() -> str:
     if not raw or not raw.strip():
         raise ValueError("APP_BASE_URL is required for share links")
     return raw.strip().rstrip("/")
+
+
+def is_rag_enabled() -> bool:
+    raw = os.getenv("ENABLE_RAG", "false").lower()
+    return raw in ("true", "1", "yes")
+
+
+def get_max_chunks_per_query() -> int:
+    raw = os.getenv("MAX_CHUNKS_PER_QUERY", "5")
+    try:
+        return int(raw)
+    except ValueError:
+        return 5
+
+
+def get_max_embedding_calls_per_minute() -> int:
+    raw = os.getenv("MAX_EMBEDDING_CALLS_PER_MINUTE", "120")
+    try:
+        return int(raw)
+    except ValueError:
+        return 120
+
+
+def get_transcript_similarity_threshold() -> float:
+    raw = os.getenv("TRANSCRIPT_SIMILARITY_THRESHOLD", "0.70")
+    try:
+        return float(raw)
+    except ValueError:
+        return 0.70
+
+
+def get_summary_similarity_threshold() -> float:
+    raw = os.getenv("SUMMARY_SIMILARITY_THRESHOLD", "0.75")
+    try:
+        return float(raw)
+    except ValueError:
+        return 0.75
+
+
+def get_document_similarity_threshold() -> float:
+    raw = os.getenv("DOCUMENT_SIMILARITY_THRESHOLD", "0.70")
+    try:
+        return float(raw)
+    except ValueError:
+        return 0.70
+

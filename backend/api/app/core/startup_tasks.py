@@ -9,6 +9,7 @@ from app.core.config import (
     get_jwt_secret,
     get_stream_api_key,
     get_stream_webhook_secret,
+    is_rag_enabled,
 )
 from app.core.database_setup import ensure_database_schema
 from app.core.error_monitoring import initialize_error_monitoring, run_worker_with_sentry
@@ -21,6 +22,7 @@ from app.modules.meetings.events import publish_meeting_snapshot
 from app.modules.transcripts.worker import run_transcript_worker
 from app.workers.convergence_auditor import run_convergence_auditor
 from app.workers.meeting_cleanup_worker import run_meeting_cleanup_worker
+from app.workers.rag_ingestion_worker import run_rag_ingestion_worker
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,10 @@ async def initialize_application() -> asyncio.Task | None:
         asyncio.create_task(
             run_worker_with_sentry("meeting_cleanup_worker", run_meeting_cleanup_worker)
         )
+        if is_rag_enabled():
+            asyncio.create_task(
+                run_worker_with_sentry("rag_ingestion_worker", run_rag_ingestion_worker)
+            )
     except Exception:
         logger.debug("meeting_snapshot_startup_failed", exc_info=True)
 
@@ -97,4 +103,10 @@ async def _publish_active_meetings_snapshot() -> None:
 
     await set_gauge("active_meetings", len(meetings))
     if meetings:
+        try:
+            redis = await get_redis()
+            for m in meetings:
+                await redis.set(f"meeting:host_id:{m.id}", str(m.current_host_id))
+        except Exception as exc:
+            logger.warning("Failed to cache active meeting host IDs on startup", exc_info=exc)
         await publish_meeting_snapshot([m.id for m in meetings])

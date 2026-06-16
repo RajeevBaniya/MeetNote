@@ -114,6 +114,11 @@ class ChatServiceInterface(ABC):
         """Close all chat WebSocket connections for a meeting."""
         pass
 
+    @abstractmethod
+    def register_close_handler(self, handler: Any) -> None:
+        """Register a handler callback to close chat connections."""
+        pass
+
 
 class MetricsServiceInterface(ABC):
     """Interface for metrics operations."""

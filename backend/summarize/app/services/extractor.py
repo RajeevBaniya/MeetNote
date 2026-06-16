@@ -96,3 +96,53 @@ def extract_document_text(filename: str, mimetype: str, file_bytes: bytes) -> st
         raise ValueError("Could not extract text from file. The file may be empty or corrupted.")
         
     return text
+
+
+def stream_extract_text_generator(file_path: str, filename: str):
+    """
+    Yields text segments (pages or paragraphs) from a file on disk,
+    minimizing memory usage.
+    """
+    name_lower = filename.lower()
+    _, ext = os.path.splitext(name_lower)
+    
+    if ext == ".pdf":
+        try:
+            reader = PdfReader(file_path)
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    yield page_text
+        except Exception as exc:
+            raise ValueError(f"Failed to parse PDF file sequentially: {str(exc)}") from exc
+    elif ext == ".docx":
+        try:
+            with open(file_path, "rb") as docx_file:
+                result = mammoth.extract_raw_text(docx_file)
+                text = result.value
+                lines = text.splitlines()
+                chunk_lines = []
+                for line in lines:
+                    chunk_lines.append(line)
+                    if len(chunk_lines) >= 20:
+                        yield "\n".join(chunk_lines)
+                        chunk_lines = []
+                if chunk_lines:
+                    yield "\n".join(chunk_lines)
+        except Exception as exc:
+            raise ValueError(f"Failed to parse DOCX file: {str(exc)}") from exc
+    else:
+        # Plain text / txt
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                chunk_lines = []
+                for line in f:
+                    chunk_lines.append(line)
+                    if len(chunk_lines) >= 50:
+                        yield "".join(chunk_lines)
+                        chunk_lines = []
+                if chunk_lines:
+                    yield "".join(chunk_lines)
+        except Exception as exc:
+            raise ValueError(f"Failed to parse text file: {str(exc)}") from exc
+

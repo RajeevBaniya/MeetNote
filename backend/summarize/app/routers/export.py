@@ -3,7 +3,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
-from app.services.summaries import get_summary_for_export
+from app.middleware.auth import get_current_user_id
+from app.services.summaries import get_summary_by_id
 from app.services.exporter import generate_pdf, generate_docx
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -13,15 +14,15 @@ router = APIRouter(prefix="/api/export", tags=["export"])
 async def export_pdf(
     id: UUID,
     db: AsyncSession = Depends(get_session),
+    current_user_id: UUID = Depends(get_current_user_id),
 ) -> Response:
     """Export meeting summary details as a formatted PDF file."""
     try:
-        # TODO: Implement db select in summaries service.
-        summary = await get_summary_for_export(db, id)
+        summary = await get_summary_by_id(db, id, current_user_id)
         if not summary:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Summary not found",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to access this summary.",
             )
             
         summary_data = {
@@ -38,8 +39,6 @@ async def export_pdf(
             "extractedParticipants": summary.extracted_participants or [],
         }
         
-        # TODO: Implement ReportLab PDF generator inside service.
-        # This calls the PDF exporter service boundary.
         pdf_bytes = generate_pdf(summary_data)
         if not pdf_bytes or len(pdf_bytes) == 0:
             raise HTTPException(
@@ -84,15 +83,15 @@ async def export_pdf(
 async def export_word(
     id: UUID,
     db: AsyncSession = Depends(get_session),
+    current_user_id: UUID = Depends(get_current_user_id),
 ) -> Response:
     """Export meeting summary details as a formatted Word (.docx) file."""
     try:
-        # TODO: Implement db select in summaries service.
-        summary = await get_summary_for_export(db, id)
+        summary = await get_summary_by_id(db, id, current_user_id)
         if not summary:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Summary not found",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to access this summary.",
             )
             
         summary_data = {
@@ -109,8 +108,6 @@ async def export_word(
             "extractedParticipants": summary.extracted_participants or [],
         }
         
-        # TODO: Implement python-docx word generator inside service.
-        # This calls the Word exporter service boundary.
         word_bytes = generate_docx(summary_data)
         if not word_bytes or len(word_bytes) == 0:
             raise HTTPException(
@@ -145,3 +142,4 @@ async def export_word(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate Word document: {str(exc)}",
         )
+

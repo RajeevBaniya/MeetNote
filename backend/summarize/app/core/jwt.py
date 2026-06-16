@@ -1,5 +1,5 @@
 from uuid import UUID
-import jwt
+from jose import JWTError, jwt
 from app.core.config import get_jwt_secret
 
 
@@ -15,6 +15,6 @@ def get_user_id_from_token(token: str) -> UUID | None:
         if not sub:
             return None
         return UUID(sub)
-    except (jwt.PyJWTError, ValueError):
+    except (JWTError, ValueError):
         return None
 

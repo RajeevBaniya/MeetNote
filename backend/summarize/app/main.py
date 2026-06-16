@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -10,12 +11,34 @@ from app.routers.export import router as export_router
 from app.routers.summaries import router as summaries_router
 from app.routers.summary import router as summary_router
 from app.routers.upload import router as upload_router
+from app.routers.jobs import router as jobs_router
+from app.db.base import engine
+from app.core.database_setup import ensure_database_schema
+from app.services.worker import DocumentProcessingWorker
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Smart Meeting Summarize API", version="0.1.0")
+worker = DocumentProcessingWorker()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("running_startup_migrations")
+    try:
+        await ensure_database_schema(engine)
+    except Exception as exc:
+        logger.critical("startup_migration_failed", exc_info=exc)
+        raise exc
+    
+    worker.start()
+    yield
+    await worker.stop()
+
+
+app = FastAPI(title="Smart Meeting Summarize API", version="0.1.0", lifespan=lifespan)
 
 configure_logging()
+
 
 
 @app.exception_handler(Exception)
@@ -57,6 +80,7 @@ app.include_router(summary_router)
 app.include_router(email_router)
 app.include_router(summaries_router)
 app.include_router(export_router)
+app.include_router(jobs_router)
 
 
 @app.get("/")

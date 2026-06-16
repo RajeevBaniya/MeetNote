@@ -5,7 +5,7 @@ from typing import Any
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 
 from docx import Document
@@ -172,8 +172,6 @@ def generate_pdf(summary_data: dict[str, Any]) -> bytes:
     doc.title = template["title"]
     doc.author = "MeetNote Meeting Notes"
     doc.creator = "MeetNote Summarizer"
-    
-    styles = getSampleStyleSheet()
     
     title_style = ParagraphStyle(
         name="DocTitle",

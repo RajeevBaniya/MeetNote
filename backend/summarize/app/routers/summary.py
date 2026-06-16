@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.middleware.auth import get_current_user_id
 from app.db.session import get_session
 from app.schemas.summary import SummaryGenerateRequest, SummaryGenerateResponse, StructuredData
-from app.ai.groq import generate_meeting_summary
+from app.ai.gemini import generate_meeting_summary
 from app.services.summaries import save_summary
 
 router = APIRouter(prefix="/api/summary", tags=["summary"])

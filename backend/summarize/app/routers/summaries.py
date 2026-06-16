@@ -9,6 +9,7 @@ from app.schemas.summary import (
     SummaryDetailResponse,
     DeleteResponse,
     SummaryUpdateRequest,
+    SummaryResponse,
 )
 from app.services.summaries import (
     list_summaries,
@@ -63,8 +64,8 @@ async def get_all_summaries(
             sort_by=sortBy,
             sort_order=sortOrder,
         )
-        # Note: mapping SQLAlchemy model attributes automatically via from_attributes
-        return SummaryListResponse(success=True, items=items or [])
+        items_validated = [SummaryResponse.model_validate(item) for item in items] if items else []
+        return SummaryListResponse(success=True, items=items_validated)
     except ValueError as val_err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -85,14 +86,13 @@ async def get_summary(
 ) -> SummaryDetailResponse:
     """Retrieve details of a specific saved summary by ID."""
     try:
-        # TODO: Implement db select in summaries service.
         item = await get_summary_by_id(db, id, current_user_id)
         if not item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Not found",
             )
-        return SummaryDetailResponse(success=True, item=item)
+        return SummaryDetailResponse(success=True, item=SummaryResponse.model_validate(item))
     except HTTPException:
         raise
     except Exception as exc:
@@ -114,14 +114,13 @@ async def update_saved_summary(
         # Filter request body to only allowed fields matching Express PUT filter
         raw_data = request.model_dump(exclude_unset=True)
         
-        # TODO: Implement db update in summaries service.
         updated = await update_summary(db, id, current_user_id, raw_data)
         if not updated:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Not found",
             )
-        return SummaryDetailResponse(success=True, item=updated)
+        return SummaryDetailResponse(success=True, item=SummaryResponse.model_validate(updated))
     except HTTPException:
         raise
     except ValueError as val_err:

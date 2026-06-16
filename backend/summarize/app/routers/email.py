@@ -1,8 +1,10 @@
 import re
+from uuid import UUID
 from typing import Any
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from app.middleware.auth import get_current_user_id
 from app.services.email import send_summary_email
 
 router = APIRouter(prefix="/api/email", tags=["email"])
@@ -29,7 +31,10 @@ class EmailSendSuccessResponse(BaseModel):
     400: {"description": "Validation Error"},
     500: {"description": "Mail Delivery Error"},
 })
-async def send_email(request: EmailSendRequest) -> Any:
+async def send_email(
+    request: EmailSendRequest,
+    current_user_id: UUID = Depends(get_current_user_id),
+) -> Any:
     """Send meeting summary details via email to the listed recipients."""
     if not request.recipients or len(request.recipients) == 0:
         return JSONResponse(

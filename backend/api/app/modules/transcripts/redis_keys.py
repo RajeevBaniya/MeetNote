@@ -45,3 +45,11 @@ def left_users_key(meeting_id: UUID) -> str:
 
 def seq_key(meeting_id: UUID) -> str:
     return f"transcript:seq:{meeting_id}"
+
+
+def correction_queue_key() -> str:
+    return "transcript_correction_queue"
+
+
+def corrected_segments_key(meeting_id: UUID) -> str:
+    return f"transcript:corrected_segments:{meeting_id}"

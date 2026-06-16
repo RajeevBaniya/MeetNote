@@ -9,6 +9,7 @@ from app.modules.transcripts.redis_keys import (
     buffer_key,
     chunks_initialized_key,
     chunks_key,
+    corrected_segments_key,
     left_users_key,
     live_key,
     lock_key,
@@ -18,6 +19,15 @@ from app.modules.transcripts.redis_keys import (
     seen_key,
 )
 from app.modules.transcripts.transcript_stabilizer import append_and_stabilize_segment
+from app.state.redis_client import (
+    redis_delete,
+    redis_expire,
+    redis_hmget,
+    redis_llen,
+    redis_lrange,
+    redis_sadd,
+    redis_sismember,
+)
 
 
 async def append_transcript_segment(
@@ -41,13 +51,11 @@ async def append_transcript_segment(
 
 
 async def get_segment_count(redis: Redis, meeting_id: UUID) -> int:
-    length = await redis.llen(segments_key(meeting_id))
-    return int(length)
+    return await redis_llen(redis, segments_key(meeting_id))
 
 
 async def get_live_transcript(redis: Redis, meeting_id: UUID) -> list[str]:
-    items = await redis.lrange(live_key(meeting_id), 0, -1)
-    return list(items) if items else []
+    return await redis_lrange(redis, live_key(meeting_id))
 
 
 async def get_transcript_segments(
@@ -56,33 +64,53 @@ async def get_transcript_segments(
     limit: int | None = None,
 ) -> list[dict[str, Any]]:
     if limit is None:
-        raw_items = await redis.lrange(segments_key(meeting_id), 0, -1)
+        raw_items = await redis_lrange(redis, segments_key(meeting_id))
     else:
         normalized_limit = int(limit)
         if normalized_limit <= 0:
             return []
-        raw_items = await redis.lrange(
+        raw_items = await redis_lrange(
+            redis,
             segments_key(meeting_id),
             -normalized_limit,
             -1,
         )
+
     segments: list[dict[str, Any]] = []
-    for raw in raw_items or []:
+    for raw in raw_items:
         try:
             data = json.loads(raw)
         except (TypeError, json.JSONDecodeError):
             continue
         if isinstance(data, dict):
             segments.append(data)
+
+    if segments:
+        corrected_key = corrected_segments_key(meeting_id)
+        segment_ids: list[str] = [
+            str(s["segment_id"])
+            for s in segments
+            if s.get("segment_id") is not None
+        ]
+        if segment_ids:
+            try:
+                corrections = await redis_hmget(redis, corrected_key, segment_ids)
+                ids_iter = (s for s in segments if s.get("segment_id") is not None)
+                for segment, correction in zip(ids_iter, corrections):
+                    if correction is not None:
+                        segment["corrected_text"] = correction
+            except Exception:
+                pass
+
     return segments
 
 
 async def mark_user_left(redis: Redis, meeting_id: UUID, user_id: UUID) -> None:
-    await redis.sadd(left_users_key(meeting_id), str(user_id))
+    await redis_sadd(redis, left_users_key(meeting_id), str(user_id))
 
 
 async def has_user_left(redis: Redis, meeting_id: UUID, user_id: UUID) -> bool:
-    return bool(await redis.sismember(left_users_key(meeting_id), str(user_id)))
+    return await redis_sismember(redis, left_users_key(meeting_id), str(user_id))
 
 
 async def expire_transcript_keys(redis: Redis, meeting_id: UUID) -> None:
@@ -96,14 +124,16 @@ async def expire_transcript_keys(redis: Redis, meeting_id: UUID) -> None:
         speakers_key(meeting_id),
         seq_key(meeting_id),
         seen_key(meeting_id),
+        corrected_segments_key(meeting_id),
     ]
     for key in keys_for_ttl:
-        await redis.expire(key, POST_MEETING_TTL_SECONDS)
-    await redis.delete(left_users_key(meeting_id))
+        await redis_expire(redis, key, POST_MEETING_TTL_SECONDS)
+    await redis_delete(redis, left_users_key(meeting_id))
 
 
 async def delete_transcript_state(redis: Redis, meeting_id: UUID) -> None:
-    await redis.delete(
+    await redis_delete(
+        redis,
         segments_key(meeting_id),
         speakers_key(meeting_id),
         left_users_key(meeting_id),
@@ -114,4 +144,5 @@ async def delete_transcript_state(redis: Redis, meeting_id: UUID) -> None:
         lock_key(meeting_id),
         seen_key(meeting_id),
         seq_key(meeting_id),
+        corrected_segments_key(meeting_id),
     )

@@ -13,6 +13,7 @@ from app.db.session import async_session_factory
 from app.modules.analytics.service import add_speaking_time
 from app.modules.transcripts.service import append_transcript_segment
 from app.state.client import get_redis
+from app.state.redis_client import redis_brpop, redis_set
 
 
 logger = logging.getLogger(__name__)
@@ -21,91 +22,89 @@ EVENT_QUEUE_KEY = "transcript_events"
 
 
 async def _get_redis_client() -> Redis:
-  return await get_redis()
+    return await get_redis()
 
 
 async def run_transcript_worker() -> None:
-  while True:
-    try:
-      redis = await _get_redis_client()
-      break
-    except Exception:
-      logger.exception("transcript_worker_redis_connect_failed")
-      await asyncio.sleep(5)
-
-  while True:
-    try:
-      item = await redis.brpop(EVENT_QUEUE_KEY, timeout=5)
-      if not item:
-        continue
-      _, raw = item
-      try:
-        payload: dict[str, Any] = json.loads(raw)
-      except Exception:
-        logger.warning("transcript_worker_invalid_payload")
-        continue
-
-      meeting_id_raw = payload.get("meeting_id")
-      segment_text = payload.get("text") or ""
-      speaker_id = payload.get("speaker_id")
-      speaker_name = payload.get("speaker_name")
-      timestamp = payload.get("timestamp")
-      confidence_raw = payload.get("confidence")
-      confidence: float | None = None
-      if confidence_raw is not None:
+    while True:
         try:
-          confidence = float(confidence_raw)
-        except (TypeError, ValueError):
-          confidence = None
+            redis = await _get_redis_client()
+            break
+        except Exception:
+            logger.exception("transcript_worker_redis_connect_failed")
+            await asyncio.sleep(5)
 
-      try:
-        meeting_id = UUID(str(meeting_id_raw))
-      except Exception:
-        logger.warning("transcript_worker_invalid_meeting_id payload=%s", payload)
-        continue
+    while True:
+        try:
+            raw = await redis_brpop(redis, EVENT_QUEUE_KEY, timeout=5)
+            if raw is None:
+                continue
+            try:
+                payload: dict[str, Any] = json.loads(raw)
+            except Exception:
+                logger.warning("transcript_worker_invalid_payload")
+                continue
 
-      if not segment_text.strip():
-        continue
+            meeting_id_raw = payload.get("meeting_id")
+            segment_text = payload.get("text") or ""
+            speaker_id = payload.get("speaker_id")
+            speaker_name = payload.get("speaker_name")
+            timestamp = payload.get("timestamp")
+            confidence_raw = payload.get("confidence")
+            confidence: float | None = None
+            if confidence_raw is not None:
+                try:
+                    confidence = float(confidence_raw)
+                except (TypeError, ValueError):
+                    confidence = None
 
-      await append_transcript_segment(
-        redis,
-        meeting_id,
-        segment_text,
-        speaker_id=speaker_id,
-        speaker_name=speaker_name,
-        timestamp=timestamp,
-        confidence=confidence,
-      )
-      incr("transcript_chunks_processed_total")
-      if speaker_id and segment_text.strip():
-        segment_hash = hashlib.sha256(
-          f"{meeting_id}|{speaker_id}|{segment_text}|{timestamp or ''}".encode()
-        ).hexdigest()
-        inserted = False
-        async with async_session_factory() as session:
-          async with session.begin():
-            result = await session.execute(
-              sa_text(
-                "INSERT INTO processed_segments(segment_id) "
-                "VALUES (:segment_id) "
-                "ON CONFLICT (segment_id) DO NOTHING"
-              ),
-              {"segment_id": segment_hash},
+            try:
+                meeting_id = UUID(str(meeting_id_raw))
+            except Exception:
+                logger.warning("transcript_worker_invalid_meeting_id payload=%s", payload)
+                continue
+
+            if not segment_text.strip():
+                continue
+
+            await append_transcript_segment(
+                redis,
+                meeting_id,
+                segment_text,
+                speaker_id=speaker_id,
+                speaker_name=speaker_name,
+                timestamp=timestamp,
+                confidence=confidence,
             )
-            inserted = bool(getattr(result, "rowcount", 0))
-        if not inserted:
-          continue
-        key = f"analytics_segment_seen:{meeting_id}:{segment_hash}"
-        if await redis.set(key, "1", ex=7200, nx=True):
-          try:
-            user_id = UUID(str(speaker_id))
-            word_count = len(segment_text.strip().split())
-            await add_speaking_time(meeting_id, user_id, word_count)
-          except (ValueError, TypeError):
-            pass
-    except asyncio.CancelledError:
-      break
-    except Exception:
-      logger.exception("transcript_worker_loop_error")
-      await asyncio.sleep(1)
-
+            incr("transcript_chunks_processed_total")
+            if speaker_id and segment_text.strip():
+                segment_hash = hashlib.sha256(
+                    f"{meeting_id}|{speaker_id}|{segment_text}|{timestamp or ''}".encode()
+                ).hexdigest()
+                inserted = False
+                async with async_session_factory() as session:
+                    async with session.begin():
+                        result = await session.execute(
+                            sa_text(
+                                "INSERT INTO processed_segments(segment_id) "
+                                "VALUES (:segment_id) "
+                                "ON CONFLICT (segment_id) DO NOTHING"
+                            ),
+                            {"segment_id": segment_hash},
+                        )
+                        inserted = bool(getattr(result, "rowcount", 0))
+                if not inserted:
+                    continue
+                key = f"analytics_segment_seen:{meeting_id}:{segment_hash}"
+                if await redis_set(redis, key, "1", nx=True, ex=7200):
+                    try:
+                        user_id = UUID(str(speaker_id))
+                        word_count = len(segment_text.strip().split())
+                        await add_speaking_time(meeting_id, user_id, word_count)
+                    except (ValueError, TypeError):
+                        pass
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            logger.exception("transcript_worker_loop_error")
+            await asyncio.sleep(1)

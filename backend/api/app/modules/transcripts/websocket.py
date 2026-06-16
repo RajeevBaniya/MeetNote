@@ -97,7 +97,9 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
         history_items = await get_transcript_segments(redis, meeting_id)
         history_segments = [
             {
-                "text": item.get("text"),
+                "segment_id": item.get("segment_id"),
+                "text": item.get("corrected_text") or item.get("text"),
+                "original_text": item.get("text"),
                 "speaker_id": item.get("speaker_id"),
                 "speaker": item.get("speaker_name"),
                 "timestamp": item.get("start_time"),
@@ -143,19 +145,22 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
             try:
                 while not stop_event.is_set():
                     msg = await pubsub.get_message(
-                        ignore_subscribe_messages=True, timeout=0.1
+                        ignore_subscribe_messages=True, timeout=0.01
                     )
                     if msg and msg.get("type") == "message":
                         try:
-                            segment = json.loads(msg["data"])
+                            payload = json.loads(msg["data"])
                         except (json.JSONDecodeError, TypeError, KeyError):
                             continue
                         try:
-                            await websocket.send_text(
-                                json.dumps(
-                                    {"type": "transcript", "segment": segment}
+                            if payload.get("type"):
+                                await websocket.send_text(json.dumps(payload))
+                            else:
+                                await websocket.send_text(
+                                    json.dumps(
+                                        {"type": "transcript", "segment": payload}
+                                    )
                                 )
-                            )
                             incr("transcript_segments_streamed_total")
                             incr("transcript_segments_total")
                         except Exception:

@@ -6,25 +6,42 @@ from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any
 from uuid import UUID
+import uuid
 
 from redis.asyncio import Redis
 
+from app.core.config import is_rag_enabled
 from app.core.metrics import incr
 from app.modules.transcripts.broadcaster import publish_segment
 from app.modules.transcripts.redis_keys import (
     ACTIVE_MEETING_TTL_SECONDS,
     buffer_key,
+    correction_queue_key,
     speakers_key,
     segments_key,
     seen_key,
     seq_key,
+)
+from app.state.redis_client import (
+    redis_delete,
+    redis_expire,
+    redis_hget,
+    redis_hset,
+    redis_incr,
+    redis_lindex,
+    redis_lrange,
+    redis_ltrim,
+    redis_rpush,
+    redis_lpush,
+    redis_sadd,
+    redis_sismember,
 )
 
 
 logger = logging.getLogger(__name__)
 
 _MAX_BUFFER_SEGMENTS = 10
-_COMMIT_WINDOW_SECONDS = 2
+_COMMIT_WINDOW_SECONDS = 0.5
 
 
 def _normalize_text(text: str) -> str:
@@ -62,7 +79,7 @@ async def _commit_segment(
             )
             return
 
-    last_raw = await redis.lindex(segments_key(meeting_id), -1)
+    last_raw = await redis_lindex(redis, segments_key(meeting_id), -1)
     if last_raw:
         try:
             last_data = json.loads(last_raw)
@@ -80,16 +97,11 @@ async def _commit_segment(
     final_speaker_name = speaker_name_value
 
     if speaker_id_str:
-        stored_name = await redis.hget(speakers_hkey, speaker_id_str)
+        stored_name = await redis_hget(redis, speakers_hkey, speaker_id_str)
         if stored_name:
-            if isinstance(stored_name, (bytes, bytearray)):
-                final_speaker_name = stored_name.decode("utf-8", errors="replace")
-            else:
-                final_speaker_name = str(stored_name)
-        elif (
-            isinstance(speaker_name_value, str) and speaker_name_value.strip()
-        ):
-            await redis.hset(speakers_hkey, speaker_id_str, speaker_name_value.strip())
+            final_speaker_name = stored_name
+        elif isinstance(speaker_name_value, str) and speaker_name_value.strip():
+            await redis_hset(redis, speakers_hkey, speaker_id_str, speaker_name_value.strip())
 
     segment_id = segment.get("segment_id")
     if not segment_id:
@@ -104,18 +116,16 @@ async def _commit_segment(
         segment_id = hasher.hexdigest()
 
     sk = seen_key(meeting_id)
-    if await redis.sismember(sk, segment_id):
+    if await redis_sismember(redis, sk, segment_id):
         return
-    await redis.sadd(sk, segment_id)
-    await redis.expire(sk, ACTIVE_MEETING_TTL_SECONDS)
+    await redis_sadd(redis, sk, segment_id)
+    await redis_expire(redis, sk, ACTIVE_MEETING_TTL_SECONDS)
 
-    # Soft commit-stage rate limit: max 5 committed segments/second/meeting.
-    # This applies after stabilization/dedup/idempotency checks.
     ts_for_rate = datetime.now(timezone.utc)
     rate_key = f"transcript:rate:{meeting_id}:{int(ts_for_rate.timestamp())}"
-    rate_count = await redis.incr(rate_key)
+    rate_count = await redis_incr(redis, rate_key)
     if rate_count == 1:
-        await redis.expire(rate_key, 2)
+        await redis_expire(redis, rate_key, 2)
     if rate_count > 5:
         incr("transcript_segments_rate_limited_total")
         return
@@ -138,22 +148,61 @@ async def _commit_segment(
         "start_time": ts,
         "end_time": ts,
     }
-    sequence = await redis.incr(seq_key(meeting_id))
-    record["sequence"] = int(sequence)
+    sequence = await redis_incr(redis, seq_key(meeting_id))
+    record["sequence"] = sequence
 
     seg_key = segments_key(meeting_id)
-    await redis.rpush(seg_key, json.dumps(record))
-    await redis.ltrim(seg_key, -2000, -1)
+    await redis_rpush(redis, seg_key, json.dumps(record))
+    await redis_ltrim(redis, seg_key, -2000, -1)
 
     stream_payload = {
         "text": text,
         "speaker_id": speaker_id_str,
         "speaker": final_speaker_name,
         "timestamp": ts,
-        "sequence": int(sequence),
+        "sequence": sequence,
     }
     await publish_segment(redis, meeting_id, stream_payload)
     incr("transcript_segments_committed_total")
+
+    latency_ms = int((datetime.now(timezone.utc) - ts_dt).total_seconds() * 1000)
+    logger.info(
+        "transcript_segment_committed",
+        extra={
+            "meeting_id": str(meeting_id),
+            "segment_id": segment_id,
+            "latency_ms": latency_ms,
+        },
+    )
+
+    original_text_hash = None
+    if is_rag_enabled():
+        from app.modules.rag.service import generate_chunk_hash
+        original_text_hash = generate_chunk_hash(meeting_id, text)
+
+    correction_payload = {
+        "meeting_id": str(meeting_id),
+        "segment_id": segment_id,
+        "text": text,
+        "sequence": sequence,
+        "speaker_name": final_speaker_name,
+    }
+    if original_text_hash:
+        correction_payload["original_text_hash"] = original_text_hash
+    await redis_rpush(redis, correction_queue_key(), json.dumps(correction_payload))
+
+    if original_text_hash:
+        rag_payload = {
+            "job_id": str(uuid.uuid4()),
+            "meeting_id": str(meeting_id),
+            "chunk_type": "transcript",
+            "text_hash": original_text_hash,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "text_content": text,
+            "speaker_name": final_speaker_name,
+        }
+        await redis_lpush(redis, "rag:ingestion_queue", json.dumps(rag_payload))
+
 
 
 async def append_and_stabilize_segment(
@@ -180,12 +229,12 @@ async def append_and_stabilize_segment(
         entry["confidence"] = confidence
 
     buf_key = buffer_key(meeting_id)
-    await redis.rpush(buf_key, json.dumps(entry))
-    await redis.ltrim(buf_key, -_MAX_BUFFER_SEGMENTS, -1)
+    await redis_rpush(redis, buf_key, json.dumps(entry))
+    await redis_ltrim(redis, buf_key, -_MAX_BUFFER_SEGMENTS, -1)
     incr("transcript_segments_buffered_total")
 
     now = datetime.now(timezone.utc)
-    raw_items = await redis.lrange(buf_key, 0, -1)
+    raw_items = await redis_lrange(redis, buf_key)
     buffer: list[dict[str, Any]] = []
     to_commit: list[dict[str, Any]] = []
 
@@ -219,6 +268,6 @@ async def append_and_stabilize_segment(
     for segment in to_commit:
         await _commit_segment(redis, meeting_id, segment)
 
-    await redis.delete(buf_key)
+    await redis_delete(redis, buf_key)
     for item in buffer[-_MAX_BUFFER_SEGMENTS:]:
-        await redis.rpush(buf_key, json.dumps(item))
+        await redis_rpush(redis, buf_key, json.dumps(item))

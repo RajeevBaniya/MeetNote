@@ -1,33 +1,46 @@
 import logging
-from typing import List
+from uuid import UUID
+import uuid
+import json
+from datetime import datetime, timezone
 
 import httpx
 from redis.asyncio import Redis
-from uuid import UUID
 
-from app.core.config import get_groq_chunk_api_key, get_groq_chunk_model
+from app.core.config import get_groq_chunk_api_key, get_groq_chunk_model, is_rag_enabled
 from app.modules.transcripts.redis_keys import (
     ACTIVE_MEETING_TTL_SECONDS,
     CHUNK_LOCK_TTL_SECONDS,
     TRANSCRIPT_SEGMENT_THRESHOLD,
-    buffer_key,
     chunks_initialized_key,
     chunks_key,
     lock_key,
 )
 from app.modules.transcripts.segment_storage import get_live_transcript, get_transcript_segments
+from app.state.redis_client import (
+    redis_delete,
+    redis_expire,
+    redis_get,
+    redis_llen,
+    redis_lpop,
+    redis_lrange,
+    redis_rpush,
+    redis_lpush,
+    redis_set,
+)
 
 logger = logging.getLogger(__name__)
 
 
 async def _mark_chunks_ensure_initialized(redis: Redis, meeting_id: UUID) -> None:
     ikey = chunks_initialized_key(meeting_id)
-    await redis.set(ikey, "1", ex=ACTIVE_MEETING_TTL_SECONDS)
+    await redis_set(redis, ikey, "1", ex=ACTIVE_MEETING_TTL_SECONDS)
 
 
 async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) -> None:
     try:
-        if await redis.get(chunks_initialized_key(meeting_id)):
+        flag = await redis_get(redis, chunks_initialized_key(meeting_id))
+        if flag:
             return
     except Exception:
         logger.exception("ensure_summary_chunks_init_flag_read_failed meeting_id=%s", meeting_id)
@@ -35,11 +48,11 @@ async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) 
 
     ckey = chunks_key(meeting_id)
     try:
-        n_chunks = await redis.llen(ckey)
+        n_chunks: int = await redis_llen(redis, ckey)
     except Exception:
         logger.exception("ensure_summary_chunks_llen_failed meeting_id=%s", meeting_id)
         return
-    if int(n_chunks or 0) > 0:
+    if n_chunks > 0:
         try:
             await _mark_chunks_ensure_initialized(redis, meeting_id)
         except Exception:
@@ -61,14 +74,14 @@ async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) 
     pushed_any = False
     for start in range(0, len(segments), batch_size):
         batch = segments[start : start + batch_size]
-        lines: List[str] = []
+        lines: list[str] = []
         for seg in batch:
             if not isinstance(seg, dict):
                 continue
             text = (seg.get("text") or "").strip()
             if not text:
                 continue
-            speaker = (seg.get("speaker_name") or seg.get("speaker_id") or "Speaker")
+            speaker = seg.get("speaker_name") or seg.get("speaker_id") or "Speaker"
             lines.append(f"{speaker}: {text}")
         if not lines:
             continue
@@ -83,9 +96,21 @@ async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) 
             )
             continue
         if summary:
-            await redis.rpush(ckey, summary)
-            await redis.expire(ckey, ACTIVE_MEETING_TTL_SECONDS)
+            await redis_rpush(redis, ckey, summary)
+            await redis_expire(redis, ckey, ACTIVE_MEETING_TTL_SECONDS)
             pushed_any = True
+            if is_rag_enabled():
+                from app.modules.rag.service import generate_chunk_hash
+                text_hash = generate_chunk_hash(meeting_id, summary)
+                rag_payload = {
+                    "job_id": str(uuid.uuid4()),
+                    "meeting_id": str(meeting_id),
+                    "chunk_type": "summary",
+                    "text_hash": text_hash,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "text_content": summary,
+                }
+                await redis_lpush(redis, "rag:ingestion_queue", json.dumps(rag_payload))
 
     if pushed_any:
         try:
@@ -99,14 +124,14 @@ async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) 
 
 async def process_transcript_chunk(redis: Redis, meeting_id: UUID) -> None:
     lock = lock_key(meeting_id)
-    got_lock = await redis.set(lock, "1", nx=True, ex=CHUNK_LOCK_TTL_SECONDS)
+    got_lock: bool = await redis_set(redis, lock, "1", nx=True, ex=CHUNK_LOCK_TTL_SECONDS)
     if not got_lock:
         return
     try:
-        buf_key = buffer_key(meeting_id)
-        segments: List[str] = []
+        buf_key = chunks_key(meeting_id)
+        segments: list[str] = []
         for _ in range(TRANSCRIPT_SEGMENT_THRESHOLD):
-            value = await redis.lpop(buf_key)
+            value = await redis_lpop(redis, buf_key)
             if value is None:
                 break
             segments.append(value)
@@ -116,16 +141,28 @@ async def process_transcript_chunk(redis: Redis, meeting_id: UUID) -> None:
         summary = await _summarize_text(chunk_text, purpose="chunk")
         if summary:
             ckey = chunks_key(meeting_id)
-            await redis.rpush(ckey, summary)
-            await redis.expire(ckey, ACTIVE_MEETING_TTL_SECONDS)
+            await redis_rpush(redis, ckey, summary)
+            await redis_expire(redis, ckey, ACTIVE_MEETING_TTL_SECONDS)
+            if is_rag_enabled():
+                from app.modules.rag.service import generate_chunk_hash
+                text_hash = generate_chunk_hash(meeting_id, summary)
+                rag_payload = {
+                    "job_id": str(uuid.uuid4()),
+                    "meeting_id": str(meeting_id),
+                    "chunk_type": "summary",
+                    "text_hash": text_hash,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "text_content": summary,
+                }
+                await redis_lpush(redis, "rag:ingestion_queue", json.dumps(rag_payload))
     finally:
-        await redis.delete(lock)
+        await redis_delete(redis, lock)
 
 
 async def generate_final_summary(redis: Redis, meeting_id: UUID) -> str:
-    chunks = await redis.lrange(chunks_key(meeting_id), 0, -1)
+    chunks: list[str] = await redis_lrange(redis, chunks_key(meeting_id))
     if not chunks:
-        live_segments = await get_live_transcript(redis, meeting_id)
+        live_segments: list[str] = await get_live_transcript(redis, meeting_id)
         if not live_segments:
             return ""
         text = "\n".join(live_segments)

@@ -75,9 +75,11 @@ async def get_transcript_history_segments(
         segments.append(
             {
                 "sequence": sequence,
+                "segment_id": str(item.get("segment_id") or ""),
                 "speaker_id": str(speaker_id) if speaker_id is not None else "",
                 "speaker_name": str(speaker_name),
-                "text": str(item.get("text") or ""),
+                "text": str(item.get("corrected_text") or item.get("text") or ""),
+                "original_text": str(item.get("text") or ""),
                 "timestamp": str(item.get("start_time") or ""),
             }
         )

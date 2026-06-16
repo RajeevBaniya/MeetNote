@@ -12,11 +12,12 @@ MEETING_SNAPSHOT_CHANNEL = "meeting:snapshot"
 MEETING_ASSISTANT_PREFERENCE_CHANNEL = "meeting:assistant_preference"
 
 
-async def publish_meeting_created(meeting_id: UUID) -> None:
+async def publish_meeting_created(meeting_id: UUID, host_id: UUID) -> None:
     try:
         redis = await get_redis()
+        await redis.set(f"meeting:host_id:{meeting_id}", str(host_id))
         await redis.publish(MEETING_CREATED_CHANNEL, str(meeting_id))
-        logger.debug("Published meeting:created event for meeting_id=%s", meeting_id)
+        logger.debug("Published meeting:created event for meeting_id=%s with host_id=%s", meeting_id, host_id)
     except Exception as exc:
         logger.warning("Failed to publish meeting:created event", exc_info=exc)
 

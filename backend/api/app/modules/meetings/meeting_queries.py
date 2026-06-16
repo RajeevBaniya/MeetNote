@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import desc, distinct, exists, func, or_, select
@@ -167,3 +168,32 @@ async def list_meetings_for_user_host_or_participant(
     for meeting, p_count in rows:
         out.append((meeting, int(p_count or 0)))
     return out
+
+
+async def get_my_meetings_dashboard_data(
+    session: AsyncSession,
+    user_id: UUID,
+    ended_limit: int = 20,
+) -> dict[str, list[Meeting]]:
+    """
+    Retrieve active, upcoming, and ended meetings for the host, grouped and sorted.
+    """
+    active, ended = await get_meetings_for_host(session, user_id, ended_limit=ended_limit)
+    now_utc = datetime.now(timezone.utc)
+    
+    upcoming_meetings = []
+    active_meetings = []
+    
+    for meeting in active:
+        if meeting.scheduled_start_at and meeting.scheduled_start_at > now_utc:
+            upcoming_meetings.append(meeting)
+        else:
+            active_meetings.append(meeting)
+            
+    upcoming_meetings.sort(key=lambda m: m.scheduled_start_at or m.created_at)
+    
+    return {
+        "upcoming": upcoming_meetings,
+        "active": active_meetings,
+        "ended": ended,
+    }

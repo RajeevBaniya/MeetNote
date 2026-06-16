@@ -87,7 +87,11 @@ async def create_meeting(
     await session.refresh(meeting)
     
     # Initialize analytics tracking
-    analytics_service = get_service(AnalyticsServiceInterface)
+    analytics_service = get_service(AnalyticsServiceInterface)  # type: ignore[type-abstract]
     await analytics_service.initialize_meeting_analytics(meeting.id, meeting.created_at)
     
+    # Cache initial host ID and publish created event
+    from app.modules.meetings.events import publish_meeting_created
+    await publish_meeting_created(meeting.id, host_id)
+
     return meeting

@@ -34,7 +34,7 @@ async def select_next_host_candidate(
         UUID of selected candidate or None if no suitable candidate found
     """
     try:
-        stream_service = get_service(StreamServiceInterface)
+        stream_service = get_service(StreamServiceInterface)  # type: ignore[type-abstract]
         members = await stream_service.query_call_members(
             call_type=STREAM_CALL_TYPE,
             call_id=str(meeting_id),
@@ -177,7 +177,7 @@ async def _get_meeting_for_host_check(meeting_id: UUID) -> Meeting | None:
 async def _get_connected_user_ids(meeting_id: UUID, acting_user_id: UUID) -> set[UUID] | None:
     """Get set of user IDs currently connected to the Stream call."""
     try:
-        stream_service = get_service(StreamServiceInterface)
+        stream_service = get_service(StreamServiceInterface)  # type: ignore[type-abstract]
         members = await stream_service.query_call_members(
             call_type=STREAM_CALL_TYPE,
             call_id=str(meeting_id),
@@ -258,9 +258,9 @@ async def _restore_original_host_in_db(meeting_id: UUID, original_host_id: UUID)
 
 async def _record_host_transfer(meeting_id: UUID, old_host_id: UUID, new_host_id: UUID) -> None:
     """Record host transfer in metrics and analytics."""
-    metrics_service = get_service(MetricsServiceInterface)
-    cache_service = get_service(CacheServiceInterface)
-    analytics_service = get_service(AnalyticsServiceInterface)
+    metrics_service = get_service(MetricsServiceInterface)  # type: ignore[type-abstract]
+    cache_service = get_service(CacheServiceInterface)  # type: ignore[type-abstract]
+    analytics_service = get_service(AnalyticsServiceInterface)  # type: ignore[type-abstract]
     
     metrics_service.increment_counter("host_transfers_total")
     

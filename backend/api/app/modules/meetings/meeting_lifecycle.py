@@ -81,12 +81,12 @@ async def _execute_meeting_cleanup_tasks(
     Each task is isolated with error handling to prevent cascading failures.
     """
     # Get service instances
-    analytics_service = get_service(AnalyticsServiceInterface)
-    stream_service = get_service(StreamServiceInterface)
-    event_service = get_service(EventServiceInterface)
-    chat_service = get_service(ChatServiceInterface)
-    cache_service = get_service(CacheServiceInterface)
-    transcript_service = get_service(TranscriptServiceInterface)
+    analytics_service = get_service(AnalyticsServiceInterface)  # type: ignore[type-abstract]
+    stream_service = get_service(StreamServiceInterface)  # type: ignore[type-abstract]
+    event_service = get_service(EventServiceInterface)  # type: ignore[type-abstract]
+    chat_service = get_service(ChatServiceInterface)  # type: ignore[type-abstract]
+    cache_service = get_service(CacheServiceInterface)  # type: ignore[type-abstract]
+    transcript_service = get_service(TranscriptServiceInterface)  # type: ignore[type-abstract]
 
     # Finalize analytics data
     try:
@@ -117,7 +117,10 @@ async def _execute_meeting_cleanup_tasks(
         await transcript_service.expire_meeting_keys(cache_service, meeting_id)
         await cache_service.delete_keys(
             f"assistant_enabled:{meeting_id}", 
-            f"meeting:{meeting_id}:removed_users"
+            f"meeting:{meeting_id}:removed_users",
+            f"meeting:host_id:{meeting_id}",
+            f"assistant:pending_q:{meeting_id}",
+            f"assistant:ext_approved:{meeting_id}"
         )
     except Exception:
         logger.exception("cache_cleanup_failed meeting_id=%s", meeting_id)

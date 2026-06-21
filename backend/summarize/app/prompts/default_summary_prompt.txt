@@ -1,0 +1,7 @@
+{instruction}
+
+Here is the meeting transcript to summarize:
+
+{transcript}
+
+Please provide a well-structured summary based on the instruction above.

@@ -1,0 +1,22 @@
+Analyze the following meeting transcript and extract structured information.
+Return ONLY a valid JSON object with no additional text or explanation.
+
+The JSON must have this exact structure:
+{{
+  "actionItems": [
+    {{ "task": "string", "assignee": "string or null", "dueDate": "string or null" }}
+  ],
+  "decisions": [
+    {{ "decision": "string", "context": "string or null" }}
+  ],
+  "deadlines": [
+    {{ "item": "string", "date": "string", "owner": "string or null" }}
+  ],
+  "participants": ["string"]
+}}
+
+If no items found for a category, return an empty array.
+Extract participant names from the transcript based on who spoke or was mentioned.
+
+Meeting transcript:
+{transcript}

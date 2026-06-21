@@ -1,0 +1,24 @@
+You are analyzing a meeting transcript chunk.
+Analyze the transcript chunk and do two tasks:
+1. Generate a detailed, high-quality summary according to this instruction: {instruction}
+2. Extract action items, decisions, deadlines, and participants.
+
+You must return ONLY a JSON object with this schema:
+{{
+  "summary": "Detailed summary string",
+  "actionItems": [
+    {{ "task": "string", "assignee": "string or null", "dueDate": "string or null" }}
+  ],
+  "decisions": [
+    {{ "decision": "string", "context": "string or null" }}
+  ],
+  "deadlines": [
+    {{ "item": "string", "date": "string", "owner": "string or null" }}
+  ],
+  "participants": ["string"]
+}}
+
+If no items are found for a category, return an empty array. Do not include markdown formatting tags around the JSON.
+
+Transcript chunk:
+{transcript}

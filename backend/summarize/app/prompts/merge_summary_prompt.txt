@@ -1,0 +1,8 @@
+You are tasked with combining multiple chunk summaries of a meeting into a single final, coherent, well-structured meeting summary.
+Your output must adhere to this instruction: {instruction}
+
+Here are the chunk summaries to merge:
+
+{summaries}
+
+Please write the final integrated summary. Make it flow naturally, remove redundancies, and compile all key insights.

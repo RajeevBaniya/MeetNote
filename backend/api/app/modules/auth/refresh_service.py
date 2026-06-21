@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import Response
 
-from app.core.config import get_cookie_domain, get_refresh_token_days
+from app.core.config import COOKIE_DOMAIN, REFRESH_TOKEN_DAYS
 from app.core.jwt import create_access_token
 from app.core.metrics import incr
 from app.state.client import get_redis
@@ -15,10 +15,11 @@ from app.state.client import get_redis
 
 REFRESH_PREFIX = "refresh_token:"
 REFRESH_COOKIE_NAME = "refresh_token"
+CSRF_COOKIE_NAME = "csrf_token"
 
 
 def _refresh_ttl_seconds() -> int:
-    days = get_refresh_token_days()
+    days = REFRESH_TOKEN_DAYS
     return days * 24 * 60 * 60
 
 
@@ -46,7 +47,7 @@ def _new_refresh_token() -> str:
 
 
 def set_refresh_cookie(response: Response, token: str) -> None:
-    domain = get_cookie_domain()
+    domain = COOKIE_DOMAIN
     secure = bool(domain)
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
@@ -60,11 +61,37 @@ def set_refresh_cookie(response: Response, token: str) -> None:
 
 
 def clear_refresh_cookie(response: Response) -> None:
-    domain = get_cookie_domain()
+    domain = COOKIE_DOMAIN
     secure = bool(domain)
     response.delete_cookie(
         key=REFRESH_COOKIE_NAME,
         path="/auth/refresh",
+        domain=domain,
+        samesite="lax",
+        secure=secure,
+    )
+
+
+def set_csrf_cookie(response: Response, token: str) -> None:
+    domain = COOKIE_DOMAIN
+    secure = bool(domain)
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=token,
+        httponly=False,
+        secure=secure,
+        samesite="lax",
+        path="/",
+        domain=domain,
+    )
+
+
+def clear_csrf_cookie(response: Response) -> None:
+    domain = COOKIE_DOMAIN
+    secure = bool(domain)
+    response.delete_cookie(
+        key=CSRF_COOKIE_NAME,
+        path="/",
         domain=domain,
         samesite="lax",
         secure=secure,

@@ -29,6 +29,10 @@ async def redis_rpush(redis: Redis, key: str, *values: str) -> None:
     await cast(Awaitable[int], redis.rpush(key, *values))
 
 
+async def redis_lpush(redis: Redis, key: str, *values: str) -> None:
+    await cast(Awaitable[int], redis.lpush(key, *values))
+
+
 async def redis_lpop(redis: Redis, key: str) -> str | None:
     result = await cast(Awaitable[bytes | str | None], redis.lpop(key))
     if result is None:

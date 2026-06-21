@@ -1,13 +1,13 @@
 from redis.asyncio import Redis
 
-from app.core.redis import get_redis_url
+from app.core.config import REDIS_URL
 
 _client: Redis | None = None
 
 
 async def get_redis() -> Redis:
     global _client
-    url = get_redis_url()
+    url = REDIS_URL
     if not url:
         raise ValueError("REDIS_URL is required")
     if _client is None:

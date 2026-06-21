@@ -8,63 +8,50 @@ _env_file = _backend_dir / ".env"
 load_dotenv(_env_file)
 
 
-def get_database_url() -> str:
-    url = os.getenv("DATABASE_URL_SUMMEREASE")
-    if not url or not url.strip():
-        # Fallback to local test databases or throw
-        raise ValueError("DATABASE_URL_SUMMEREASE is required")
-    return url.strip()
+def _require_env(name: str) -> str:
+    val = os.getenv(name)
+    if not val or not val.strip():
+        raise ValueError(f"{name} is required")
+    return val.strip()
 
 
-def get_gemini_api_key() -> str:
-    key = os.getenv("GEMINI_API_KEY_SUMMEREASE")
-    if not key or not key.strip():
-        raise ValueError("GEMINI_API_KEY_SUMMEREASE is required")
-    return key.strip()
+def _get_int(name: str) -> int:
+    return int(_require_env(name))
 
 
-def get_gemini_model() -> str:
-    model = os.getenv("GEMINI_MODEL_SUMMEREASE", "gemini-2.5-flash")
-    return model.strip()
+def _get_float(name: str) -> float:
+    return float(_require_env(name))
 
 
-def get_gmail_user_email() -> str:
-    email = os.getenv("GMAIL_USER_EMAIL")
-    if not email or not email.strip():
-        raise ValueError("GMAIL_USER_EMAIL is required")
-    return email.strip()
+# --- Mandatory Configurations (No defaults in code, must exist in .env) ---
+DATABASE_URL_SUMMEREASE = _require_env("DATABASE_URL_SUMMEREASE")
+GEMINI_API_KEY_SUMMEREASE = _require_env("GEMINI_API_KEY_SUMMEREASE")
+GEMINI_MODEL_SUMMEREASE = _require_env("GEMINI_MODEL_SUMMEREASE")
+GMAIL_USER_EMAIL = _require_env("GMAIL_USER_EMAIL")
+GOOGLE_REDIRECT_URI = _require_env("GOOGLE_REDIRECT_URI")
+JWT_SECRET = _require_env("JWT_SECRET")
 
+# S3 Configurations
+S3_ENDPOINT_URL = _require_env("S3_ENDPOINT_URL")
+S3_ACCESS_KEY_ID = _require_env("S3_ACCESS_KEY_ID")
+S3_SECRET_ACCESS_KEY = _require_env("S3_SECRET_ACCESS_KEY")
+S3_BUCKET_NAME = _require_env("S3_BUCKET_NAME")
 
-def get_google_redirect_uri() -> str:
-    uri = os.getenv("GOOGLE_REDIRECT_URI", "https://developers.google.com/oauthplayground")
-    return uri.strip()
+# CORS Origins (loaded exclusively from env)
+_origins_str = _require_env("CORS_ORIGINS")
+CORS_ORIGINS = [origin.strip() for origin in _origins_str.split(",") if origin.strip()]
 
+# Summerease Specific Configurations (loaded exclusively from env)
+_supported_exts_raw = _require_env("SUMMEREASE_SUPPORTED_EXTENSIONS")
+SUMMEREASE_SUPPORTED_EXTENSIONS = [ext.strip() for ext in _supported_exts_raw.split(",") if ext.strip()]
 
-def get_jwt_secret() -> str:
-    secret = os.getenv("JWT_SECRET")
-    if not secret or not secret.strip():
-        raise ValueError("JWT_SECRET is required")
-    return secret.strip()
+SUMMEREASE_MAX_FILE_SIZE = _get_int("SUMMEREASE_MAX_FILE_SIZE")
+SUMMEREASE_POLL_INTERVAL = _get_float("SUMMEREASE_POLL_INTERVAL")
+SUMMEREASE_RECOVERY_INTERVAL = _get_float("SUMMEREASE_RECOVERY_INTERVAL")
+SUMMEREASE_ERROR_INTERVAL = _get_float("SUMMEREASE_ERROR_INTERVAL")
 
+SUMMEREASE_MAX_RETRIES = _get_int("SUMMEREASE_MAX_RETRIES")
+SUMMEREASE_THROTTLE_DELAY = _get_float("SUMMEREASE_THROTTLE_DELAY")
 
-def get_cors_origins() -> list[str]:
-    origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000")
-    return [origin.strip() for origin in origins_str.split(",") if origin.strip()]
-
-
-def get_upload_dir() -> str:
-    default_dir = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        "uploads",
-    )
-    path = os.getenv("SUMMEREASE_UPLOAD_DIR", default_dir)
-    os.makedirs(path, exist_ok=True)
-    return os.path.abspath(path)
-
-
-def get_failed_retention_hours() -> int:
-    raw = os.getenv("SUMMEREASE_FAILED_RETENTION_HOURS", "24")
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 24
+# --- Optional Configurations (Kept fallback defaults only for truly optional configuration) ---
+PORT = int(os.getenv("PORT", "8002"))

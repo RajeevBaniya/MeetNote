@@ -5,16 +5,16 @@ from sqlalchemy import select
 
 from app.state.client import get_redis
 from app.core.config import (
-    get_database_url,
-    get_jwt_secret,
-    get_stream_api_key,
-    get_stream_webhook_secret,
-    is_rag_enabled,
+    DATABASE_URL,
+    JWT_SECRET,
+    STREAM_API_KEY,
+    STREAM_WEBHOOK_SECRET,
+    ENABLE_RAG,
+    REDIS_URL,
 )
 from app.core.database_setup import ensure_database_schema
 from app.core.error_monitoring import initialize_error_monitoring, run_worker_with_sentry
 from app.core.metrics import init_metrics_worker, set_gauge
-from app.core.redis import get_redis_url
 from app.db.base import engine
 from app.db.models import Meeting
 from app.db.session import async_session_factory
@@ -32,12 +32,12 @@ async def validate_environment() -> None:
     Validates that all required environment variables are set.
     Raises ValueError if any critical configuration is missing.
     """
-    get_database_url()
-    get_jwt_secret()
-    get_stream_api_key()
-    get_stream_webhook_secret()
+    DATABASE_URL
+    JWT_SECRET
+    STREAM_API_KEY
+    STREAM_WEBHOOK_SECRET
 
-    if not get_redis_url():
+    if not REDIS_URL:
         raise ValueError("REDIS_URL is required")
 
 
@@ -64,7 +64,7 @@ async def initialize_application() -> asyncio.Task | None:
         asyncio.create_task(
             run_worker_with_sentry("meeting_cleanup_worker", run_meeting_cleanup_worker)
         )
-        if is_rag_enabled():
+        if ENABLE_RAG:
             asyncio.create_task(
                 run_worker_with_sentry("rag_ingestion_worker", run_rag_ingestion_worker)
             )

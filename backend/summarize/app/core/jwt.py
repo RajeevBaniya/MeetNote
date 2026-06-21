@@ -1,10 +1,10 @@
 from uuid import UUID
 from jose import JWTError, jwt
-from app.core.config import get_jwt_secret
+from app.core.config import JWT_SECRET
 
 
 def decode_access_token(token: str) -> dict:
-    secret = get_jwt_secret()
+    secret = JWT_SECRET
     return jwt.decode(token, secret, algorithms=["HS256"])
 
 

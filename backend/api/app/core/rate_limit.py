@@ -5,9 +5,12 @@ from fastapi import Depends, HTTPException, Request
 from redis.asyncio import Redis
 
 from app.core.config import (
-    get_rate_limit_requests,
-    get_rate_limit_window_seconds,
-    get_stream_token_rate_limit_requests,
+    RATE_LIMIT_REQUESTS,
+    RATE_LIMIT_WINDOW_SECONDS,
+    STREAM_TOKEN_RATE_LIMIT_REQUESTS,
+    STREAM_TOKEN_WINDOW_SECONDS,
+    MEETING_JOIN_LIMIT,
+    MEETING_JOIN_WINDOW_SECONDS,
 )
 from app.modules.auth.deps import get_current_user_id, get_current_user_optional
 from app.state.client import get_redis
@@ -19,9 +22,6 @@ KEY_PREFIX_STREAM_TOKEN = "ratelimit:streamtoken"
 KEY_PREFIX_MEETING_JOIN = "ratelimit:join"
 WS_CONNECTION_PREFIX = f"{KEY_PREFIX_GENERAL}:ws"
 
-STREAM_TOKEN_WINDOW_SECONDS = 60
-MEETING_JOIN_LIMIT = 20
-MEETING_JOIN_WINDOW_SECONDS = 60
 
 
 async def check_rate_limit(
@@ -58,8 +58,8 @@ async def rate_limit_by_identifier(
     window_seconds: int | None = None,
     key_prefix: str = KEY_PREFIX_GENERAL,
 ) -> None:
-    limit = limit or get_rate_limit_requests()
-    window_seconds = window_seconds or get_rate_limit_window_seconds()
+    limit = limit or RATE_LIMIT_REQUESTS
+    window_seconds = window_seconds or RATE_LIMIT_WINDOW_SECONDS
     if user_id is not None:
         identifier = f"user:{user_id}"
     else:
@@ -88,8 +88,8 @@ async def rate_limit_general(
     await rate_limit_by_identifier(
         request,
         user_id,
-        limit=get_rate_limit_requests(),
-        window_seconds=get_rate_limit_window_seconds(),
+        limit=RATE_LIMIT_REQUESTS,
+        window_seconds=RATE_LIMIT_WINDOW_SECONDS,
         key_prefix=KEY_PREFIX_GENERAL,
     )
 
@@ -101,7 +101,7 @@ async def rate_limit_stream_token(
     await rate_limit_by_identifier(
         request,
         user_id,
-        limit=get_stream_token_rate_limit_requests(),
+        limit=STREAM_TOKEN_RATE_LIMIT_REQUESTS,
         window_seconds=STREAM_TOKEN_WINDOW_SECONDS,
         key_prefix=KEY_PREFIX_STREAM_TOKEN,
     )
@@ -125,6 +125,6 @@ async def rate_limit_ws_for_user(user_id: UUID) -> bool:
     return await check_rate_limit(
         redis,
         key,
-        limit=get_rate_limit_requests(),
-        window_seconds=get_rate_limit_window_seconds(),
+        limit=RATE_LIMIT_REQUESTS,
+        window_seconds=RATE_LIMIT_WINDOW_SECONDS,
     )

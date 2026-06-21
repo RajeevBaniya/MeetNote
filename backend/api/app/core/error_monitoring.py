@@ -1,12 +1,12 @@
 import asyncio
 import logging
-import os
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 
+from app.core.config import SENTRY_DSN
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def initialize_error_monitoring() -> None:
     if _sentry_enabled:
         return
 
-    dsn = os.getenv("SENTRY_DSN")
+    dsn = SENTRY_DSN
     if not dsn:
         return
 

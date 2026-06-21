@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
 
 _backend_dir = Path(__file__).resolve().parent.parent.parent.parent
@@ -8,173 +7,117 @@ _env_file = _backend_dir / ".env"
 load_dotenv(_env_file)
 
 
-def get_database_url() -> str:
-    url = os.getenv("DATABASE_URL")
-    if not url or not url.strip():
-        raise ValueError("DATABASE_URL is required")
-    return url.strip()
+def _require_env(name: str) -> str:
+    val = os.getenv(name)
+    if not val or not val.strip():
+        raise ValueError(f"{name} is required")
+    return val.strip()
 
 
-def get_jwt_secret() -> str:
-    secret = os.getenv("JWT_SECRET")
-    if not secret or not secret.strip():
-        raise ValueError("JWT_SECRET is required")
-    return secret.strip()
+def _get_int(name: str) -> int:
+    val = _require_env(name)
+    return int(val)
 
 
-def get_jwt_expire_minutes() -> int:
-    raw = os.getenv("JWT_EXPIRE_MINUTES", "15")
-    try:
-        return int(raw)
-    except ValueError:
-        return 15
+def _get_float(name: str) -> float:
+    val = _require_env(name)
+    return float(val)
 
 
-def get_stream_api_key() -> str:
-    key = os.getenv("STREAM_API_KEY")
-    if not key or not key.strip():
-        raise ValueError("STREAM_API_KEY is required")
-    return key.strip()
+def _get_bool(name: str) -> bool:
+    val = _require_env(name)
+    return val.lower() in ("true", "1", "yes")
 
 
-def get_stream_api_secret() -> str:
-    secret = os.getenv("STREAM_API_SECRET")
-    if not secret or not secret.strip():
-        raise ValueError("STREAM_API_SECRET is required")
-    return secret.strip()
+# --- Mandatory Configurations (No defaults in code, must exist in .env) ---
+DATABASE_URL = _require_env("DATABASE_URL")
+JWT_SECRET = _require_env("JWT_SECRET")
+JWT_EXPIRE_MINUTES = _get_int("JWT_EXPIRE_MINUTES")
+
+STREAM_API_KEY = _require_env("STREAM_API_KEY")
+STREAM_API_SECRET = _require_env("STREAM_API_SECRET")
+STREAM_WEBHOOK_SECRET = _require_env("STREAM_WEBHOOK_SECRET")
+
+GROQ_API_KEY_CHUNK = _require_env("GROQ_API_KEY_CHUNK")
+GROQ_TRANSCRIPT_CORRECTION = _require_env("GROQ_TRANSCRIPT_CORRECTION")
+GEMINI_API_KEY = _require_env("GEMINI_API_KEY")
+
+REDIS_URL = _require_env("REDIS_URL")
+
+APP_BASE_URL = _require_env("APP_BASE_URL")
+if APP_BASE_URL.endswith("/"):
+    APP_BASE_URL = APP_BASE_URL[:-1]
+
+FRONTEND_BASE_URL = APP_BASE_URL
+FRONTEND_BASE_URL_REQUIRED = APP_BASE_URL
+
+# CORS Origins loaded exclusively from env
+_origins_str = _require_env("CORS_ORIGINS")
+CORS_ORIGINS = [origin.strip() for origin in _origins_str.split(",") if origin.strip()]
+
+# RAG Ingestion and Core Settings
+ENABLE_RAG = _get_bool("ENABLE_RAG")
+MAX_CHUNKS_PER_QUERY = _get_int("MAX_CHUNKS_PER_QUERY")
+MAX_EMBEDDING_CALLS_PER_MINUTE = _get_int("MAX_EMBEDDING_CALLS_PER_MINUTE")
+
+TRANSCRIPT_SIMILARITY_THRESHOLD = _get_float("TRANSCRIPT_SIMILARITY_THRESHOLD")
+SUMMARY_SIMILARITY_THRESHOLD = _get_float("SUMMARY_SIMILARITY_THRESHOLD")
+DOCUMENT_SIMILARITY_THRESHOLD = _get_float("DOCUMENT_SIMILARITY_THRESHOLD")
+
+# Stream API Settings
+STREAM_TOKEN_EXPIRY_SECONDS = _get_int("STREAM_TOKEN_EXPIRY_SECONDS")
+STREAM_TOKEN_WINDOW_SECONDS = _get_int("STREAM_TOKEN_WINDOW_SECONDS")
+STREAM_TOKEN_RATE_LIMIT_REQUESTS = _get_int("STREAM_TOKEN_RATE_LIMIT_REQUESTS")
+
+# Meeting Limitations
+MEETING_JOIN_LIMIT = _get_int("MEETING_JOIN_LIMIT")
+MEETING_JOIN_WINDOW_SECONDS = _get_int("MEETING_JOIN_WINDOW_SECONDS")
+
+# Chat Buffers and Cache TTLs
+CHAT_BUFFER_MAX_LEN = _get_int("CHAT_BUFFER_MAX_LEN")
+CHAT_BUFFER_TTL_SECONDS = _get_int("CHAT_BUFFER_TTL_SECONDS")
+TRANSCRIPT_SEGMENT_THRESHOLD = _get_int("TRANSCRIPT_SEGMENT_THRESHOLD")
+MUTEX_LOCK_TTL_SECONDS = _get_int("MUTEX_LOCK_TTL_SECONDS")
+ACTIVE_MEETING_CACHE_TTL = _get_int("ACTIVE_MEETING_CACHE_TTL")
+ENDED_MEETING_CACHE_TTL = _get_int("ENDED_MEETING_CACHE_TTL")
+
+# Ingestion buffering and timing
+TRANSCRIPT_BUFFER_MAX_SEGMENTS = _get_int("TRANSCRIPT_BUFFER_MAX_SEGMENTS")
+TRANSCRIPT_COMMIT_WINDOW_SECONDS = _get_float("TRANSCRIPT_COMMIT_WINDOW_SECONDS")
+
+# Host transfer locks and delays
+HOST_TRANSFER_DEBOUNCE_SECONDS = _get_int("HOST_TRANSFER_DEBOUNCE_SECONDS")
+HOST_TRANSFER_LOCK_TTL_SECONDS = _get_int("HOST_TRANSFER_LOCK_TTL_SECONDS")
+
+# Meeting cleanup background workers
+MEETING_STALE_CLEANUP_HOURS = _get_int("MEETING_STALE_CLEANUP_HOURS")
+MEETING_CLEANUP_INTERVAL_SECONDS = _get_int("MEETING_CLEANUP_INTERVAL_SECONDS")
+
+# Rate Limiting
+RATE_LIMIT_REQUESTS = _get_int("RATE_LIMIT_REQUESTS")
+RATE_LIMIT_WINDOW_SECONDS = _get_int("RATE_LIMIT_WINDOW_SECONDS")
+REFRESH_TOKEN_DAYS = _get_int("REFRESH_TOKEN_DAYS")
+
+# Assistant displays and embedding models
+ASSISTANT_DISPLAY_NAME = _require_env("ASSISTANT_DISPLAY_NAME")
+GEMINI_EMBEDDING_MODEL_NAME = _require_env("GEMINI_EMBEDDING_MODEL_NAME")
+
+# Error monitoring
+SENTRY_DSN = _require_env("SENTRY_DSN")
 
 
-def get_stream_webhook_secret() -> str:
-    secret = os.getenv("STREAM_WEBHOOK_SECRET")
-    if not secret or not secret.strip():
-        raise ValueError("STREAM_WEBHOOK_SECRET is required")
-    return secret.strip()
+# --- Optional Configurations (Kept fallback defaults only for truly optional configuration) ---
+COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN")
+if COOKIE_DOMAIN:
+    COOKIE_DOMAIN = COOKIE_DOMAIN.strip() or None
+else:
+    COOKIE_DOMAIN = None
 
+PORT = int(os.getenv("PORT", "8001"))
 
-def get_groq_chunk_api_key() -> str:
-    key = os.getenv("GROQ_API_KEY_CHUNK")
-    if not key or not key.strip():
-        raise ValueError("GROQ_API_KEY_CHUNK is required")
-    return key.strip()
-
-
-def get_groq_chunk_model() -> str:
-    model = os.getenv("GROQ_CHUNK_MODEL", "llama-3.1-8b-instant")
-    return model.strip() or "llama-3.1-8b-instant"
-
-
-def get_groq_transcript_correction_key() -> str:
-    key = os.getenv("GROQ_TRANSCRIPT_CORRECTION")
-    if not key or not key.strip():
-        raise ValueError("GROQ_TRANSCRIPT_CORRECTION is required")
-    return key.strip()
-
-
-def get_rate_limit_requests() -> int:
-    raw = os.getenv("RATE_LIMIT_REQUESTS", "60")
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 60
-
-
-def get_rate_limit_window_seconds() -> int:
-    raw = os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 60
-
-
-def get_stream_token_rate_limit_requests() -> int:
-    raw = os.getenv("STREAM_TOKEN_RATE_LIMIT_REQUESTS", "5")
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 5
-
-
-def get_app_base_url() -> str:
-    raw = os.getenv("APP_BASE_URL")
-    if not raw or not raw.strip():
-        raise ValueError("APP_BASE_URL is required")
-    base = raw.strip()
-    return base[:-1] if base.endswith("/") else base
-
-
-def get_refresh_token_days() -> int:
-    raw = os.getenv("REFRESH_TOKEN_DAYS", "14")
-    try:
-        days = int(raw)
-    except ValueError:
-        days = 14
-    return max(7, min(days, 30))
-
-
-def get_cookie_domain() -> str | None:
-    raw = os.getenv("COOKIE_DOMAIN")
-    if not raw:
-        return None
-    domain = raw.strip()
-    return domain or None
-
-
-def get_frontend_base_url() -> str:
-    raw = os.getenv("APP_BASE_URL", "http://localhost:3000")
-    base = (raw or "").strip()
-    if not base:
-        return "http://localhost:3000"
-    return base.rstrip("/")
-
-
-def get_frontend_base_url_required() -> str:
-    raw = os.getenv("APP_BASE_URL")
-    if not raw or not raw.strip():
-        raise ValueError("APP_BASE_URL is required for share links")
-    return raw.strip().rstrip("/")
-
-
-def is_rag_enabled() -> bool:
-    raw = os.getenv("ENABLE_RAG", "false").lower()
-    return raw in ("true", "1", "yes")
-
-
-def get_max_chunks_per_query() -> int:
-    raw = os.getenv("MAX_CHUNKS_PER_QUERY", "5")
-    try:
-        return int(raw)
-    except ValueError:
-        return 5
-
-
-def get_max_embedding_calls_per_minute() -> int:
-    raw = os.getenv("MAX_EMBEDDING_CALLS_PER_MINUTE", "120")
-    try:
-        return int(raw)
-    except ValueError:
-        return 120
-
-
-def get_transcript_similarity_threshold() -> float:
-    raw = os.getenv("TRANSCRIPT_SIMILARITY_THRESHOLD", "0.70")
-    try:
-        return float(raw)
-    except ValueError:
-        return 0.70
-
-
-def get_summary_similarity_threshold() -> float:
-    raw = os.getenv("SUMMARY_SIMILARITY_THRESHOLD", "0.75")
-    try:
-        return float(raw)
-    except ValueError:
-        return 0.75
-
-
-def get_document_similarity_threshold() -> float:
-    raw = os.getenv("DOCUMENT_SIMILARITY_THRESHOLD", "0.70")
-    try:
-        return float(raw)
-    except ValueError:
-        return 0.70
-
+# Fallbacks to other environment variables which exist in .env
+GROQ_CHUNK_MODEL = os.getenv("GROQ_CHUNK_MODEL") or _require_env("GROQ_MODEL")
+GEMINI_CORRECTION_MODEL_NAME = (
+    os.getenv("GEMINI_CORRECTION_MODEL_NAME")
+    or _require_env("GEMINI_MODEL_SUMMEREASE")
+)

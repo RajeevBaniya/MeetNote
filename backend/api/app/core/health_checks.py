@@ -2,10 +2,9 @@ from fastapi.responses import JSONResponse
 import logging
 from sqlalchemy import text
 
-from app.core.config import get_database_url
+from app.core.config import DATABASE_URL, REDIS_URL
 from app.core.dependencies import get_service
 from app.core.interfaces import CacheServiceInterface
-from app.core.redis import get_redis_url
 from app.db.session import async_session_factory
 
 logger = logging.getLogger(__name__)
@@ -56,7 +55,7 @@ async def _check_database_health() -> str:
 
 async def _check_redis_health() -> str:
     """Test Redis connectivity."""
-    if not get_redis_url():
+    if not REDIS_URL:
         return "error"
     
     try:
@@ -70,6 +69,6 @@ async def _check_redis_health() -> str:
 
 def _check_stream_config() -> str:
     """Check if Stream configuration is present."""
-    if not get_database_url():
+    if not DATABASE_URL:
         return "unknown"
     return "ok"

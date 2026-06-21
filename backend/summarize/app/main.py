@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.core.config import get_cors_origins
+from app.core.config import CORS_ORIGINS
 from app.core.logging import configure_logging
 from app.routers.email import router as email_router
 from app.routers.export import router as export_router
@@ -14,6 +14,7 @@ from app.routers.upload import router as upload_router
 from app.routers.jobs import router as jobs_router
 from app.db.base import engine
 from app.core.database_setup import ensure_database_schema
+from app.core.storage import get_s3_config, get_s3_client
 from app.services.worker import DocumentProcessingWorker
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,14 @@ async def lifespan(app: FastAPI):
         await ensure_database_schema(engine)
     except Exception as exc:
         logger.critical("startup_migration_failed", exc_info=exc)
+        raise exc
+    
+    try:
+        config = get_s3_config()
+        async with get_s3_client() as s3:
+            await s3.head_bucket(Bucket=config["bucket_name"])
+    except Exception as exc:
+        logger.critical("startup_s3_config_missing", exc_info=exc)
         raise exc
     
     worker.start()
@@ -47,7 +56,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         "unhandled_summarize_exception",
         exc_info=exc,
     )
-    cors_origins = get_cors_origins()
+    cors_origins = CORS_ORIGINS
     origin = request.headers.get("origin")
     if origin not in cors_origins:
         origin = cors_origins[0] if cors_origins else "*"
@@ -64,7 +73,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # Configure CORS
-cors_origins = get_cors_origins()
+cors_origins = CORS_ORIGINS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
@@ -89,8 +98,7 @@ async def root() -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    import os
     import uvicorn
+    from app.core.config import PORT
     # Default to 8002 for the FastAPI Summarize service
-    port = int(os.getenv("PORT", "8002"))
-    uvicorn.run("app.main:app", host="127.0.0.1", port=port, reload=True)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=PORT, reload=True)

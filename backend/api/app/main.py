@@ -15,6 +15,7 @@ from app.core.request_id import RequestIdMiddleware
 from app.core.startup_tasks import initialize_application
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.refresh_router import router as auth_refresh_router
+from app.modules.auth.ws_ticket import router as auth_ws_ticket_router
 from app.modules.join.router import router as join_router
 from app.modules.meetings.router import router as meetings_router
 from app.modules.stream_tokens.router import router as stream_tokens_router
@@ -24,8 +25,8 @@ from app.modules.recordings.router import router as recordings_router
 from app.modules.transcripts.webhook import router as transcript_webhook_router
 from app.modules.transcripts.websocket import transcript_websocket
 from app.state.client import close_redis
+from app.core.config import CORS_ORIGINS
 
-CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 logger = logging.getLogger(__name__)
 
 
@@ -83,6 +84,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(auth_refresh_router)
+app.include_router(auth_ws_ticket_router)
 app.include_router(meetings_router)
 app.include_router(join_router)
 app.include_router(stream_tokens_router)
@@ -147,7 +149,6 @@ async def metrics() -> Response:
 
 
 if __name__ == "__main__":
-    import os
     import uvicorn
-    port = int(os.getenv("PORT", "8001"))
-    uvicorn.run("app.main:app", host="127.0.0.1", port=port, reload=True)
+    from app.core.config import PORT
+    uvicorn.run("app.main:app", host="127.0.0.1", port=PORT, reload=True)

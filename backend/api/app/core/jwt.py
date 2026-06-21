@@ -4,12 +4,12 @@ from uuid import UUID
 
 from jose import JWTError, jwt
 
-from app.core.config import get_jwt_expire_minutes, get_jwt_secret
+from app.core.config import JWT_EXPIRE_MINUTES, JWT_SECRET
 
 
 def create_access_token(user_id: UUID, email: str) -> str:
-    secret = get_jwt_secret()
-    expire_minutes = get_jwt_expire_minutes()
+    secret = JWT_SECRET
+    expire_minutes = JWT_EXPIRE_MINUTES
     expire = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
     payload = {
         "sub": str(user_id),
@@ -20,7 +20,7 @@ def create_access_token(user_id: UUID, email: str) -> str:
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
-    secret = get_jwt_secret()
+    secret = JWT_SECRET
     payload = jwt.decode(token, secret, algorithms=["HS256"])
     if not isinstance(payload, dict):
         raise JWTError("Invalid payload type")

@@ -169,36 +169,6 @@ class ProcessedSegment(Base):
         primary_key=True,
     )
 
-
-class MeetingOutbox(Base):
-    __tablename__ = "meeting_outbox"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
-    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
-    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    max_attempts: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
-    last_attempt_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-    processing_started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-
 class MeetingTranscriptChunk(Base):
     __tablename__ = "meeting_transcript_chunks"
     __table_args__ = (

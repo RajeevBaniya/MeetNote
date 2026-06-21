@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-from app.core.config import get_database_url
+from app.core.config import DATABASE_URL
 
 
 class Base(DeclarativeBase):
@@ -25,7 +25,7 @@ def _async_url(url: str) -> tuple[str, bool]:
     return clean, need_ssl
 
 
-_db_url, _db_need_ssl = _async_url(get_database_url())
+_db_url, _db_need_ssl = _async_url(DATABASE_URL)
 _connect_args = {"ssl": True} if _db_need_ssl else {}
 engine = create_async_engine(
     _db_url,

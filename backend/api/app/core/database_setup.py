@@ -2,6 +2,8 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
+from app.core.config import ENABLE_RAG
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +22,8 @@ async def ensure_database_schema(engine: AsyncEngine) -> None:
             await _create_recordings_indexes(conn)
             await _ensure_lifecycle_constraints(conn)
             await _create_outbox_table(conn)
+            if ENABLE_RAG:
+                await _create_rag_tables(conn)
     except Exception as exc:
         logger.exception("database_schema_setup_failed")
         raise RuntimeError("Database schema setup failed") from exc
@@ -255,3 +259,114 @@ async def _ensure_lifecycle_constraints(conn: AsyncConnection) -> None:
             )
         )
         logger.info("lifecycle_constraint_data_fixed")
+
+
+async def _create_rag_tables(conn: AsyncConnection) -> None:
+    """Create RAG tables and vector indexes if RAG is enabled."""
+    res = await conn.execute(
+        text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")
+    )
+    if not res.scalar():
+        logger.warning("pgvector extension is not available on this server; skipping RAG tables creation")
+        return
+
+    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS rag_failed_jobs ("
+            "id UUID PRIMARY KEY,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "chunk_type VARCHAR(32) NOT NULL,"
+            "payload JSONB NOT NULL,"
+            "status VARCHAR(20) NOT NULL DEFAULT 'failed',"
+            "attempts INT NOT NULL DEFAULT 0,"
+            "max_attempts INT NOT NULL DEFAULT 5,"
+            "last_attempt_at TIMESTAMPTZ NULL,"
+            "error_message TEXT NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+            ")"
+        )
+    )
+
+    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_rag_failed_jobs_status ON rag_failed_jobs(status)"))
+    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_rag_failed_jobs_attempts ON rag_failed_jobs(attempts)"))
+    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_rag_failed_jobs_last_attempt ON rag_failed_jobs(last_attempt_at)"))
+
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS meeting_transcript_chunks ("
+            "id UUID PRIMARY KEY,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "speaker_name TEXT NULL,"
+            "text_content TEXT NOT NULL,"
+            "text_hash VARCHAR(64) NOT NULL,"
+            "is_active BOOLEAN NOT NULL DEFAULT TRUE,"
+            "embedding vector(768) NOT NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "CONSTRAINT uq_meeting_transcript_chunk_hash UNIQUE(meeting_id, text_hash)"
+            ")"
+        )
+    )
+
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS meeting_summary_chunks ("
+            "id UUID PRIMARY KEY,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "text_content TEXT NOT NULL,"
+            "text_hash VARCHAR(64) NOT NULL,"
+            "embedding vector(768) NOT NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "CONSTRAINT uq_meeting_summary_chunk_hash UNIQUE(meeting_id, text_hash)"
+            ")"
+        )
+    )
+
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS meeting_documents ("
+            "id UUID PRIMARY KEY,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "filename VARCHAR(255) NOT NULL,"
+            "storage_url TEXT NOT NULL,"
+            "file_hash VARCHAR(64) NOT NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "CONSTRAINT uq_meeting_documents_hash UNIQUE(meeting_id, file_hash)"
+            ")"
+        )
+    )
+
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS meeting_document_chunks ("
+            "id UUID PRIMARY KEY,"
+            "document_id UUID NOT NULL REFERENCES meeting_documents(id) ON DELETE CASCADE,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "text_content TEXT NOT NULL,"
+            "text_hash VARCHAR(64) NOT NULL,"
+            "embedding vector(768) NOT NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "CONSTRAINT uq_meeting_document_chunks_hash UNIQUE(document_id, text_hash)"
+            ")"
+        )
+    )
+
+    await conn.execute(
+        text("CREATE INDEX IF NOT EXISTS idx_transcript_chunks_meeting_active ON meeting_transcript_chunks(meeting_id, is_active)")
+    )
+    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_summary_chunks_meeting ON meeting_summary_chunks(meeting_id)"))
+    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_meeting ON meeting_documents(meeting_id)"))
+    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_document_chunks_meeting ON meeting_document_chunks(meeting_id)"))
+    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_document_chunks_document ON meeting_document_chunks(document_id)"))
+
+    await conn.execute(
+        text("CREATE INDEX IF NOT EXISTS idx_transcript_chunks_embedding_hnsw ON meeting_transcript_chunks USING hnsw (embedding vector_cosine_ops)")
+    )
+    await conn.execute(
+        text("CREATE INDEX IF NOT EXISTS idx_summary_chunks_embedding_hnsw ON meeting_summary_chunks USING hnsw (embedding vector_cosine_ops)")
+    )
+    await conn.execute(
+        text("CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_hnsw ON meeting_document_chunks USING hnsw (embedding vector_cosine_ops)")
+    )

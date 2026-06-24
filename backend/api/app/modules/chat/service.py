@@ -4,13 +4,12 @@ from uuid import UUID
 
 from redis.asyncio import Redis
 
+from app.core.config import CHAT_BUFFER_MAX_LEN, CHAT_BUFFER_TTL_SECONDS
 from app.db.session import async_session_factory
 from app.modules.auth.service import get_user_by_id
 
 CHAT_BUFFER_KEY_PREFIX = "meeting:"
 CHAT_BUFFER_KEY_SUFFIX = ":chat_messages"
-CHAT_BUFFER_MAX_LEN = 50
-CHAT_BUFFER_TTL_SECONDS = 7200
 
 
 def _chat_buffer_key(meeting_id: UUID) -> str:

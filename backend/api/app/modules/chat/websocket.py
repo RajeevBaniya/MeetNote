@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from app.core.jwt import get_user_id_from_token
+
 from app.core.rate_limit import rate_limit_ws_for_user
 from app.core.ws_message_rate_limiter import allow_ws_message
 from app.db.session import async_session_factory
@@ -27,6 +27,7 @@ from app.state.client import get_redis
 from app.core.metrics import incr
 from app.core.dependencies import get_service
 from app.core.interfaces import ChatServiceInterface
+from app.modules.auth.ws_ticket import validate_ws_ticket
 
 WS_CLOSE_UNAUTHORIZED = 4401
 WS_CLOSE_FORBIDDEN = 4403
@@ -38,13 +39,8 @@ _connections: dict[UUID, list[tuple[WebSocket, UUID]]] = {}
 logger = logging.getLogger(__name__)
 
 
-def _get_bearer_token(websocket: WebSocket) -> str | None:
-    for name, value in websocket.scope.get("headers", []):
-        n = name.decode("utf-8").lower() if isinstance(name, bytes) else name.lower()
-        if n == "authorization":
-            v = value.decode("utf-8") if isinstance(value, bytes) else value
-            if v.lower().startswith("bearer "):
-                return v[7:].strip()
+
+def _get_ticket_from_query(websocket: WebSocket) -> str | None:
     raw = websocket.scope.get("query_string")
     if not raw:
         return None
@@ -52,7 +48,7 @@ def _get_bearer_token(websocket: WebSocket) -> str | None:
     for part in qs.split("&"):
         if "=" in part:
             k, v = part.split("=", 1)
-            if k.strip().lower() == "token":
+            if k.strip().lower() == "ticket":
                 return unquote(v.strip())
     return None
 
@@ -252,15 +248,55 @@ async def broadcast_host_changed(meeting_id: UUID, new_host_id: UUID) -> None:
         logger.error("Failed to publish host_changed event to Redis for meeting %s: %s", meeting_id, exc)
 
 
+global_user_events_task = None
+
+
+async def listen_to_global_user_events() -> None:
+    try:
+        redis = await get_redis()
+        pubsub = redis.pubsub()
+        await pubsub.psubscribe("user_events:*")
+        logger.info("Started global listener for user_events:*")
+        while True:
+            msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            if msg and msg.get("type") == "pmessage":
+                try:
+                    data = json.loads(msg["data"])
+                    if data.get("event") == "force_disconnect":
+                        user_id_str = data.get("user_id")
+                        if user_id_str:
+                            uid = UUID(user_id_str)
+                            # Disconnect across all meetings
+                            for m_id, connections in list(_connections.items()):
+                                for ws, client_uid in connections:
+                                    if client_uid == uid:
+                                        try:
+                                            await ws.close(code=1008, reason="Session terminated")
+                                        except Exception:
+                                            pass
+                except Exception as e:
+                    logger.error(f"Error processing global user event: {e}")
+            await asyncio.sleep(0.01)
+    except Exception as e:
+        logger.error(f"Global user events listener failed: {e}")
+
+
+async def start_global_user_events_listener():
+    global global_user_events_task
+    if global_user_events_task is None:
+        global_user_events_task = asyncio.create_task(listen_to_global_user_events())
+
+
 async def chat_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
+    await start_global_user_events_listener()
     await websocket.accept()
-    token = _get_bearer_token(websocket)
-    if not token:
-        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Missing or invalid token")
+    ticket = _get_ticket_from_query(websocket)
+    if not ticket:
+        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Missing or invalid ticket")
         return
-    user_id = get_user_id_from_token(token)
+    user_id = await validate_ws_ticket(ticket)
     if not user_id:
-        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Invalid or expired token")
+        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Invalid or expired ticket")
         return
     client_ip = (
         websocket.client.host

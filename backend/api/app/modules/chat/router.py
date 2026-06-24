@@ -1,11 +1,12 @@
+import json
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-import json
-import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
+from app.core.config import ASSISTANT_DISPLAY_NAME
 from app.core.jwt import decode_access_token
 from app.core.metrics import incr
 from app.db.session import async_session_factory
@@ -13,9 +14,8 @@ from app.modules.chat.service import append_message
 from app.modules.meetings.service import get_meeting_by_id
 from app.state.client import get_redis
 
-
 SYSTEM_USER_ID = "system:assistant"
-SYSTEM_DISPLAY_NAME = "Assistant"
+SYSTEM_DISPLAY_NAME = ASSISTANT_DISPLAY_NAME
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,6 @@ from app.core.jwt import create_access_token
 from app.core.metrics import incr
 from app.state.client import get_redis
 
-
 REFRESH_PREFIX = "refresh_token:"
 REFRESH_COOKIE_NAME = "refresh_token"
 CSRF_COOKIE_NAME = "csrf_token"

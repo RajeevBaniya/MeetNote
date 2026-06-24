@@ -1,20 +1,20 @@
+import secrets
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
-from app.db.session import get_session
 from app.db.models import User
+from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
-from app.modules.auth.schemas import LoginIn, RegisterIn, TokenOut, UserOut
-from app.modules.auth.service import authenticate_user, get_user_by_id, register_user
 from app.modules.auth.refresh_service import (
     issue_session_tokens,
-    set_refresh_cookie,
     set_csrf_cookie,
+    set_refresh_cookie,
 )
-import secrets
+from app.modules.auth.schemas import LoginIn, RegisterIn, TokenOut, UserOut
+from app.modules.auth.service import authenticate_user, get_user_by_id, register_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

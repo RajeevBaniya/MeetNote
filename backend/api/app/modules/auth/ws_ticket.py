@@ -1,14 +1,14 @@
 import json
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
-import logging
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.state.client import get_redis
 from app.modules.auth.deps import get_current_user_id
+from app.state.client import get_redis
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])

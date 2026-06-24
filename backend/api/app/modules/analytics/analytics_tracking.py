@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update, text, CursorResult
+from sqlalchemy import CursorResult, select, text, update
 
 from app.core.metrics import incr
 from app.db.models import Meeting, MeetingAnalytics, MeetingParticipantStats

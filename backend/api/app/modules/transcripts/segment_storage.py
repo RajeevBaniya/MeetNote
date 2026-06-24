@@ -4,8 +4,8 @@ from uuid import UUID
 
 from redis.asyncio import Redis
 
+from app.core.config import ENDED_MEETING_CACHE_TTL
 from app.modules.transcripts.redis_keys import (
-    POST_MEETING_TTL_SECONDS,
     buffer_key,
     chunks_initialized_key,
     chunks_key,
@@ -13,10 +13,10 @@ from app.modules.transcripts.redis_keys import (
     left_users_key,
     live_key,
     lock_key,
-    speakers_key,
+    seen_key,
     segments_key,
     seq_key,
-    seen_key,
+    speakers_key,
 )
 from app.modules.transcripts.transcript_stabilizer import append_and_stabilize_segment
 from app.state.redis_client import (
@@ -127,7 +127,7 @@ async def expire_transcript_keys(redis: Redis, meeting_id: UUID) -> None:
         corrected_segments_key(meeting_id),
     ]
     for key in keys_for_ttl:
-        await redis_expire(redis, key, POST_MEETING_TTL_SECONDS)
+        await redis_expire(redis, key, ENDED_MEETING_CACHE_TTL)
     await redis_delete(redis, left_users_key(meeting_id))
 
 

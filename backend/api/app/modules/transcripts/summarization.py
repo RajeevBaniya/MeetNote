@@ -1,31 +1,38 @@
-import logging
-from uuid import UUID
-import uuid
 import json
+import logging
+import uuid
 from datetime import datetime, timezone
+from uuid import UUID
 
 import httpx
 from redis.asyncio import Redis
 
-from app.core.config import get_groq_chunk_api_key, get_groq_chunk_model, is_rag_enabled
-from app.modules.transcripts.redis_keys import (
-    ACTIVE_MEETING_TTL_SECONDS,
-    CHUNK_LOCK_TTL_SECONDS,
+from app.core.config import (
+    ACTIVE_MEETING_CACHE_TTL,
+    ENABLE_RAG,
+    GROQ_API_KEY_CHUNK,
+    GROQ_CHUNK_MODEL,
+    MUTEX_LOCK_TTL_SECONDS,
     TRANSCRIPT_SEGMENT_THRESHOLD,
+)
+from app.modules.transcripts.redis_keys import (
     chunks_initialized_key,
     chunks_key,
     lock_key,
 )
-from app.modules.transcripts.segment_storage import get_live_transcript, get_transcript_segments
+from app.modules.transcripts.segment_storage import (
+    get_live_transcript,
+    get_transcript_segments,
+)
 from app.state.redis_client import (
     redis_delete,
     redis_expire,
     redis_get,
     redis_llen,
     redis_lpop,
+    redis_lpush,
     redis_lrange,
     redis_rpush,
-    redis_lpush,
     redis_set,
 )
 
@@ -34,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 async def _mark_chunks_ensure_initialized(redis: Redis, meeting_id: UUID) -> None:
     ikey = chunks_initialized_key(meeting_id)
-    await redis_set(redis, ikey, "1", ex=ACTIVE_MEETING_TTL_SECONDS)
+    await redis_set(redis, ikey, "1", ex=ACTIVE_MEETING_CACHE_TTL)
 
 
 async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) -> None:
@@ -97,9 +104,9 @@ async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) 
             continue
         if summary:
             await redis_rpush(redis, ckey, summary)
-            await redis_expire(redis, ckey, ACTIVE_MEETING_TTL_SECONDS)
+            await redis_expire(redis, ckey, ACTIVE_MEETING_CACHE_TTL)
             pushed_any = True
-            if is_rag_enabled():
+            if ENABLE_RAG:
                 from app.modules.rag.service import generate_chunk_hash
                 text_hash = generate_chunk_hash(meeting_id, summary)
                 rag_payload = {
@@ -124,7 +131,7 @@ async def ensure_summary_chunks_for_meeting_end(redis: Redis, meeting_id: UUID) 
 
 async def process_transcript_chunk(redis: Redis, meeting_id: UUID) -> None:
     lock = lock_key(meeting_id)
-    got_lock: bool = await redis_set(redis, lock, "1", nx=True, ex=CHUNK_LOCK_TTL_SECONDS)
+    got_lock: bool = await redis_set(redis, lock, "1", nx=True, ex=MUTEX_LOCK_TTL_SECONDS)
     if not got_lock:
         return
     try:
@@ -142,8 +149,8 @@ async def process_transcript_chunk(redis: Redis, meeting_id: UUID) -> None:
         if summary:
             ckey = chunks_key(meeting_id)
             await redis_rpush(redis, ckey, summary)
-            await redis_expire(redis, ckey, ACTIVE_MEETING_TTL_SECONDS)
-            if is_rag_enabled():
+            await redis_expire(redis, ckey, ACTIVE_MEETING_CACHE_TTL)
+            if ENABLE_RAG:
                 from app.modules.rag.service import generate_chunk_hash
                 text_hash = generate_chunk_hash(meeting_id, summary)
                 rag_payload = {
@@ -172,8 +179,8 @@ async def generate_final_summary(redis: Redis, meeting_id: UUID) -> str:
 
 
 async def _summarize_text(text: str, purpose: str) -> str:
-    api_key = get_groq_chunk_api_key()
-    model = get_groq_chunk_model()
+    api_key = GROQ_API_KEY_CHUNK
+    model = GROQ_CHUNK_MODEL
     url = "https://api.groq.com/openai/v1/chat/completions"
 
     if purpose == "chunk":

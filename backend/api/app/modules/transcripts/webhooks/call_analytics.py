@@ -1,7 +1,6 @@
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
-
-import logging
 
 from app.modules.analytics.service import (
     record_participant_join,

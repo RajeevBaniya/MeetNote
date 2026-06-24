@@ -6,10 +6,10 @@ from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from app.core.jwt import get_user_id_from_token
 from app.core.metrics import incr
 from app.core.rate_limit import rate_limit_ws_for_user
 from app.core.ws_message_rate_limiter import allow_ws_message
+from app.modules.auth.ws_ticket import validate_ws_ticket
 from app.modules.transcripts.broadcaster import _pub_channel
 from app.modules.transcripts.service import (
     get_transcript_segments,
@@ -17,13 +17,12 @@ from app.modules.transcripts.service import (
 )
 from app.state.client import get_redis
 
-
 logger = logging.getLogger(__name__)
 
 WS_CLOSE_UNAUTHORIZED = 4401
 
 
-def _get_token(websocket: WebSocket) -> str | None:
+def _get_ticket_from_query(websocket: WebSocket) -> str | None:
     raw = websocket.scope.get("query_string")
     if not raw:
         return None
@@ -31,7 +30,7 @@ def _get_token(websocket: WebSocket) -> str | None:
     for part in qs.split("&"):
         if "=" in part:
             k, v = part.split("=", 1)
-            if k.strip().lower() == "token":
+            if k.strip().lower() == "ticket":
                 return unquote(v.strip())
     return None
 
@@ -39,14 +38,14 @@ def _get_token(websocket: WebSocket) -> str | None:
 async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
     await websocket.accept()
 
-    token = _get_token(websocket)
-    if not token:
-        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Missing token")
+    ticket = _get_ticket_from_query(websocket)
+    if not ticket:
+        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Missing ticket")
         return
 
-    user_id = get_user_id_from_token(token)
+    user_id = await validate_ws_ticket(ticket)
     if not user_id:
-        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Invalid token")
+        await websocket.close(code=WS_CLOSE_UNAUTHORIZED, reason="Invalid ticket")
         return
     registered = False
     client_ip = (
@@ -120,7 +119,8 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
 
         pubsub = redis.pubsub()
         channel = _pub_channel(meeting_id)
-        await pubsub.subscribe(channel)
+        user_channel = f"user_events:{user_id}"
+        await pubsub.subscribe(channel, user_channel)
 
         stop_event = asyncio.Event()
 
@@ -152,6 +152,13 @@ async def transcript_websocket(websocket: WebSocket, meeting_id: UUID) -> None:
                             payload = json.loads(msg["data"])
                         except (json.JSONDecodeError, TypeError, KeyError):
                             continue
+                        if payload.get("event") == "force_disconnect":
+                            try:
+                                await websocket.close(code=1008, reason="Session terminated")
+                            except Exception:
+                                pass
+                            stop_event.set()
+                            break
                         try:
                             if payload.get("type"):
                                 await websocket.send_text(json.dumps(payload))

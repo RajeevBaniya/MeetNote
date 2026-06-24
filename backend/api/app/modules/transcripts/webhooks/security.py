@@ -6,7 +6,7 @@ from typing import Any, Dict, Tuple
 
 from fastapi import HTTPException, Request, status
 
-from app.core.config import get_stream_api_key, get_stream_webhook_secret
+from app.core.config import STREAM_API_KEY, STREAM_WEBHOOK_SECRET
 from app.core.metrics import incr
 from app.state.client import get_redis
 
@@ -28,7 +28,7 @@ async def verify_and_dedupe_webhook(
             detail="Unauthorized",
         )
 
-    expected_api_key = get_stream_api_key()
+    expected_api_key = STREAM_API_KEY
     if x_api_key != expected_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -36,7 +36,7 @@ async def verify_and_dedupe_webhook(
         )
 
     raw_body = await request.body()
-    secret = get_stream_webhook_secret().encode("utf-8")
+    secret = STREAM_WEBHOOK_SECRET.encode("utf-8")
     computed = hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(computed, x_signature):

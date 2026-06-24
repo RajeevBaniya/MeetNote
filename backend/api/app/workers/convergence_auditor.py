@@ -20,7 +20,6 @@ from app.db.models import Meeting
 from app.db.session import async_session_factory
 from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -39,13 +38,14 @@ async def _run_repair_tasks(
     meeting_id: UUID,
     ended_at: datetime | None,
     current_host_id: UUID | None,
+    host_joined: bool = False,
 ) -> bool:
-    analytics_service = get_service(AnalyticsServiceInterface)
-    stream_service = get_service(StreamServiceInterface)
-    event_service = get_service(EventServiceInterface)
-    chat_service = get_service(ChatServiceInterface)
-    cache_service = get_service(CacheServiceInterface)
-    transcript_service = get_service(TranscriptServiceInterface)
+    analytics_service = get_service(AnalyticsServiceInterface)  # type: ignore[type-abstract]
+    stream_service = get_service(StreamServiceInterface)  # type: ignore[type-abstract]
+    event_service = get_service(EventServiceInterface)  # type: ignore[type-abstract]
+    chat_service = get_service(ChatServiceInterface)  # type: ignore[type-abstract]
+    cache_service = get_service(CacheServiceInterface)  # type: ignore[type-abstract]
+    transcript_service = get_service(TranscriptServiceInterface)  # type: ignore[type-abstract]
 
     ok = True
 
@@ -58,7 +58,7 @@ async def _run_repair_tasks(
         ok = False
 
     try:
-        if current_host_id is not None:
+        if current_host_id is not None and host_joined:
             await stream_service.end_call(
                 STREAM_CALL_TYPE,
                 str(meeting_id),
@@ -126,16 +126,21 @@ async def _mark_failed(meeting_id: UUID) -> None:
     incr("meeting_convergence_failed_total")
 
 
-async def run_convergence_auditor() -> None:
+async def run_convergence_auditor(shutdown_event: asyncio.Event | None = None) -> None:
     while True:
+        if shutdown_event and shutdown_event.is_set():
+            break
         try:
             meetings = await _load_unconverged_meetings()
             for meeting in meetings:
+                if shutdown_event and shutdown_event.is_set():
+                    break
                 try:
                     ok = await _run_repair_tasks(
                         meeting.id,
                         meeting.ended_at,
                         meeting.current_host_id,
+                        meeting.host_joined,
                     )
                 except Exception:
                     logger.exception("convergence_repair_unexpected_error meeting_id=%s", meeting.id)
@@ -148,5 +153,13 @@ async def run_convergence_auditor() -> None:
             break
         except Exception:
             logger.exception("convergence_auditor_loop_error")
-        await asyncio.sleep(60)
+
+        # Sleep up to 60 seconds, but check shutdown_event every 0.1s for responsiveness
+        try:
+            for _ in range(600):
+                if shutdown_event and shutdown_event.is_set():
+                    break
+                await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            raise
 

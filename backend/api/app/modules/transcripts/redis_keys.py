@@ -1,12 +1,6 @@
 from uuid import UUID
 
 
-TRANSCRIPT_SEGMENT_THRESHOLD = 500
-CHUNK_LOCK_TTL_SECONDS = 60
-ACTIVE_MEETING_TTL_SECONDS = 3600
-POST_MEETING_TTL_SECONDS = 3600
-
-
 def live_key(meeting_id: UUID) -> str:
     return f"transcript_live:{meeting_id}"
 

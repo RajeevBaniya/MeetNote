@@ -3,6 +3,10 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
+from app.core.config import (
+    HOST_TRANSFER_DEBOUNCE_SECONDS,
+    HOST_TRANSFER_LOCK_TTL_SECONDS,
+)
 from app.core.metrics import incr
 from app.modules.chat.websocket import broadcast_host_changed
 from app.modules.meetings.service import transfer_host_if_current_disconnected
@@ -10,9 +14,6 @@ from app.state.client import get_redis
 from app.state.redis_client import redis_set
 
 logger = logging.getLogger(__name__)
-
-HOST_TRANSFER_DEBOUNCE_SECONDS = 3
-HOST_TRANSFER_LOCK_TTL_SECONDS = 5
 
 
 async def run_debounced_host_transfer(

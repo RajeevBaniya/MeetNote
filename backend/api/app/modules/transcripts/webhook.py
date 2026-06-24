@@ -11,7 +11,6 @@ from app.modules.transcripts.webhooks import (
     verify_and_dedupe_webhook,
 )
 
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])

@@ -15,7 +15,6 @@ from app.modules.transcripts.service import append_transcript_segment
 from app.state.client import get_redis
 from app.state.redis_client import redis_brpop, redis_set
 
-
 logger = logging.getLogger(__name__)
 
 EVENT_QUEUE_KEY = "transcript_events"
@@ -25,19 +24,30 @@ async def _get_redis_client() -> Redis:
     return await get_redis()
 
 
-async def run_transcript_worker() -> None:
+async def run_transcript_worker(shutdown_event: asyncio.Event | None = None) -> None:
     while True:
+        if shutdown_event and shutdown_event.is_set():
+            return
         try:
             redis = await _get_redis_client()
             break
         except Exception:
             logger.exception("transcript_worker_redis_connect_failed")
-            await asyncio.sleep(5)
+            try:
+                for _ in range(50):
+                    if shutdown_event and shutdown_event.is_set():
+                        return
+                    await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                raise
 
     while True:
+        if shutdown_event and shutdown_event.is_set():
+            break
         try:
             raw = await redis_brpop(redis, EVENT_QUEUE_KEY, timeout=5)
             if raw is None:
+                await asyncio.sleep(0.01)
                 continue
             try:
                 payload: dict[str, Any] = json.loads(raw)
@@ -107,4 +117,10 @@ async def run_transcript_worker() -> None:
             break
         except Exception:
             logger.exception("transcript_worker_loop_error")
-            await asyncio.sleep(1)
+            try:
+                for _ in range(10):
+                    if shutdown_event and shutdown_event.is_set():
+                        break
+                    await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                raise

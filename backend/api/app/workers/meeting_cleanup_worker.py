@@ -5,20 +5,20 @@ from uuid import UUID
 
 from sqlalchemy import select
 
+from app.core.config import (
+    MEETING_CLEANUP_INTERVAL_SECONDS,
+    MEETING_STALE_CLEANUP_HOURS,
+)
 from app.core.metrics import incr
 from app.db.models import Meeting
 from app.db.session import async_session_factory
 from app.modules.meetings.meeting_lifecycle import end_meeting
 
-
 logger = logging.getLogger(__name__)
-
-_RUN_INTERVAL_SECONDS = 30 * 60
-_STALE_AGE_HOURS = 6
 
 
 async def _load_abandoned_meetings() -> list[tuple[UUID, UUID | None, UUID | None]]:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=_STALE_AGE_HOURS)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=MEETING_STALE_CLEANUP_HOURS)
     async with async_session_factory() as session:
         result = await session.execute(
             select(Meeting.id, Meeting.current_host_id, Meeting.original_host_id).where(
@@ -48,15 +48,28 @@ async def _close_meeting(
             logger.exception("zombie_meeting_close_failed meeting_id=%s", meeting_id)
 
 
-async def run_meeting_cleanup_worker() -> None:
+async def run_meeting_cleanup_worker(shutdown_event: asyncio.Event | None = None) -> None:
     while True:
+        if shutdown_event and shutdown_event.is_set():
+            break
         try:
             meetings = await _load_abandoned_meetings()
             for meeting_id, current_host_id, original_host_id in meetings:
+                if shutdown_event and shutdown_event.is_set():
+                    break
                 await _close_meeting(meeting_id, current_host_id, original_host_id)
         except asyncio.CancelledError:
             break
         except Exception:
             logger.exception("meeting_cleanup_worker_loop_error")
-        await asyncio.sleep(_RUN_INTERVAL_SECONDS)
+
+        # Sleep up to MEETING_CLEANUP_INTERVAL_SECONDS, but check shutdown_event every 0.1s for responsiveness
+        try:
+            steps = int(MEETING_CLEANUP_INTERVAL_SECONDS / 0.1)
+            for _ in range(steps):
+                if shutdown_event and shutdown_event.is_set():
+                    break
+                await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            raise
 

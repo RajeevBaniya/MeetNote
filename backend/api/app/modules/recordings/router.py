@@ -8,11 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
-from app.modules.meetings.meeting_queries import get_meeting_by_id, user_was_meeting_member
+from app.modules.meetings.meeting_queries import (
+    get_meeting_by_id,
+    user_was_meeting_member,
+)
 from app.modules.recordings.schemas import (
+    RecordingsListOut,
     RecordingStartOut,
     RecordingStopIn,
-    RecordingsListOut,
 )
 from app.modules.recordings.service import (
     create_recording_start,

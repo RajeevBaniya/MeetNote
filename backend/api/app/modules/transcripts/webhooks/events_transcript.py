@@ -5,16 +5,17 @@ from typing import Any, Dict
 
 from fastapi import HTTPException, status
 
+from app.core.config import ASSISTANT_DISPLAY_NAME
 from app.core.metrics import incr
+from app.modules.transcripts.webhooks.utils import parse_meeting_id
 from app.state.client import get_redis
 from app.state.redis_client import redis_rpush
-from app.modules.transcripts.webhooks.utils import parse_meeting_id
 
 logger = logging.getLogger(__name__)
 
-ASSISTANT_SPEAKER_IDS: frozenset[str] = frozenset(
-    {"system:assistant", "meeting-assistant-bot", "Assistant"}
-)
+
+def get_assistant_speaker_ids() -> frozenset[str]:
+    return frozenset({"system:assistant", "meeting-assistant-bot", ASSISTANT_DISPLAY_NAME})
 
 
 def _is_final_caption(closed_caption: Dict[str, Any]) -> bool:
@@ -59,7 +60,7 @@ async def handle_transcript_event(
     speaker_id: str | None = user.get("id") or None
     speaker_name: str | None = user.get("name") or None
 
-    if speaker_id in ASSISTANT_SPEAKER_IDS or speaker_name in ASSISTANT_SPEAKER_IDS:
+    if speaker_id in get_assistant_speaker_ids() or speaker_name in get_assistant_speaker_ids():
         incr("webhook_processed_total")
         return {"accepted": True}
 

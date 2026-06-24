@@ -3,10 +3,11 @@ from uuid import UUID
 
 from redis.asyncio import Redis
 
-from app.state.client import get_redis
-from app.modules.transcripts.redis_keys import TRANSCRIPT_SEGMENT_THRESHOLD
+from app.core.config import TRANSCRIPT_SEGMENT_THRESHOLD
 from app.modules.transcripts.segment_storage import (
     append_transcript_segment as _append_segment,
+)
+from app.modules.transcripts.segment_storage import (
     delete_transcript_state,
     expire_transcript_keys,
     get_live_transcript,
@@ -19,6 +20,7 @@ from app.modules.transcripts.summarization import (
     generate_final_summary,
     process_transcript_chunk,
 )
+from app.state.client import get_redis
 
 
 async def append_transcript_segment(

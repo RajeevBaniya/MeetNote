@@ -2,25 +2,29 @@ import hashlib
 import json
 import logging
 import string
+import uuid
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any
 from uuid import UUID
-import uuid
 
 from redis.asyncio import Redis
 
-from app.core.config import is_rag_enabled
+from app.core.config import (
+    ACTIVE_MEETING_CACHE_TTL,
+    ENABLE_RAG,
+    TRANSCRIPT_BUFFER_MAX_SEGMENTS,
+    TRANSCRIPT_COMMIT_WINDOW_SECONDS,
+)
 from app.core.metrics import incr
 from app.modules.transcripts.broadcaster import publish_segment
 from app.modules.transcripts.redis_keys import (
-    ACTIVE_MEETING_TTL_SECONDS,
     buffer_key,
     correction_queue_key,
-    speakers_key,
-    segments_key,
     seen_key,
+    segments_key,
     seq_key,
+    speakers_key,
 )
 from app.state.redis_client import (
     redis_delete,
@@ -29,19 +33,15 @@ from app.state.redis_client import (
     redis_hset,
     redis_incr,
     redis_lindex,
+    redis_lpush,
     redis_lrange,
     redis_ltrim,
     redis_rpush,
-    redis_lpush,
     redis_sadd,
     redis_sismember,
 )
 
-
 logger = logging.getLogger(__name__)
-
-_MAX_BUFFER_SEGMENTS = 10
-_COMMIT_WINDOW_SECONDS = 0.5
 
 
 def _normalize_text(text: str) -> str:
@@ -119,7 +119,7 @@ async def _commit_segment(
     if await redis_sismember(redis, sk, segment_id):
         return
     await redis_sadd(redis, sk, segment_id)
-    await redis_expire(redis, sk, ACTIVE_MEETING_TTL_SECONDS)
+    await redis_expire(redis, sk, ACTIVE_MEETING_CACHE_TTL)
 
     ts_for_rate = datetime.now(timezone.utc)
     rate_key = f"transcript:rate:{meeting_id}:{int(ts_for_rate.timestamp())}"
@@ -176,7 +176,7 @@ async def _commit_segment(
     )
 
     original_text_hash = None
-    if is_rag_enabled():
+    if ENABLE_RAG:
         from app.modules.rag.service import generate_chunk_hash
         original_text_hash = generate_chunk_hash(meeting_id, text)
 
@@ -230,7 +230,7 @@ async def append_and_stabilize_segment(
 
     buf_key = buffer_key(meeting_id)
     await redis_rpush(redis, buf_key, json.dumps(entry))
-    await redis_ltrim(redis, buf_key, -_MAX_BUFFER_SEGMENTS, -1)
+    await redis_ltrim(redis, buf_key, -TRANSCRIPT_BUFFER_MAX_SEGMENTS, -1)
     incr("transcript_segments_buffered_total")
 
     now = datetime.now(timezone.utc)
@@ -249,12 +249,12 @@ async def append_and_stabilize_segment(
         except (TypeError, ValueError):
             ts_dt = now
         age_seconds = (now - ts_dt).total_seconds()
-        if age_seconds >= _COMMIT_WINDOW_SECONDS:
+        if age_seconds >= TRANSCRIPT_COMMIT_WINDOW_SECONDS:
             to_commit.append(item)
         else:
             buffer.append(item)
 
-    if buffer and len(raw_items) > _MAX_BUFFER_SEGMENTS:
+    if buffer and len(raw_items) > TRANSCRIPT_BUFFER_MAX_SEGMENTS:
         oldest = buffer[0]
         oldest_raw_ts = oldest.get("timestamp")
         try:
@@ -269,5 +269,5 @@ async def append_and_stabilize_segment(
         await _commit_segment(redis, meeting_id, segment)
 
     await redis_delete(redis, buf_key)
-    for item in buffer[-_MAX_BUFFER_SEGMENTS:]:
+    for item in buffer[-TRANSCRIPT_BUFFER_MAX_SEGMENTS:]:
         await redis_rpush(redis, buf_key, json.dumps(item))

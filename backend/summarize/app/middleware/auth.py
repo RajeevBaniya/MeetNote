@@ -1,6 +1,8 @@
 from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 from app.core.jwt import get_user_id_from_token
 
 security = HTTPBearer(auto_error=False)

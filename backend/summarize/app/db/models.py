@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime, date, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Date, Text, Index, ForeignKey, Integer, text
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Text, text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -46,7 +46,7 @@ class SummaryModel(Base):
     meeting_type: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     location: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_shared: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
-    
+
     # JSONB columns for arrays and structured data
     participants: Mapped[list[str] | None] = mapped_column(JSONB, default=list, nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(JSONB, default=list, nullable=True)
@@ -55,7 +55,7 @@ class SummaryModel(Base):
     deadlines: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, default=list, nullable=True)
     extracted_participants: Mapped[list[str] | None] = mapped_column(JSONB, default=list, nullable=True)
     email_recipients: Mapped[list[str] | None] = mapped_column(JSONB, default=list, nullable=True)
-    
+
     # Foreign meeting link
     meeting_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),

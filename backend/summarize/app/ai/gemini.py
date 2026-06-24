@@ -1,11 +1,12 @@
-import os
-import re
+import asyncio
 import json
 import logging
-import asyncio
+import os
+import re
 from typing import Any
-from app.core.config import GEMINI_API_KEY_SUMMEREASE, GEMINI_MODEL_SUMMEREASE
+
 from app.ai.gemini_client import GeminiClient
+from app.core.config import GEMINI_API_KEY_SUMMEREASE, GEMINI_MODEL_SUMMEREASE
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ async def generate_summary(transcript: str, instruction: str) -> str:
     """Invoke Gemini LLM API to generate a summary of the transcript."""
     template = get_prompt_template("default_summary_prompt.txt")
     prompt = template.format(instruction=instruction, transcript=transcript)
-    
+
     try:
         return await call_gemini_api(
             prompt=prompt,
@@ -42,7 +43,7 @@ async def extract_structured_data(transcript: str) -> dict[str, Any]:
     """Invoke Gemini LLM API to extract action items, decisions, deadlines, and participants."""
     template = get_prompt_template("extract_structured_prompt.txt")
     prompt = template.format(transcript=transcript)
-    
+
     try:
         response_text = await call_gemini_api(
             prompt=prompt,
@@ -61,7 +62,7 @@ def parse_structured_response(response: str) -> dict[str, Any]:
         match = re.search(r"\{[\s\S]*\}", response)
         if not match:
             return get_empty_structured_data()
-            
+
         parsed = json.loads(match.group(0))
         return {
             "actionItems": parsed.get("actionItems") if isinstance(parsed.get("actionItems"), list) else [],
@@ -89,14 +90,14 @@ async def generate_meeting_summary(
     extract_structured: bool = True,
 ) -> tuple[str, dict[str, Any]]:
     summary_text = await generate_summary(transcript, instruction)
-    
+
     if not extract_structured:
         return summary_text, get_empty_structured_data()
-        
+
     # Introduce 1-second delay to avoid parallel request rate-limiting on Gemini key
     await asyncio.sleep(1.0)
     structured_data = await extract_structured_data(transcript)
-    
+
     return summary_text, structured_data
 
 
@@ -128,7 +129,7 @@ async def generate_chunk_summary_single_pass(transcript: str, instruction: str) 
     """Generate summary and extract structured data in a single pass to save API cost and latency."""
     template = get_prompt_template("chunk_summary_prompt.txt")
     prompt = template.format(instruction=instruction, transcript=transcript)
-    
+
     response_text = await call_gemini_api_json(prompt, max_tokens=2500)
     match = re.search(r"\{[\s\S]*\}", response_text)
     json_str = match.group(0) if match else response_text
@@ -149,7 +150,7 @@ async def merge_chunk_summaries(summaries: list[str], instruction: str) -> str:
     )
     template = get_prompt_template("merge_summary_prompt.txt")
     prompt = template.format(instruction=instruction, summaries=joined_summaries)
-    
+
     try:
         return await call_gemini_api(prompt, max_tokens=2500)
     except Exception as exc:
@@ -165,16 +166,16 @@ def merge_structured_data(chunks_data: list[dict[str, Any]]) -> dict[str, Any]:
         "deadlines": [],
         "participants": set(),
     }
-    
+
     seen_tasks = set()
     seen_decisions = set()
     seen_deadlines = set()
-    
+
     for data in chunks_data:
         for p in data.get("participants", []):
             if isinstance(p, str) and p.strip():
                 merged["participants"].add(p.strip())
-                
+
         for item in data.get("actionItems", []):
             if not isinstance(item, dict):
                 continue
@@ -189,7 +190,7 @@ def merge_structured_data(chunks_data: list[dict[str, Any]]) -> dict[str, Any]:
                     "assignee": item.get("assignee"),
                     "dueDate": item.get("dueDate"),
                 })
-                
+
         for dec in data.get("decisions", []):
             if not isinstance(dec, dict):
                 continue
@@ -203,7 +204,7 @@ def merge_structured_data(chunks_data: list[dict[str, Any]]) -> dict[str, Any]:
                     "decision": decision.strip(),
                     "context": dec.get("context"),
                 })
-                
+
         for dl in data.get("deadlines", []):
             if not isinstance(dl, dict):
                 continue
@@ -218,7 +219,7 @@ def merge_structured_data(chunks_data: list[dict[str, Any]]) -> dict[str, Any]:
                     "date": dl.get("date"),
                     "owner": dl.get("owner"),
                 })
-                
+
     return {
         "actionItems": merged["actionItems"],
         "decisions": merged["decisions"],

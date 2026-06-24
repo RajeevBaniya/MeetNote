@@ -1,5 +1,7 @@
 from uuid import UUID
+
 from jose import JWTError, jwt
+
 from app.core.config import JWT_SECRET
 
 

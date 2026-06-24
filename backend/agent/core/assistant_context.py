@@ -2,11 +2,10 @@ import logging
 import re
 from typing import List, Optional
 
-from redis.asyncio import Redis
-
 from agent.config.agent_constants import AgentConstants
 from agent.core.transcript_types import TranscriptEntry
 
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 

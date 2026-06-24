@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 import asyncio
@@ -7,6 +6,7 @@ from typing import Any, List, Optional
 from redis.asyncio import Redis
 
 from agent.config.agent_constants import AgentConstants
+from agent.config.env_loader import GEMINI_API_KEY
 from agent.core.assistant_context import fetch_summary_chunks_text
 from agent.core.assistant_http_mixin import AssistantHttpMixin
 from agent.core.assistant_intent_mixin import AssistantIntentMixin
@@ -21,7 +21,6 @@ from agent.utils.question_normalization import normalize_question_text
 
 logger = logging.getLogger(__name__)
 
-ASSISTANT_CONTEXT_SEGMENTS = 50
 
 
 class AssistantCore(AssistantHttpMixin, AssistantIntentMixin):
@@ -165,7 +164,7 @@ class AssistantCore(AssistantHttpMixin, AssistantIntentMixin):
             return "", []
         try:
             segments_key = f"transcript:segments:{self.meeting_id}"
-            raw_segments = await self.redis.lrange(segments_key, -ASSISTANT_CONTEXT_SEGMENTS, -1)
+            raw_segments = await self.redis.lrange(segments_key, -AgentConstants.ASSISTANT_CONTEXT_TRANSCRIPT_SEGMENTS, -1)
             if not raw_segments:
                 return "", []
 
@@ -268,7 +267,7 @@ class AssistantCore(AssistantHttpMixin, AssistantIntentMixin):
         return True
 
     async def _build_reply_async(self, question: str, external_approved: bool = False) -> str:
-        api_key = os.getenv("GEMINI_API_KEY")
+        api_key = GEMINI_API_KEY
         if not api_key:
             logger.error("GEMINI_API_KEY env variable is not set")
             return "Assistant is temporarily unavailable."
@@ -306,12 +305,12 @@ class AssistantCore(AssistantHttpMixin, AssistantIntentMixin):
                 question=question
             )
 
-            client = GeminiClient(api_key, "gemini-2.5-flash")
+            client = GeminiClient(api_key, AgentConstants.GEMINI_MODEL_NAME)
             reply = await client.generate_content(
                 prompt=prompt,
                 max_tokens=400,
                 temperature=0.0,
-                timeout=10.0,
+                timeout=AgentConstants.AGENT_REPLY_TIMEOUT_SECONDS,
             )
 
             # CITATION VALIDATION

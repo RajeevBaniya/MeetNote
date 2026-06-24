@@ -3,7 +3,6 @@ from typing import Any, Optional
 
 from agent.config.agent_constants import AgentConstants
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -61,13 +60,13 @@ class AssistantIntentMixin:
 
             ext_approved_key = f"assistant:ext_approved:{self.meeting_id}"
             try:
-                await self.redis.set(ext_approved_key, "1", ex=300)
+                await self.redis.set(ext_approved_key, "1", ex=AgentConstants.AGENT_EXTERNAL_APPROVAL_TTL_SECONDS)
             except Exception as exc:
                 logger.warning("Failed to set ext_approved in Redis for meeting %s: %s", self.meeting_id, exc)
 
             reply = await self._build_reply_async(pending, external_approved=True)
             await self._send_with_cooldown(reply)
-            logger.info("ext_knowledge_approved meeting_id=%s speaker_id=%s ttl_seconds=300", self.meeting_id, speaker_id)
+            logger.info("ext_knowledge_approved meeting_id=%s speaker_id=%s ttl_seconds=%d", self.meeting_id, speaker_id, AgentConstants.AGENT_EXTERNAL_APPROVAL_TTL_SECONDS)
             return True
 
         if is_no:

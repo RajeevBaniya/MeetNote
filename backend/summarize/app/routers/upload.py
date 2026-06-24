@@ -1,15 +1,19 @@
-import os
 import uuid
-import anyio
-from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends, Query
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.middleware.auth import get_current_user_id
-from app.db.session import get_session
-from app.core.config import get_upload_dir
+from app.core.storage import delete_file, upload_file_bytes
 from app.db.models import JobModel
+from app.db.session import get_session
+from app.middleware.auth import get_current_user_id
 from app.services.extractor import extract_document_text
+from app.services.validation import (
+    FileSizeLimitError,
+    FileValidationError,
+    validate_uploaded_file,
+)
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
@@ -19,6 +23,24 @@ class UploadResponse(BaseModel):
     content: str
     fileType: str
     originalName: str
+
+
+class UploadConfigResponse(BaseModel):
+    maxFileSize: int
+    supportedExtensions: list[str]
+
+
+@router.get("/config", response_model=UploadConfigResponse)
+async def get_upload_config() -> UploadConfigResponse:
+    """Retrieve the maximum upload file size and allowed extensions."""
+    from app.core.config import (
+        SUMMEREASE_MAX_FILE_SIZE,
+        SUMMEREASE_SUPPORTED_EXTENSIONS,
+    )
+    return UploadConfigResponse(
+        maxFileSize=SUMMEREASE_MAX_FILE_SIZE,
+        supportedExtensions=SUMMEREASE_SUPPORTED_EXTENSIONS,
+    )
 
 
 @router.post("", response_model=UploadResponse)
@@ -31,29 +53,39 @@ async def upload_transcript(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No file uploaded",
         )
-    
+
     try:
         content_bytes = await transcript.read()
+        file_size = len(content_bytes)
+
+        # 1. Strict validation of actual read byte size
+        validate_uploaded_file(transcript.filename, transcript.content_type or "", file_size)
+
         extracted_content = extract_document_text(
             filename=transcript.filename,
             mimetype=transcript.content_type or "",
             file_bytes=content_bytes,
         )
-        
+
         ext = transcript.filename.split(".")[-1].lower() if "." in transcript.filename else ""
         file_type = "unknown"
         if ext == "txt":
             file_type = "text"
         elif ext in ("pdf", "docx"):
             file_type = ext
-            
+
         return UploadResponse(
             message="File uploaded successfully",
             content=extracted_content or "",
             fileType=file_type,
             originalName=transcript.filename,
         )
-    except ValueError as val_err:
+    except FileSizeLimitError as size_err:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(size_err),
+        )
+    except (FileValidationError, ValueError) as val_err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(val_err),
@@ -72,34 +104,26 @@ async def upload_stream(
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
 ):
-    """Stream upload file to local disk and initialize an async processing job."""
+    """Stream upload file and initialize an async processing job."""
     if not transcript or not transcript.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No file uploaded",
         )
-    
+
     job_id = uuid.uuid4()
-    upload_dir = get_upload_dir()
-    file_path = os.path.join(upload_dir, f"{job_id}.tmp")
-    
+    object_name = f"uploads/{job_id}.tmp"
+
     try:
-        file_size = 0
-        async with await anyio.open_file(file_path, "wb") as f:
-            while True:
-                chunk = await transcript.read(65536)  # 64KB blocks
-                if not chunk:
-                    break
-                file_size += len(chunk)
-                await f.write(chunk)
-                
-        # Validate supported format
-        ext = os.path.splitext(transcript.filename.lower())[1]
-        if ext not in (".txt", ".pdf", ".docx"):
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            raise ValueError("Unsupported file type. Allowed: .txt, .pdf, .docx")
-            
+        file_bytes = await transcript.read()
+        file_size = len(file_bytes)
+
+        # 1. Strict validation of actual read byte size
+        validate_uploaded_file(transcript.filename, transcript.content_type or "", file_size)
+
+        # 2. Only upload and create database entry after size validation passes
+        await upload_file_bytes(file_bytes, object_name)
+
         new_job = JobModel(
             id=job_id,
             user_id=current_user_id,
@@ -107,13 +131,13 @@ async def upload_stream(
             progress_percentage=0,
             file_name=transcript.filename,
             file_size=file_size,
-            file_path=file_path,
-            upload_path=file_path,
+            file_path=object_name,
+            upload_path=object_name,
             instruction=instruction,
         )
         db.add(new_job)
         await db.commit()
-        
+
         return {
             "jobId": str(job_id),
             "status": "PENDING",
@@ -121,24 +145,22 @@ async def upload_stream(
             "fileName": transcript.filename,
             "fileSize": file_size,
         }
-    except ValueError as val_err:
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
+    except FileSizeLimitError as size_err:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(size_err),
+        )
+    except (FileValidationError, ValueError) as val_err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(val_err),
         )
     except Exception as exc:
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
+        try:
+            await delete_file(object_name)
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Upload stream failed: {str(exc)}",
         )
-

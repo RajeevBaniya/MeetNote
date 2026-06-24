@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -20,14 +20,14 @@ async def send_summary_email(
     # 1. Input Validation
     if not recipients or len(recipients) == 0:
         raise ValueError("Recipients list cannot be empty")
-        
+
     if not summary_text or not summary_text.strip():
         raise ValueError("Summary text cannot be empty")
-        
+
     invalid = [r for r in recipients if not EMAIL_REGEX.match(r)]
     if invalid:
         raise ValueError(f"Invalid email addresses: {', '.join(invalid)}")
-        
+
     # 2. Logging
     logger.info(
         "Email dispatch requested: recipients=%s, subject=%s, reply_to=%s",
@@ -39,6 +39,6 @@ async def send_summary_email(
             "subject": subject,
         }
     )
-    
+
     # 3. Raise 501 parity exception
     raise NotImplementedError("email service not configured")

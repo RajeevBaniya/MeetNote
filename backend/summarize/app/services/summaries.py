@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime, date, timezone
+from datetime import date, datetime, timezone
 from typing import Any
-from sqlalchemy import select, and_, cast, String
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from sqlalchemy import String, and_, cast, select
 from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import SummaryModel
 
@@ -88,10 +89,10 @@ async def list_summaries(
 ) -> list[SummaryModel]:
     """Query, filter, and page stored summaries for a given user."""
     stmt = select(SummaryModel)
-    
+
     # Filter constraints
     conditions = [SummaryModel.user_id == user_id]
-    
+
     if meeting_id:
         conditions.append(SummaryModel.meeting_id == meeting_id)
     if upload_only:
@@ -111,19 +112,19 @@ async def list_summaries(
         conditions.append(SummaryModel.meeting_type == meeting_type)
     if tags and len(tags) > 0:
         conditions.append(SummaryModel.tags.op("?|")(cast(tags, ARRAY(String))))
-        
+
     stmt = stmt.where(and_(*conditions))
-    
+
     # Column Sorting validation
     valid_sorts = {"created_at", "updated_at", "meeting_date", "meeting_title"}
     actual_sort = sort_by if sort_by in valid_sorts else "created_at"
     sort_column = getattr(SummaryModel, actual_sort)
-    
+
     if sort_order.lower() == "asc":
         stmt = stmt.order_by(sort_column.asc())
     else:
         stmt = stmt.order_by(sort_column.desc())
-        
+
     stmt = stmt.offset(skip).limit(take)
     result = await session.execute(stmt)
     return list(result.scalars().all())
@@ -163,7 +164,7 @@ async def update_summary(
     summary = await get_summary_by_id(session, summary_id, user_id)
     if not summary:
         return None
-        
+
     # Map incoming camelCase keys to target snake_case model attributes
     CAMEL_TO_SNAKE = {
         "title": "title",
@@ -182,14 +183,14 @@ async def update_summary(
         "deadlines": "deadlines",
         "extractedParticipants": "extracted_participants",
     }
-    
+
     for key, value in update_data.items():
         db_key = CAMEL_TO_SNAKE.get(key)
         if db_key and hasattr(summary, db_key):
             if db_key == "meeting_date":
                 value = parse_meeting_date(value)
             setattr(summary, db_key, value)
-            
+
     summary.updated_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(summary)

@@ -1,9 +1,11 @@
 import re
-from uuid import UUID
 from typing import Any
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
 from app.middleware.auth import get_current_user_id
 from app.services.email import send_summary_email
 
@@ -41,13 +43,13 @@ async def send_email(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"error": "Recipients array is required"},
         )
-        
+
     if not request.summary.strip():
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"error": "Summary is required"},
         )
-        
+
     invalid_emails = [
         email for email in request.recipients if not EMAIL_REGEX.match(email)
     ]
@@ -59,7 +61,7 @@ async def send_email(
                 "invalid": invalid_emails,
             },
         )
-        
+
     try:
         reply_to = request.replyToEmail or None
         # TODO: Implement google-api-python-client Gmail delivery within services.
@@ -70,7 +72,7 @@ async def send_email(
             subject=request.subject,
             reply_to_email=reply_to,
         )
-        
+
         return EmailSendSuccessResponse(
             success=True,
             message="Summary sent successfully",

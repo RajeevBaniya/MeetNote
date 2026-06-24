@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.middleware.auth import get_current_user_id
-from app.db.session import get_session
-from app.schemas.summary import SummaryGenerateRequest, SummaryGenerateResponse, StructuredData
+
 from app.ai.gemini import generate_meeting_summary
+from app.db.session import get_session
+from app.middleware.auth import get_current_user_id
+from app.schemas.summary import (
+    StructuredData,
+    SummaryGenerateRequest,
+    SummaryGenerateResponse,
+)
 from app.services.summaries import save_summary
 
 router = APIRouter(prefix="/api/summary", tags=["summary"])
@@ -27,7 +33,7 @@ async def generate(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Instruction is required",
         )
-        
+
     try:
         # TODO: Implement full LLM client execution inside the AI service.
         # This calls the AI service boundary.
@@ -37,7 +43,7 @@ async def generate(
             instruction=request.instruction,
             extract_structured=should_extract,
         )
-        
+
         saved_id: UUID | None = None
         if request.persist is not False:
             # TODO: Implement db insert inside summaries service.
@@ -62,7 +68,7 @@ async def generate(
                 meeting_id=request.meetingId,
             )
             saved_id = saved.id if saved else None
-            
+
         return SummaryGenerateResponse(
             success=True,
             summary=summary_text,

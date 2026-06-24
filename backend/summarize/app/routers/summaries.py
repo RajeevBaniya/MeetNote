@@ -1,21 +1,23 @@
-from uuid import UUID
 from datetime import date
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.middleware.auth import get_current_user_id
+
 from app.db.session import get_session
+from app.middleware.auth import get_current_user_id
 from app.schemas.summary import (
-    SummaryListResponse,
-    SummaryDetailResponse,
     DeleteResponse,
-    SummaryUpdateRequest,
+    SummaryDetailResponse,
+    SummaryListResponse,
     SummaryResponse,
+    SummaryUpdateRequest,
 )
 from app.services.summaries import (
-    list_summaries,
-    get_summary_by_id,
-    update_summary,
     delete_summary,
+    get_summary_by_id,
+    list_summaries,
+    update_summary,
 )
 
 router = APIRouter(prefix="/api/summaries", tags=["summaries"])
@@ -46,7 +48,7 @@ async def get_all_summaries(
             parsed_date_from = date.fromisoformat(dateFrom)
         if dateTo:
             parsed_date_to = date.fromisoformat(dateTo)
-            
+
         # TODO: Implement database search logic in summaries service.
         # This calls the summaries query service.
         items = await list_summaries(
@@ -113,7 +115,7 @@ async def update_saved_summary(
     try:
         # Filter request body to only allowed fields matching Express PUT filter
         raw_data = request.model_dump(exclude_unset=True)
-        
+
         updated = await update_summary(db, id, current_user_id, raw_data)
         if not updated:
             raise HTTPException(

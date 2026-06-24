@@ -11,3 +11,14 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "redis>=5.0.0",
 ]
+
+[tool.mypy]
+ignore_missing_imports = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "redis.*",
+    "vision_agents.*"
+]
+ignore_missing_imports = true

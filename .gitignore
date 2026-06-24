@@ -1,11 +1,11 @@
-# Secrets 
+# Secrets
 .env
 .env.*
 !.env.example
 *.pem
 *.key
 
-# Python 
+# Python
 .venv/
 venv/
 env/
@@ -14,8 +14,9 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.mypy_cache/
 
-# Node 
+# Node / Next.js
 node_modules/
 .pnp/
 .next/
@@ -25,8 +26,15 @@ out/
 *.log
 logs/
 
-# OS
+# OS artefacts
 .DS_Store
 Thumbs.db
 
+.cursor
+.agents
+
+infra/
+
+
+backend/api/tests/test_workers/
 

@@ -18,4 +18,25 @@ dependencies = [
     "getstream>=2.7.1",
     "httpx>=0.27.0",
     "sentry-sdk[fastapi]>=2.19.2",
+    "pgvector>=0.2.0",
+    "pypdf>=5.0.0",
 ]
+
+[tool.mypy]
+ignore_missing_imports = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "redis.*",
+    "jose.*",
+    "getstream.*",
+    "pgvector.*"
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+

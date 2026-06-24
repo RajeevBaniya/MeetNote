@@ -1,4 +1,5 @@
-from typing import cast, Awaitable
+from typing import Awaitable, cast
+
 from redis.asyncio import Redis
 
 

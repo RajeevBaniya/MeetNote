@@ -1,5 +1,6 @@
-import httpx
 import logging
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,8 @@ class GeminiClient:
             "model": model,
             "content": {
                 "parts": [{"text": text}]
-            }
+            },
+            "outputDimensionality": 768
         }
 
         async with httpx.AsyncClient(timeout=timeout) as client:

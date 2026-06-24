@@ -23,17 +23,17 @@ class MockStreamService(StreamServiceInterface):
         self.end_call = AsyncMock()  # type: ignore[method-assign]
     
     async def query_call_members(
-        self, 
-        call_type: str, 
-        call_id: str, 
+        self,
+        call_type: str,
+        call_id: str,
         acting_user_id: UUID
     ) -> list[dict[str, Any]]:
         return await self.query_call_members(call_type, call_id, acting_user_id)
     
     async def end_call(
-        self, 
-        call_type: str, 
-        call_id: str, 
+        self,
+        call_type: str,
+        call_id: str,
         acting_user_id: UUID
     ) -> None:
         await self.end_call(call_type, call_id, acting_user_id)
@@ -48,10 +48,10 @@ class MockCacheService(CacheServiceInterface):
         self.ping = AsyncMock()  # type: ignore[method-assign]
     
     async def set_with_expiry(
-        self, 
-        key: str, 
-        value: str, 
-        expiry_seconds: int, 
+        self,
+        key: str,
+        value: str,
+        expiry_seconds: int,
         only_if_not_exists: bool = False
     ) -> bool:
         return bool(await self.set_with_expiry(key, value, expiry_seconds, only_if_not_exists))
@@ -72,22 +72,22 @@ class MockAnalyticsService(AnalyticsServiceInterface):
         self.record_host_transfer = AsyncMock()  # type: ignore[method-assign]
     
     async def initialize_meeting_analytics(
-        self, 
-        meeting_id: UUID, 
+        self,
+        meeting_id: UUID,
         started_at: datetime
     ) -> None:
         await self.initialize_meeting_analytics(meeting_id, started_at)
     
     async def finalize_meeting_analytics(
-        self, 
-        meeting_id: UUID, 
+        self,
+        meeting_id: UUID,
         ended_at: datetime
     ) -> None:
         await self.finalize_meeting_analytics(meeting_id, ended_at)
     
     async def record_host_transfer(
-        self, 
-        meeting_id: UUID, 
+        self,
+        meeting_id: UUID,
         new_host_id: UUID
     ) -> None:
         await self.record_host_transfer(meeting_id, new_host_id)

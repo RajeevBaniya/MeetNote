@@ -5,7 +5,6 @@ from typing import Dict, Tuple
 
 from app.state.client import get_redis
 
-
 logger = logging.getLogger(__name__)
 
 _queue: asyncio.Queue[Tuple[str, int]] | None = None

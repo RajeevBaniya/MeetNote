@@ -1,4 +1,4 @@
-from typing import TypeVar, Type, Any
+from typing import Any, Type, TypeVar
 
 from app.core.interfaces import (
     AnalyticsServiceInterface,

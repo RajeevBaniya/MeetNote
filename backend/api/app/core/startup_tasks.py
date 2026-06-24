@@ -3,23 +3,26 @@ import logging
 
 from sqlalchemy import select
 
-from app.state.client import get_redis
 from app.core.config import (
     DATABASE_URL,
+    ENABLE_RAG,
     JWT_SECRET,
+    REDIS_URL,
     STREAM_API_KEY,
     STREAM_WEBHOOK_SECRET,
-    ENABLE_RAG,
-    REDIS_URL,
 )
 from app.core.database_setup import ensure_database_schema
-from app.core.error_monitoring import initialize_error_monitoring, run_worker_with_sentry
+from app.core.error_monitoring import (
+    initialize_error_monitoring,
+    run_worker_with_sentry,
+)
 from app.core.metrics import init_metrics_worker, set_gauge
 from app.db.base import engine
 from app.db.models import Meeting
 from app.db.session import async_session_factory
 from app.modules.meetings.events import publish_meeting_snapshot
 from app.modules.transcripts.worker import run_transcript_worker
+from app.state.client import get_redis
 from app.workers.convergence_auditor import run_convergence_auditor
 from app.workers.meeting_cleanup_worker import run_meeting_cleanup_worker
 from app.workers.rag_ingestion_worker import run_rag_ingestion_worker

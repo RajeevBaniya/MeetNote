@@ -5,12 +5,12 @@ from fastapi import Depends, HTTPException, Request
 from redis.asyncio import Redis
 
 from app.core.config import (
+    MEETING_JOIN_LIMIT,
+    MEETING_JOIN_WINDOW_SECONDS,
     RATE_LIMIT_REQUESTS,
     RATE_LIMIT_WINDOW_SECONDS,
     STREAM_TOKEN_RATE_LIMIT_REQUESTS,
     STREAM_TOKEN_WINDOW_SECONDS,
-    MEETING_JOIN_LIMIT,
-    MEETING_JOIN_WINDOW_SECONDS,
 )
 from app.modules.auth.deps import get_current_user_id, get_current_user_optional
 from app.state.client import get_redis

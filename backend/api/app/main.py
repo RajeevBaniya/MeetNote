@@ -1,6 +1,6 @@
 import asyncio
-import logging
 import json
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -8,24 +8,24 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.core.config import CORS_ORIGINS
 from app.core.health_checks import basic_health_check, comprehensive_health_check
 from app.core.logging import configure_logging
 from app.core.metrics import snapshot
 from app.core.request_id import RequestIdMiddleware
 from app.core.startup_tasks import initialize_application
-from app.modules.auth.router import router as auth_router
 from app.modules.auth.refresh_router import router as auth_refresh_router
+from app.modules.auth.router import router as auth_router
 from app.modules.auth.ws_ticket import router as auth_ws_ticket_router
-from app.modules.join.router import router as join_router
-from app.modules.meetings.router import router as meetings_router
-from app.modules.stream_tokens.router import router as stream_tokens_router
 from app.modules.chat.router import router as chat_router
 from app.modules.chat.websocket import chat_websocket
+from app.modules.join.router import router as join_router
+from app.modules.meetings.router import router as meetings_router
 from app.modules.recordings.router import router as recordings_router
+from app.modules.stream_tokens.router import router as stream_tokens_router
 from app.modules.transcripts.webhook import router as transcript_webhook_router
 from app.modules.transcripts.websocket import transcript_websocket
 from app.state.client import close_redis
-from app.core.config import CORS_ORIGINS
 
 logger = logging.getLogger(__name__)
 
@@ -150,5 +150,6 @@ async def metrics() -> Response:
 
 if __name__ == "__main__":
     import uvicorn
+
     from app.core.config import PORT
     uvicorn.run("app.main:app", host="127.0.0.1", port=PORT, reload=True)

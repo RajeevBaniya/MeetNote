@@ -9,9 +9,9 @@ class StreamServiceInterface(ABC):
     
     @abstractmethod
     async def query_call_members(
-        self, 
-        call_type: str, 
-        call_id: str, 
+        self,
+        call_type: str,
+        call_id: str,
         acting_user_id: UUID
     ) -> list[dict[str, Any]]:
         """Query members currently in a Stream call."""
@@ -19,9 +19,9 @@ class StreamServiceInterface(ABC):
     
     @abstractmethod
     async def end_call(
-        self, 
-        call_type: str, 
-        call_id: str, 
+        self,
+        call_type: str,
+        call_id: str,
         acting_user_id: UUID
     ) -> None:
         """End a Stream video call."""
@@ -33,10 +33,10 @@ class CacheServiceInterface(ABC):
     
     @abstractmethod
     async def set_with_expiry(
-        self, 
-        key: str, 
-        value: str, 
-        expiry_seconds: int, 
+        self,
+        key: str,
+        value: str,
+        expiry_seconds: int,
         only_if_not_exists: bool = False
     ) -> bool:
         """Set a cache value with expiration."""
@@ -58,8 +58,8 @@ class AnalyticsServiceInterface(ABC):
     
     @abstractmethod
     async def initialize_meeting_analytics(
-        self, 
-        meeting_id: UUID, 
+        self,
+        meeting_id: UUID,
         started_at: datetime
     ) -> None:
         """Initialize analytics tracking for a new meeting."""
@@ -67,8 +67,8 @@ class AnalyticsServiceInterface(ABC):
     
     @abstractmethod
     async def finalize_meeting_analytics(
-        self, 
-        meeting_id: UUID, 
+        self,
+        meeting_id: UUID,
         ended_at: datetime
     ) -> None:
         """Finalize analytics when meeting ends."""
@@ -76,8 +76,8 @@ class AnalyticsServiceInterface(ABC):
     
     @abstractmethod
     async def record_host_transfer(
-        self, 
-        meeting_id: UUID, 
+        self,
+        meeting_id: UUID,
         new_host_id: UUID
     ) -> None:
         """Record a host transfer event."""
@@ -98,8 +98,8 @@ class TranscriptServiceInterface(ABC):
     
     @abstractmethod
     async def expire_meeting_keys(
-        self, 
-        cache: CacheServiceInterface, 
+        self,
+        cache: CacheServiceInterface,
         meeting_id: UUID
     ) -> None:
         """Expire transcript-related cache keys for a meeting."""

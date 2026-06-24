@@ -1,6 +1,0 @@
-ALTER TABLE meetings
-ADD COLUMN IF NOT EXISTS scheduled_start_at TIMESTAMPTZ NULL;
-
-ALTER TABLE meetings
-ADD COLUMN IF NOT EXISTS scheduled_end_at TIMESTAMPTZ NULL;
-

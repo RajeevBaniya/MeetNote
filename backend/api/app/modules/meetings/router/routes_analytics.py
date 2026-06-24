@@ -6,15 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
-from app.modules.auth.deps import get_current_user_id
 from app.modules.analytics.service import get_analytics_for_meeting
+from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.schemas import (
     MeetingAnalyticsMeetingOut,
     MeetingAnalyticsOut,
     MeetingParticipantStatsOut,
 )
 from app.modules.meetings.service import get_meeting_by_id
-
 
 logger = logging.getLogger(__name__)
 

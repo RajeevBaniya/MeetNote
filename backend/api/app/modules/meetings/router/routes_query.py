@@ -3,11 +3,11 @@
 from typing import Any
 from uuid import UUID
 
-from app.db.models import Meeting
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import rate_limit_general
+from app.db.models import Meeting
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.schemas import (

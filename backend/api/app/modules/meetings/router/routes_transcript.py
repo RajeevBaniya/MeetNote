@@ -2,38 +2,39 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel
-
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.rate_limit import rate_limit_general
+from app.core.config import ASSISTANT_DISPLAY_NAME
 from app.core.metrics import incr
+from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
-from app.modules.meetings.schemas import TranscriptOut, TranscriptSegmentOut
 from app.modules.meetings.meeting_queries import user_was_meeting_member
+from app.modules.meetings.schemas import TranscriptOut, TranscriptSegmentOut
 from app.modules.meetings.service import get_meeting_by_id
 from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
 from app.modules.stream_tokens.service import get_stream_transcript_segments
-from app.state.client import get_redis
-from app.modules.transcripts.summarization import ensure_summary_chunks_for_meeting_end
-from app.modules.transcripts.summary_chunks_read import fetch_summary_chunk_summaries
 from app.modules.transcripts.service import (
     append_transcript_segment,
+    delete_transcript_state,
     generate_final_summary,
     get_transcript_history_segments,
     get_transcript_segments,
     has_user_left,
-    delete_transcript_state,
 )
-
+from app.modules.transcripts.summarization import ensure_summary_chunks_for_meeting_end
+from app.modules.transcripts.summary_chunks_read import fetch_summary_chunk_summaries
+from app.state.client import get_redis
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-ASSISTANT_SPEAKER_IDS = {"system:assistant", "meeting-assistant-bot", "Assistant"}
+
+def get_assistant_speaker_ids() -> set[str]:
+    return {"system:assistant", "meeting-assistant-bot", ASSISTANT_DISPLAY_NAME}
 
 
 class TranscriptHistorySegmentOut(BaseModel):
@@ -81,7 +82,7 @@ async def get_meeting_transcript(
     segments = [
         segment
         for segment in raw_segments
-        if (segment.get("speaker_id") or "") not in ASSISTANT_SPEAKER_IDS
+        if (segment.get("speaker_id") or "") not in get_assistant_speaker_ids()
     ]
     chunk_summaries: list[str] = []
     try:

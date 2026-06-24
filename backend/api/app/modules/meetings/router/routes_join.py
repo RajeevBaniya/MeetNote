@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
+from app.modules.chat.websocket import close_chat_connections_for_user
 from app.modules.meetings.schemas import EndMeetingOut, ParticipantActionIn
 from app.modules.meetings.service import end_meeting, get_meeting_by_id
 from app.modules.stream_tokens.constants import STREAM_CALL_TYPE
@@ -17,9 +18,8 @@ from app.modules.stream_tokens.service import (
     kick_stream_user,
     mute_stream_user,
 )
-from app.state.client import get_redis
-from app.modules.chat.websocket import close_chat_connections_for_user
 from app.modules.transcripts.service import mark_user_left
+from app.state.client import get_redis
 
 logger = logging.getLogger(__name__)
 

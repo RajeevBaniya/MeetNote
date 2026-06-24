@@ -1,18 +1,20 @@
+import json
 import logging
 from typing import Any
 from uuid import UUID
 
 import httpx
-import json
 from getstream import Stream
 from getstream.models import UserRequest
 from redis.asyncio import Redis
 
-from app.core.config import get_stream_api_key, get_stream_api_secret
+from app.core.config import (
+    STREAM_API_KEY,
+    STREAM_API_SECRET,
+    STREAM_TOKEN_EXPIRY_SECONDS,
+)
 
 logger = logging.getLogger(__name__)
-
-STREAM_TOKEN_EXPIRY_SECONDS = 3600
 STREAM_VIDEO_BASE = "https://video.stream-io-api.com/api/v2/video"
 
 
@@ -31,8 +33,8 @@ async def is_user_removed(redis: Redis, meeting_id: UUID, user_id: UUID) -> bool
 
 
 def create_stream_token(user_id: UUID, name: str | None = None) -> str:
-    api_key = get_stream_api_key()
-    api_secret = get_stream_api_secret()
+    api_key = STREAM_API_KEY
+    api_secret = STREAM_API_SECRET
     client = Stream(api_key=api_key, api_secret=api_secret)
     uid = str(user_id)
     user_request = UserRequest(
@@ -46,14 +48,14 @@ def create_stream_token(user_id: UUID, name: str | None = None) -> str:
 
 
 def _create_server_token(user_id: UUID, expiration_seconds: int = 60) -> str:
-    api_key = get_stream_api_key()
-    api_secret = get_stream_api_secret()
+    api_key = STREAM_API_KEY
+    api_secret = STREAM_API_SECRET
     client = Stream(api_key=api_key, api_secret=api_secret)
     return str(client.create_token(str(user_id), expiration=expiration_seconds))
 
 
 async def end_stream_call(call_type: str, call_id: str, host_user_id: UUID) -> None:
-    api_key = get_stream_api_key()
+    api_key = STREAM_API_KEY
     token = _create_server_token(host_user_id)
     url = f"{STREAM_VIDEO_BASE}/call/{call_type}/{call_id}/mark_ended"
     params = {"api_key": api_key}
@@ -77,7 +79,7 @@ async def kick_stream_user(
     host_user_id: UUID,
     target_user_id: UUID,
 ) -> None:
-    api_key = get_stream_api_key()
+    api_key = STREAM_API_KEY
     token = _create_server_token(host_user_id)
     url = f"{STREAM_VIDEO_BASE}/call/{call_type}/{call_id}/kick"
     params = {"api_key": api_key}
@@ -108,7 +110,7 @@ async def mute_stream_user(
     host_user_id: UUID,
     target_user_id: UUID,
 ) -> None:
-    api_key = get_stream_api_key()
+    api_key = STREAM_API_KEY
     token = _create_server_token(host_user_id)
     url = f"{STREAM_VIDEO_BASE}/call/{call_type}/{call_id}/mute_users"
     params = {"api_key": api_key}
@@ -142,7 +144,7 @@ async def list_stream_transcriptions(
     call_id: str,
     user_id: UUID,
 ) -> list[dict[str, Any]]:
-    api_key = get_stream_api_key()
+    api_key = STREAM_API_KEY
     token = _create_server_token(user_id)
     url = f"{STREAM_VIDEO_BASE}/call/{call_type}/{call_id}/transcriptions"
     params = {"api_key": api_key}
@@ -244,7 +246,7 @@ async def query_stream_call_members(
     call_id: str,
     acting_user_id: UUID,
 ) -> list[dict[str, Any]]:
-    api_key = get_stream_api_key()
+    api_key = STREAM_API_KEY
     token = _create_server_token(acting_user_id)
     url = f"{STREAM_VIDEO_BASE}/call/members"
     params = {"api_key": api_key}

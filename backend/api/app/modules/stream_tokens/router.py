@@ -5,13 +5,13 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import STREAM_TOKEN_EXPIRY_SECONDS
 from app.core.rate_limit import rate_limit_stream_token
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
-from app.modules.meetings.service import get_meeting_by_id, ensure_host_started
+from app.modules.meetings.service import ensure_host_started, get_meeting_by_id
 from app.modules.stream_tokens.schemas import StreamTokenIn, StreamTokenOut
 from app.modules.stream_tokens.service import (
-    STREAM_TOKEN_EXPIRY_SECONDS,
     create_stream_token,
     is_user_removed,
 )

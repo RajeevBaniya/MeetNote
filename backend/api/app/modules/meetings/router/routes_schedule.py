@@ -1,18 +1,17 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
 from urllib.parse import urlparse
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_app_base_url
+from app.core.config import APP_BASE_URL
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.meetings.service import get_meeting_by_id
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ async def get_meeting_ics(
             status_code=404,
             detail="Meeting not found",
         )
-    base_url = get_app_base_url()
+    base_url = APP_BASE_URL
     parsed = urlparse(base_url)
     domain = parsed.hostname or parsed.netloc or "localhost"
     join_link = f"{base_url}/meeting/join?code={meeting.join_code}"

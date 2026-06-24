@@ -9,7 +9,7 @@ from app.core.rate_limit import rate_limit_meeting_join
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
 from app.modules.join.schemas import JoinMeetingIn, JoinMeetingOut
-from app.modules.meetings.service import get_meeting_by_join_code, ensure_host_started
+from app.modules.meetings.service import ensure_host_started, get_meeting_by_join_code
 from app.modules.stream_tokens.service import is_user_removed
 from app.state.client import get_redis
 

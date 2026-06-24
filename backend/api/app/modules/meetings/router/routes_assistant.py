@@ -8,11 +8,10 @@ from app.core.jwt import decode_access_token
 from app.core.rate_limit import rate_limit_general
 from app.db.session import get_session
 from app.modules.auth.deps import get_current_user_id
+from app.modules.meetings.events import publish_meeting_assistant_preference
 from app.modules.meetings.schemas import AssistantPreferenceIn, AssistantPreferenceOut
 from app.modules.meetings.service import get_meeting_by_id
-from app.modules.meetings.events import publish_meeting_assistant_preference
 from app.state.client import get_redis
-
 
 logger = logging.getLogger(__name__)
 

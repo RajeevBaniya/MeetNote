@@ -5,6 +5,7 @@ from app.modules.meetings.meeting_queries import (
     get_meeting_by_id,
     get_meeting_by_join_code,
     get_meetings_for_host,
+    get_my_meetings_dashboard_data,
     list_meetings_for_user_host_or_participant,
 )
 from app.modules.meetings.meeting_lifecycle import end_meeting
@@ -22,6 +23,7 @@ __all__ = [
     "get_meeting_by_id",
     "get_meeting_by_join_code",
     "get_meetings_for_host",
+    "get_my_meetings_dashboard_data",
     "list_meetings_for_user_host_or_participant",
     "end_meeting",
     "ensure_host_consistency",

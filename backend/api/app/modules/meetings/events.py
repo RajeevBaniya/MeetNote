@@ -1,6 +1,6 @@
+import json
 import logging
 from uuid import UUID
-import json
 
 from app.state.client import get_redis
 

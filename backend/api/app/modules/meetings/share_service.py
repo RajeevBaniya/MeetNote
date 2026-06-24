@@ -1,21 +1,23 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_frontend_base_url_required
+from app.core.config import FRONTEND_BASE_URL_REQUIRED
+from app.db.models import Meeting
 from app.modules.meetings.meeting_queries import get_meeting_by_id
 
 
-def _is_meeting_creator(meeting, user_id: UUID) -> bool:
-    return meeting.host_id == user_id
+def _is_meeting_creator(meeting: Meeting, user_id: UUID) -> bool:
+    return bool(meeting.host_id == user_id)
 
 
 async def get_share_info(
     session: AsyncSession,
     meeting_id: UUID,
     user_id: UUID,
-) -> dict | None:
+) -> dict[str, Any] | None:
     meeting = await get_meeting_by_id(session, meeting_id)
     if not meeting:
         return None
@@ -26,7 +28,7 @@ async def get_share_info(
             status_code=400,
             detail="Meeting has already ended",
         )
-    base = get_frontend_base_url_required()
+    base = FRONTEND_BASE_URL_REQUIRED
     join_url = f"{base}/meeting/join"
     return {
         "meeting_id": str(meeting.id),

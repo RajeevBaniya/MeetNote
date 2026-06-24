@@ -1,13 +1,13 @@
 import logging
+
 from fastapi import APIRouter
 
+from .routes_analytics import router as analytics_router
+from .routes_assistant import router as assistant_router
 from .routes_core import router as core_router
 from .routes_schedule import router as schedule_router
-from .routes_assistant import router as assistant_router
-from .routes_analytics import router as analytics_router
-from .routes_transcript import router as transcript_router
 from .routes_share import router as share_router
-
+from .routes_transcript import router as transcript_router
 
 logger = logging.getLogger(__name__)
 

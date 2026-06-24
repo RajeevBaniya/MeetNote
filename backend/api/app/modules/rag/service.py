@@ -1,11 +1,13 @@
 import hashlib
-import uuid
 import logging
+import uuid
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import MeetingTranscriptChunk, MeetingSummaryChunk, RagFailedJob
+
+from app.db.models import MeetingSummaryChunk, MeetingTranscriptChunk, RagFailedJob
 
 logger = logging.getLogger(__name__)
 

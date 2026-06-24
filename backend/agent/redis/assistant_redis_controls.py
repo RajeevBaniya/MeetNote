@@ -1,8 +1,8 @@
 from typing import Optional
 
-from redis.asyncio import Redis
-
 from agent.config.agent_constants import AgentConstants
+
+from redis.asyncio import Redis
 
 
 def _cooldown_key(meeting_id: str) -> str:
@@ -45,7 +45,7 @@ async def should_skip_duplicate_question(
         return False
     try:
         prev = await redis.get(_last_question_key(meeting_id))
-        return prev == normalized
+        return bool(prev == normalized)
     except Exception:
         return False
 

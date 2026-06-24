@@ -2,10 +2,8 @@ import asyncio
 import logging
 from typing import Optional
 
-from vision_agents.core import agents
-
 from agent.core.assistant_core import AssistantCore
-
+from vision_agents.core import agents
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +14,7 @@ class MeetingAgent:
         meeting_id: str,
         core: AssistantCore,
         agent: agents.Agent,
-        task: Optional[asyncio.Task],
+        task: Optional[asyncio.Task[None]],
     ) -> None:
         self.meeting_id = meeting_id
         self.core = core

@@ -3,8 +3,6 @@ import json
 import logging
 from typing import Dict, Optional
 
-from redis.asyncio import Redis
-
 from agent.config.agent_constants import AgentConstants
 from agent.core.assistant_core import AssistantCore
 from agent.manager.meeting_agent import MeetingAgent
@@ -12,12 +10,14 @@ from agent.redis_client.redis_channels import (
     MEETING_ASSISTANT_PREFERENCE_CHANNEL,
     MEETING_CREATED_CHANNEL,
     MEETING_ENDED_CHANNEL,
+    MEETING_HOST_TRANSFER_CHANNEL,
     MEETING_SNAPSHOT_CHANNEL,
 )
 from agent.redis_client.redis_listener import listen_to_events
 from agent.stream.stream_agent_factory import create_stream_agent
 from agent.stream.stream_event_handlers import attach_stream_event_handlers
 
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ class AgentManager:
             api_base_url=self.api_base_url,
             redis=self.redis,
         )
+        await core.reload_host_id()
 
         agent = create_stream_agent(meeting_id)
 
@@ -77,7 +78,7 @@ class AgentManager:
         try:
             key = f"{AgentConstants.ASSISTANT_ENABLED_KEY_PREFIX}{meeting_id}"
             value = await self.redis.get(key)
-            return value != "0"
+            return bool(value != "0")
         except Exception as exc:
             logger.debug(
                 "Redis check failed for meeting %s: %s",
@@ -139,6 +140,7 @@ class AgentManager:
             MEETING_ENDED_CHANNEL,
             MEETING_SNAPSHOT_CHANNEL,
             MEETING_ASSISTANT_PREFERENCE_CHANNEL,
+            MEETING_HOST_TRANSFER_CHANNEL,
         ]
 
         async def handler(channel: str, data: str) -> None:
@@ -164,6 +166,9 @@ class AgentManager:
 
             elif channel == MEETING_ASSISTANT_PREFERENCE_CHANNEL:
                 await self._handle_assistant_preference(data)
+
+            elif channel == MEETING_HOST_TRANSFER_CHANNEL:
+                await self._handle_host_transfer(data)
 
         except Exception as exc:
             logger.error(
@@ -224,6 +229,24 @@ class AgentManager:
             await self.detach_from_meeting(meeting_id)
         else:
             await self.attach_to_meeting(meeting_id)
+
+    async def _handle_host_transfer(self, data: str) -> None:
+        try:
+            payload = json.loads(data)
+            meeting_id = payload.get("meeting_id")
+            new_host_id = payload.get("new_host_id")
+        except (json.JSONDecodeError, AttributeError) as exc:
+            logger.warning("Invalid host transfer payload: %s (%s)", data, exc)
+            return
+
+        if not meeting_id or not new_host_id:
+            logger.warning("Invalid IDs in host transfer payload")
+            return
+
+        agent_instance = self.agents.get(meeting_id)
+        if agent_instance:
+            agent_instance.core.host_db_id = new_host_id
+            logger.info("Updated host_db_id to %s for meeting %s", new_host_id, meeting_id)
 
     async def start(self) -> None:
         await self.initialize()

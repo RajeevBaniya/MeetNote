@@ -4,7 +4,6 @@ from typing import Awaitable, Callable, Iterable
 
 from redis.asyncio import Redis
 
-
 logger = logging.getLogger(__name__)
 
 

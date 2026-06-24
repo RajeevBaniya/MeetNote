@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from agent.manager.meeting_agent import MeetingAgent
 from vision_agents.core.events import (
     CallSessionEndedEvent,
     CallSessionParticipantJoinedEvent,
@@ -8,9 +9,6 @@ from vision_agents.core.events import (
     CallSessionStartedEvent,
 )
 from vision_agents.core.llm.events import RealtimeUserSpeechTranscriptionEvent
-
-from agent.manager.meeting_agent import MeetingAgent
-
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +26,6 @@ def attach_stream_event_handlers(meeting_agent: MeetingAgent) -> None:
     core = meeting_agent.core
     agent = meeting_agent.agent
 
-    @agent.events.subscribe
     async def handle_agent_event(event: Any) -> None:
         if isinstance(event, CallSessionStartedEvent):
             logger.info("Call session started for meeting %s", meeting_agent.meeting_id)
@@ -52,7 +49,7 @@ def attach_stream_event_handlers(meeting_agent: MeetingAgent) -> None:
                 )
         elif isinstance(event, RealtimeUserSpeechTranscriptionEvent):
             await core.handle_transcript(
-                speaker=getattr(event, "participant_id", "unknown"),
+                speaker=event.user_id() or "unknown",
                 text=event.text,
                 timestamp=getattr(event, "timestamp", None),
             )
@@ -63,4 +60,6 @@ def attach_stream_event_handlers(meeting_agent: MeetingAgent) -> None:
                 meeting_agent.meeting_id,
                 len(core.transcript),
             )
+
+    agent.events.subscribe(handle_agent_event)
 

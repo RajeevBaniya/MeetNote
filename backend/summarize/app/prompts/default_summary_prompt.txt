@@ -1,7 +1,14 @@
-{instruction}
+You are summarizing the following document. It may be a meeting transcript, legal contract, research paper, technical report, policy, book, compliance manual, or any other document type.
 
-Here is the meeting transcript to summarize:
+Instruction: {instruction}
 
+Requirements:
+- Preserve every specific name, number, date, dollar amount, percentage, metric, and proper noun exactly as it appears in the source
+- Preserve every decision, risk, obligation, finding, recommendation, and conclusion with full context
+- Structure the output clearly using sections so important information is easy to locate
+- Do not omit specific facts to achieve a shorter output — completeness is the primary goal
+
+Document:
 {transcript}
 
-Please provide a well-structured summary based on the instruction above.
+Provide a comprehensive, well-structured summary that preserves all important information from the document above.

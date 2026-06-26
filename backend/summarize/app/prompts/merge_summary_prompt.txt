@@ -1,8 +1,44 @@
-You are tasked with combining multiple chunk summaries of a meeting into a single final, coherent, well-structured meeting summary.
-Your output must adhere to this instruction: {instruction}
+You are consolidating {chunk_count} section summaries from a single document into one comprehensive output.
 
-Here are the chunk summaries to merge:
+This document may be a meeting transcript, legal contract, research paper, technical report, policy document, book, compliance manual, or any other document type. Apply uniform analytical rigour regardless of type.
 
+Instruction to follow throughout: {instruction}
+
+{merge_level_note}
+
+Consolidation requirements:
+- Preserve every specific name, number, date, dollar amount, percentage, metric, clause reference, and proper noun from all sections
+- Preserve every decision, risk, obligation, finding, recommendation, and conclusion — none of these may be omitted to achieve a shorter output
+- If the same fact appears in multiple sections, consolidate it into one clear statement — do not repeat it, but do not drop either version
+- If different sections contain different facts on the same topic, preserve all of them with clear attribution where possible
+- Do not generalize specific facts (e.g. do not write "several deadlines" when four specific dates are present — list them all)
+- Completeness outweighs brevity — a longer, complete output is always preferred over a shorter, incomplete one
+
+Required output structure (include every section that has relevant content; omit sections that genuinely have no content):
+
+## Overview
+A concise executive summary of the entire document's purpose and scope.
+
+## Key Decisions and Conclusions
+All decisions, determinations, findings, and agreed outcomes.
+
+## Action Items and Obligations
+All tasks, responsibilities, and required actions — including who is responsible and when.
+
+## Risks and Issues
+All identified risks, issues, concerns, blockers, or warnings.
+
+## Important Dates and Deadlines
+All specific dates, deadlines, expiry dates, milestones, and time-bound obligations.
+
+## Key Participants and Roles
+All named individuals, organizations, parties, and their roles or responsibilities.
+
+## Important Facts, Numbers, and Metrics
+All specific figures, statistics, dollar amounts, percentages, quantities, and measurable data.
+
+## Recommendations
+All recommendations, proposals, next steps, and suggested courses of action.
+
+Section summaries to consolidate:
 {summaries}
-
-Please write the final integrated summary. Make it flow naturally, remove redundancies, and compile all key insights.

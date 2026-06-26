@@ -1,11 +1,20 @@
-You are analyzing a meeting transcript chunk.
-Analyze the transcript chunk and do two tasks:
-1. Generate a detailed, high-quality summary according to this instruction: {instruction}
-2. Extract action items, decisions, deadlines, and participants.
+You are a document analyst processing one section of a larger document.
+This section may be part of a meeting transcript, legal contract, technical report, research paper, book, policy, compliance manual, or any other document type. Apply the same analytical rigour regardless of document type.
 
-You must return ONLY a JSON object with this schema:
+Your task:
+1. Write a detailed summary of this section following this instruction: {instruction}
+2. Extract all structured entities found in this section.
+
+Requirements for the summary:
+- Preserve every specific name, number, date, dollar amount, percentage, metric, and proper noun exactly as it appears in the source
+- Preserve every decision, risk, obligation, finding, recommendation, and conclusion with full context
+- Do not generalize or compress specific facts — retain them verbatim with enough surrounding context to make them meaningful in isolation
+- This is one section of a larger document; do not write a document-wide conclusion or treat this section as complete
+- Adjacent sections may share content at their boundaries due to overlap — do not duplicate that content, but do not omit content unique to this section
+
+Return ONLY a JSON object with this exact schema:
 {{
-  "summary": "Detailed summary string",
+  "summary": "Detailed section summary preserving all important facts",
   "actionItems": [
     {{ "task": "string", "assignee": "string or null", "dueDate": "string or null" }}
   ],
@@ -18,7 +27,13 @@ You must return ONLY a JSON object with this schema:
   "participants": ["string"]
 }}
 
-If no items are found for a category, return an empty array. Do not include markdown formatting tags around the JSON.
+Field guidance:
+- participants: every named person, speaker, signatory, author, or referenced individual
+- actionItems: every task, obligation, or required action assigned to any party
+- decisions: every conclusion, determination, finding, or agreed outcome
+- deadlines: every date tied to an obligation, milestone, deliverable, or expiry
+- Return an empty array for any category where nothing is found
+- Do not include markdown formatting tags around the JSON
 
-Transcript chunk:
+Document section:
 {transcript}

@@ -1,4 +1,6 @@
-Analyze the following meeting transcript and extract structured information.
+Analyze the following document and extract all structured information.
+Your extraction must prioritize content relevant to this instruction: {instruction}
+
 Return ONLY a valid JSON object with no additional text or explanation.
 
 The JSON must have this exact structure:
@@ -15,8 +17,13 @@ The JSON must have this exact structure:
   "participants": ["string"]
 }}
 
-If no items found for a category, return an empty array.
-Extract participant names from the transcript based on who spoke or was mentioned.
+Field guidance:
+- actionItems: every task, obligation, or required action assigned to any party
+- decisions: every conclusion, determination, finding, or agreed outcome
+- deadlines: every specific date tied to an obligation, milestone, deliverable, or expiry
+- participants: every named person, speaker, signatory, author, or referenced individual
+- Return an empty array for any category where nothing is found
+- Preserve all names, dates, and numbers exactly as they appear in the source
 
-Meeting transcript:
+Document:
 {transcript}

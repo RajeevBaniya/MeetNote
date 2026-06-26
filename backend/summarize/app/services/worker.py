@@ -1,7 +1,7 @@
-import uuid
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 from sqlalchemy import select, update
@@ -11,8 +11,8 @@ from app.core.config import (
     SUMMEREASE_INGESTION_INTERVAL_SECONDS,
     SUMMEREASE_RECOVERY_INTERVAL_SECONDS,
     SUMMEREASE_TOKEN_REFRESH_INTERVAL,
-    SUMMEREASE_MAX_RETRIES,
-    SUMMEREASE_THROTTLE_DELAY,
+    SUMMEREASE_CHUNK_SIZE_CHARS,
+    SUMMEREASE_CHUNK_OVERLAP_CHARS,
 )
 from app.core.storage import download_file_bytes, delete_file
 from app.db.session import async_session_factory
@@ -179,7 +179,11 @@ class DocumentProcessingWorker:
                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if file_name.lower().endswith(".docx") else "text/plain"
                            
                 full_text = extract_document_text(file_name, mimetype, file_bytes)
-                chunk_texts = chunk_document_stream((t for t in [full_text]))
+                chunk_texts = chunk_document_stream(
+                    (t for t in [full_text]),
+                    chunk_size_chars=SUMMEREASE_CHUNK_SIZE_CHARS,
+                    overlap_chars=SUMMEREASE_CHUNK_OVERLAP_CHARS,
+                )
                 
                 if not chunk_texts:
                     raise ValueError("Could not extract any content from the document file.")
@@ -220,42 +224,26 @@ class DocumentProcessingWorker:
                     )
                     await db.commit()
 
-                # Process with Gemini (with up to configured retries for transient errors like 429/500/503)
-                max_retries = SUMMEREASE_MAX_RETRIES
-                result_data = None
-                last_err = None
-                for attempt in range(max_retries):
-                    try:
-                        # Exponential backoff delay for retries: 2s, 4s, 8s
-                        if attempt > 0:
-                            backoff = 2 ** attempt
-                            logger.warning("retrying_chunk_processing job_id=%s index=%d attempt=%d/%d backoff=%ds", job_id, chunk.chunk_index, attempt + 1, max_retries, backoff)
-                            await asyncio.sleep(backoff)
-                        else:
-                            await asyncio.sleep(SUMMEREASE_THROTTLE_DELAY) # Standard throttle delay
-                        
-                        result_data = await generate_chunk_summary_single_pass(raw_text, instruction)
-                        break # Success!
-                    except Exception as exc:
-                        last_err = exc
-                        logger.warning("chunk_attempt_failed job_id=%s index=%d attempt=%d/%d err=%s", job_id, chunk.chunk_index, attempt + 1, max_retries, exc)
-                
-                if not result_data:
-                    # If we exhausted all retries, fail the chunk and raise
-                    logger.error("chunk_failed_all_retries job_id=%s index=%d", job_id, chunk.chunk_index)
+                # Retry logic for transient Gemini failures is handled inside
+                # generate_chunk_summary_single_pass via the AI layer.
+                # Permanent failures (400/401/403/404) raise immediately.
+                try:
+                    result_data = await generate_chunk_summary_single_pass(raw_text, instruction)
+                except Exception as exc:
+                    logger.error("chunk_failed job_id=%s index=%d err=%s", job_id, chunk.chunk_index, exc)
                     async with async_session_factory() as db:
                         await db.execute(
                             update(JobChunkProgressModel)
                             .where(JobChunkProgressModel.id == chunk.id)
                             .values(
                                 status="FAILED",
-                                error=str(last_err),
-                                retry_count=chunk.retry_count + max_retries,
+                                error=str(exc),
+                                retry_count=chunk.retry_count + 1,
                                 updated_at=datetime.now(timezone.utc),
                             )
                         )
                         await db.commit()
-                    raise last_err or RuntimeError("Chunk processing failed after all retries.")
+                    raise
 
                 # Update chunk with output on success
                 async with async_session_factory() as db:

@@ -1,64 +1,82 @@
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 from typing import Any
 
-from app.ai.gemini_client import GeminiClient
-from app.core.config import GEMINI_API_KEY_SUMMEREASE, GEMINI_MODEL_SUMMEREASE
+from app.ai.llm_gateway import llm_gateway
+from app.core.config import (
+    SUMMEREASE_CHARS_PER_TOKEN,
+    SUMMEREASE_CHUNK_SUMMARY_MAX_TOKENS,
+    SUMMEREASE_DIRECT_SUMMARY_MAX_TOKENS,
+    SUMMEREASE_MERGE_GROUP_SIZE,
+    SUMMEREASE_MERGE_INPUT_TOKEN_THRESHOLD,
+    SUMMEREASE_MERGE_MAX_TOKENS,
+)
 
 logger = logging.getLogger(__name__)
 
+PROMPTS_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts")
+)
 
-async def call_gemini_api(prompt: str, max_tokens: int = 1000) -> str:
-    """Invoke native Google Gemini API with the provided prompt."""
-    api_key = GEMINI_API_KEY_SUMMEREASE
-    model_name = GEMINI_MODEL_SUMMEREASE
-    client = GeminiClient(api_key, model_name)
-    return await client.generate_content(
+
+def get_prompt_template(filename: str) -> str:
+    path = os.path.join(PROMPTS_DIR, filename)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+async def call_gemini_api(prompt: str, max_tokens: int) -> str:
+    return await llm_gateway.generate_content(
         prompt=prompt,
         max_tokens=max_tokens,
         temperature=0.7,
-        timeout=30.0,
+        timeout=60.0,
+    )
+
+
+async def call_gemini_api_json(prompt: str, max_tokens: int) -> str:
+    return await llm_gateway.generate_content(
+        prompt=prompt,
+        max_tokens=max_tokens,
+        temperature=0.2,
+        timeout=90.0,
     )
 
 
 async def generate_summary(transcript: str, instruction: str) -> str:
-    """Invoke Gemini LLM API to generate a summary of the transcript."""
+    """Generate a prose summary of a document or transcript."""
     template = get_prompt_template("default_summary_prompt.txt")
     prompt = template.format(instruction=instruction, transcript=transcript)
 
     try:
-        return await call_gemini_api(
-            prompt=prompt,
-            max_tokens=1000,
-        )
+        return await call_gemini_api(prompt, max_tokens=SUMMEREASE_DIRECT_SUMMARY_MAX_TOKENS)
     except Exception as exc:
-        logger.error("Gemini summary generation failed: %s", exc, exc_info=exc)
+        logger.error("summary_generation_failed err=%s", exc, exc_info=exc)
         raise RuntimeError("Failed to generate summary") from exc
 
 
-async def extract_structured_data(transcript: str) -> dict[str, Any]:
-    """Invoke Gemini LLM API to extract action items, decisions, deadlines, and participants."""
+async def extract_structured_data(transcript: str, instruction: str) -> dict[str, Any]:
+    """Extract action items, decisions, deadlines, and participants from a document."""
     template = get_prompt_template("extract_structured_prompt.txt")
-    prompt = template.format(transcript=transcript)
+    prompt = template.format(transcript=transcript, instruction=instruction)
 
     try:
-        response_text = await call_gemini_api(
-            prompt=prompt,
-            max_tokens=1500,
+        response_text = await call_gemini_api_json(
+            prompt, max_tokens=SUMMEREASE_CHUNK_SUMMARY_MAX_TOKENS
         )
         return parse_structured_response(response_text)
     except Exception as exc:
-        logger.error("Structured extraction failed: %s", exc, exc_info=exc)
+        logger.error("structured_extraction_failed err=%s", exc, exc_info=exc)
         return get_empty_structured_data()
 
 
 def parse_structured_response(response: str) -> dict[str, Any]:
-    """Parse JSON payload out of the raw LLM completions text block."""
+    """Parse a JSON payload from a raw LLM response string."""
     try:
-        # Regex matching first '{' to last '}' to extract raw JSON
         match = re.search(r"\{[\s\S]*\}", response)
         if not match:
             return get_empty_structured_data()
@@ -94,48 +112,27 @@ async def generate_meeting_summary(
     if not extract_structured:
         return summary_text, get_empty_structured_data()
 
-    # Introduce 1-second delay to avoid parallel request rate-limiting on Gemini key
     await asyncio.sleep(1.0)
-    structured_data = await extract_structured_data(transcript)
+    structured_data = await extract_structured_data(transcript, instruction)
 
     return summary_text, structured_data
 
 
-PROMPTS_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompts")
-)
-
-
-def get_prompt_template(filename: str) -> str:
-    path = os.path.join(PROMPTS_DIR, filename)
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-
-async def call_gemini_api_json(prompt: str, max_tokens: int = 2500) -> str:
-    """Invoke native Google Gemini API requesting application/json response."""
-    api_key = GEMINI_API_KEY_SUMMEREASE
-    model_name = GEMINI_MODEL_SUMMEREASE
-    client = GeminiClient(api_key, model_name)
-    return await client.generate_content(
-        prompt=prompt,
-        max_tokens=max_tokens,
-        temperature=0.2,
-        timeout=60.0,
-    )
-
-
-async def generate_chunk_summary_single_pass(transcript: str, instruction: str) -> dict[str, Any]:
-    """Generate summary and extract structured data in a single pass to save API cost and latency."""
+async def generate_chunk_summary_single_pass(
+    transcript: str, instruction: str
+) -> dict[str, Any]:
+    """Generate a summary and extract structured data from one document section."""
     template = get_prompt_template("chunk_summary_prompt.txt")
     prompt = template.format(instruction=instruction, transcript=transcript)
 
-    response_text = await call_gemini_api_json(prompt, max_tokens=2500)
+    response_text = await call_gemini_api_json(
+        prompt, max_tokens=SUMMEREASE_CHUNK_SUMMARY_MAX_TOKENS
+    )
     match = re.search(r"\{[\s\S]*\}", response_text)
     json_str = match.group(0) if match else response_text
     parsed = json.loads(json_str)
     return {
-        "summary": parsed.get("summary") or "No summary generated for this chunk.",
+        "summary": parsed.get("summary") or "No summary generated for this section.",
         "actionItems": parsed.get("actionItems") if isinstance(parsed.get("actionItems"), list) else [],
         "decisions": parsed.get("decisions") if isinstance(parsed.get("decisions"), list) else [],
         "deadlines": parsed.get("deadlines") if isinstance(parsed.get("deadlines"), list) else [],
@@ -143,23 +140,109 @@ async def generate_chunk_summary_single_pass(transcript: str, instruction: str) 
     }
 
 
-async def merge_chunk_summaries(summaries: list[str], instruction: str) -> str:
-    """Merge multiple chunk summaries into a final coherent summary."""
-    joined_summaries = "\n\n".join(
-        [f"Chunk {i+1} Summary:\n{s}" for i, s in enumerate(summaries)]
-    )
-    template = get_prompt_template("merge_summary_prompt.txt")
-    prompt = template.format(instruction=instruction, summaries=joined_summaries)
+def _estimate_tokens(text: str) -> int:
+    """Estimate token count using the configured chars-per-token approximation."""
+    return len(text) // SUMMEREASE_CHARS_PER_TOKEN
 
-    try:
-        return await call_gemini_api(prompt, max_tokens=2500)
-    except Exception as exc:
-        logger.error("Failed to merge chunk summaries: %s", exc, exc_info=exc)
-        return "\n\n".join(summaries)
+
+def _build_merge_prompt(
+    summaries: list[str],
+    instruction: str,
+    is_final_level: bool,
+) -> str:
+    """Build a merge prompt for the given group of summaries."""
+    chunk_count = len(summaries)
+    numbered = "\n\n".join(
+        [f"Section {i + 1} Summary:\n{s}" for i, s in enumerate(summaries)]
+    )
+
+    if is_final_level:
+        merge_level_note = (
+            "This is the final consolidation pass. "
+            "Produce the complete, comprehensive final output that a reader would use as the definitive summary of the document."
+        )
+    else:
+        merge_level_note = (
+            "This is an intermediate consolidation pass covering a subset of the document. "
+            "Preserve every specific fact, name, number, date, decision, risk, and obligation — "
+            "this output will be consolidated again with other sections in a subsequent pass."
+        )
+
+    template = get_prompt_template("merge_summary_prompt.txt")
+    return template.format(
+        chunk_count=chunk_count,
+        instruction=instruction,
+        merge_level_note=merge_level_note,
+        summaries=numbered,
+    )
+
+
+async def _merge_group(
+    summaries: list[str],
+    instruction: str,
+    is_final_level: bool,
+) -> str:
+    """Execute one merge call for a group of summaries."""
+    prompt = _build_merge_prompt(summaries, instruction, is_final_level)
+    return await call_gemini_api(prompt, max_tokens=SUMMEREASE_MERGE_MAX_TOKENS)
+
+
+async def merge_chunk_summaries(summaries: list[str], instruction: str) -> str:
+    """
+    Hierarchically merge chunk summaries until one final summary remains.
+
+    Algorithm:
+    1. Estimate total input tokens for a flat merge of all summaries.
+    2. If the estimate fits within SUMMEREASE_MERGE_INPUT_TOKEN_THRESHOLD, merge in one call.
+    3. Otherwise, split into groups of SUMMEREASE_MERGE_GROUP_SIZE, merge each group
+       independently (intermediate pass), then recurse on the results.
+
+    This produces a dynamic recursion depth — one level for small documents,
+    multiple levels for documents with hundreds of chunks. No fixed depth is assumed.
+    """
+    if not summaries:
+        return ""
+
+    if len(summaries) == 1:
+        return summaries[0]
+
+    estimated_input_tokens = _estimate_tokens(" ".join(summaries))
+
+    total_groups = math.ceil(len(summaries) / SUMMEREASE_MERGE_GROUP_SIZE)
+    fits_in_one_call = estimated_input_tokens <= SUMMEREASE_MERGE_INPUT_TOKEN_THRESHOLD
+
+    if fits_in_one_call:
+        logger.info(
+            "merge_single_pass summary_count=%d estimated_tokens=%d",
+            len(summaries),
+            estimated_input_tokens,
+        )
+        return await _merge_group(summaries, instruction, is_final_level=True)
+
+    logger.info(
+        "merge_hierarchical summary_count=%d estimated_tokens=%d groups=%d",
+        len(summaries),
+        estimated_input_tokens,
+        total_groups,
+    )
+
+    level_results: list[str] = []
+    for group_index in range(0, len(summaries), SUMMEREASE_MERGE_GROUP_SIZE):
+        group = summaries[group_index: group_index + SUMMEREASE_MERGE_GROUP_SIZE]
+        merged = await _merge_group(group, instruction, is_final_level=False)
+        level_results.append(merged)
+        logger.info(
+            "merge_group_complete group=%d/%d size=%d",
+            group_index // SUMMEREASE_MERGE_GROUP_SIZE + 1,
+            total_groups,
+            len(group),
+        )
+
+    return await merge_chunk_summaries(level_results, instruction)
 
 
 def merge_structured_data(chunks_data: list[dict[str, Any]]) -> dict[str, Any]:
-    """Merges and deduplicates structured data arrays from multiple chunks."""
+    """Merge and deduplicate structured data from multiple document sections."""
     merged: dict[str, Any] = {
         "actionItems": [],
         "decisions": [],
@@ -167,9 +250,9 @@ def merge_structured_data(chunks_data: list[dict[str, Any]]) -> dict[str, Any]:
         "participants": set(),
     }
 
-    seen_tasks = set()
-    seen_decisions = set()
-    seen_deadlines = set()
+    seen_tasks: set[str] = set()
+    seen_decisions: set[str] = set()
+    seen_deadlines: set[str] = set()
 
     for data in chunks_data:
         for p in data.get("participants", []):
@@ -226,4 +309,3 @@ def merge_structured_data(chunks_data: list[dict[str, Any]]) -> dict[str, Any]:
         "deadlines": merged["deadlines"],
         "participants": sorted(list(merged["participants"])),
     }
-

@@ -2,6 +2,8 @@ import logging
 
 import httpx
 
+from app.ai.llm_providers import register_llm_provider
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +24,6 @@ class GeminiClient:
         timeout: float = 30.0,
     ) -> str:
         """Call native Google Gemini API generateContent endpoint."""
-        # Align URL structure with the appropriate API version
         if "beta" in self.model_name or "gemini-1.5" in self.model_name or "1.5" in self.model_name:
             base_url = "https://generativelanguage.googleapis.com/v1beta"
         else:
@@ -52,3 +53,8 @@ class GeminiClient:
             raise RuntimeError("No text parts returned from Gemini")
 
         return str(parts[0].get("text") or "").strip()
+
+
+register_llm_provider("gemini", GeminiClient)
+
+

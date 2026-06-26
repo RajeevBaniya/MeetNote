@@ -1,22 +1,28 @@
 from collections.abc import Generator
 
+from app.core.config import SUMMEREASE_CHUNK_OVERLAP_CHARS, SUMMEREASE_CHUNK_SIZE_CHARS
+
 
 def chunk_document_stream(
     text_generator: Generator[str, None, None],
-    chunk_size_chars: int = 1000000,
-    overlap_chars: int = 100000,
+    chunk_size_chars: int = SUMMEREASE_CHUNK_SIZE_CHARS,
+    overlap_chars: int = SUMMEREASE_CHUNK_OVERLAP_CHARS,
 ) -> list[str]:
     """
-    Groups streamed text sections into chunks of approx chunk_size_chars,
-    maintaining overlap_chars between consecutive chunks.
-    
+    Split a stream of text sections into overlapping chunks sized for the AI pipeline.
+
+    Chunk size and overlap are derived from token targets defined in config.py using
+    a character-per-token approximation (default: 4 chars/token for English prose).
+    When a model-specific tokenizer becomes available, update SUMMEREASE_CHARS_PER_TOKEN
+    and SUMMEREASE_CHUNK_TARGET_TOKENS in config.py — this function requires no changes.
+
     Args:
-        text_generator: Generator yielding strings.
-        chunk_size_chars: Target character size for chunks (~250,000 tokens).
-        overlap_chars: Overlap character size between chunks (~25,000 tokens).
-        
+        text_generator: Generator yielding strings (document sections or full text).
+        chunk_size_chars: Maximum characters per chunk. Defaults to config value.
+        overlap_chars: Characters shared between consecutive chunks. Defaults to config value.
+
     Returns:
-        List of chunk strings.
+        List of chunk strings in document order.
     """
     chunks: list[str] = []
     current_chunk: list[str] = []
@@ -26,14 +32,20 @@ def chunk_document_stream(
         if not segment:
             continue
 
-        # Safe split of large segments if they exceed chunk_size_chars
         sub_segments: list[str] = []
         if len(segment) > chunk_size_chars:
             lines = segment.splitlines(keepends=True)
             temp_seg: list[str] = []
             temp_len: int = 0
             for line in lines:
-                if temp_len + len(line) > chunk_size_chars:
+                if len(line) > chunk_size_chars:
+                    if temp_seg:
+                        sub_segments.append("".join(temp_seg))
+                        temp_seg = []
+                        temp_len = 0
+                    for i in range(0, len(line), chunk_size_chars):
+                        sub_segments.append(line[i : i + chunk_size_chars])
+                elif temp_len + len(line) > chunk_size_chars:
                     if temp_seg:
                         sub_segments.append("".join(temp_seg))
                     temp_seg = [line]
@@ -52,8 +64,11 @@ def chunk_document_stream(
                 chunk_text = "".join(current_chunk)
                 chunks.append(chunk_text)
 
-                # Overlap calculation
-                overlap_text = chunk_text[-overlap_chars:] if len(chunk_text) > overlap_chars else chunk_text
+                overlap_text = (
+                    chunk_text[-overlap_chars:]
+                    if len(chunk_text) > overlap_chars
+                    else chunk_text
+                )
                 current_chunk = [overlap_text, sub_seg]
                 current_len = len(overlap_text) + sub_len
             else:

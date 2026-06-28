@@ -13,11 +13,7 @@ from app.core.gemini_client import GeminiClient
 from app.db.models import RagFailedJob
 from app.db.session import async_session_factory
 from app.modules.rag.service import (
-    generate_chunk_hash,
-    check_transcript_chunk_exists,
-    check_summary_chunk_exists,
-    save_transcript_chunk,
-    save_summary_chunk,
+    process_rag_ingestion_job,
     record_failed_job,
     mark_failed_job_completed,
 )
@@ -72,52 +68,18 @@ async def _process_embedding_job(
     chunk_type: str,
     text_content: str,
     speaker_name: str | None,
+    sequence: int | None = None,
 ) -> bool:
-    """Executes chunk hashing, deduplication check, Gemini embedding call, and DB insertion."""
-    text_hash = generate_chunk_hash(meeting_id, text_content)
-
-    # 1. Deduplication check (Short DB transaction)
-    if chunk_type == "transcript":
-        exists = await check_transcript_chunk_exists(session, meeting_id, text_hash)
-    elif chunk_type == "summary":
-        exists = await check_summary_chunk_exists(session, meeting_id, text_hash)
-    else:
-        logger.warning("Unknown chunk type: %s", chunk_type)
-        return True
-
-    if exists:
-        logger.info("Duplicate RAG chunk detected (meeting_id=%s, text_hash=%s, type=%s), skipping insert.", meeting_id, text_hash, chunk_type)
-        return True
-
-    # 2. Make network call outside of DB transactions
-    embedding = await client.embed_content(text_content)
-
-    # 3. Save chunk to database
-    try:
-        if chunk_type == "transcript":
-            await save_transcript_chunk(
-                session=session,
-                meeting_id=meeting_id,
-                speaker_name=speaker_name,
-                text_content=text_content,
-                text_hash=text_hash,
-                embedding=embedding,
-            )
-        elif chunk_type == "summary":
-            await save_summary_chunk(
-                session=session,
-                meeting_id=meeting_id,
-                text_content=text_content,
-                text_hash=text_hash,
-                embedding=embedding,
-            )
-    except Exception as exc:
-        from sqlalchemy.exc import IntegrityError
-        if isinstance(exc, IntegrityError):
-            logger.info("Duplicate RAG chunk insert prevented by database uniqueness constraint (meeting_id=%s, text_hash=%s, type=%s).", meeting_id, text_hash, chunk_type)
-            return True
-        raise exc
-    return True
+    """Delegates chunk checks, overlap calculation, embedding generation, and saving to RAG service layer."""
+    return await process_rag_ingestion_job(
+        session=session,
+        client=client,
+        meeting_id=meeting_id,
+        chunk_type=chunk_type,
+        text_content=text_content,
+        speaker_name=speaker_name,
+        sequence=sequence,
+    )
 
 
 async def handle_failed_job_retry_setup(
@@ -217,6 +179,7 @@ async def run_ingestion_consumer(
                             chunk_type=chunk_type,
                             text_content=text_content,
                             speaker_name=speaker_name,
+                            sequence=payload.get("sequence"),
                         )
                     except Exception as exc:
                         # Record failure and schedule retry
@@ -326,6 +289,7 @@ async def run_retry_consumer(
                             chunk_type=chunk_type,
                             text_content=text_content,
                             speaker_name=speaker_name,
+                            sequence=payload.get("sequence"),
                         )
                         # Clean up job upon successful execution
                         await mark_failed_job_completed(session, job_id)

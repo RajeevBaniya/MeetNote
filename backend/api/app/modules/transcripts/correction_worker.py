@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -35,15 +36,48 @@ async def _get_redis_client() -> Redis:
     return await get_redis()
 
 
+GLOSSARY_PATH = os.path.abspath(
+    os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "prompts",
+        "transcripts",
+        "technical_glossary.txt"
+    )
+)
+
+
+def _load_technical_glossary() -> list[str]:
+    try:
+        if os.path.exists(GLOSSARY_PATH):
+            with open(GLOSSARY_PATH, "r", encoding="utf-8") as f:
+                return [line.strip() for line in f if line.strip()]
+    except Exception as exc:
+        logger.warning("failed_to_load_technical_glossary: %s", exc)
+    return [
+        "Speech Gateway", "SFU", "RAG", "WebRTC", "FastAPI", "ElevenLabs",
+        "GetStream", "Prometheus", "PostgreSQL", "Redis", "MeetNote",
+        "Gemini", "Whisper", "Vite", "Next.js", "TailwindCSS", "TypeScript", "WebSocket"
+    ]
+
+
 async def correct_segment(text: str) -> str:
     api_key = GEMINI_API_KEY
     if not api_key:
         logger.warning("gemini_key_missing_for_correction")
         return text
 
+    terms = _load_technical_glossary()
+    glossary_str = ", ".join(terms)
+
     prompt = (
-        "Correct grammar, spelling, and punctuation. Maintain original meaning exactly. "
-        "Output ONLY the corrected text. Do not include introductory text or quotes.\n\n"
+        "Correct any obvious spelling, grammar, and punctuation mistakes in the transcript segment. "
+        "Keep the speaker's original intent, tone, style, and meaning exactly as is. "
+        "Preserve all technical terminology, abbreviations, project names, product names, dates, deadlines, versions, and abbreviations. "
+        "Do not over-correct or rewrite the sentence to sound overly formal. "
+        "If you see phonetic mishearings or approximations of technical vocabulary, "
+        "map them to their correct technical spellings.\n"
+        f"Technical Glossary: {glossary_str}\n\n"
+        "Output ONLY the corrected text. Do not include introductory text, explanations, or quotes.\n\n"
         f"Text:\n{text}"
     )
 
@@ -129,8 +163,19 @@ async def run_correction_worker(shutdown_event: asyncio.Event | None = None) -> 
                     async with async_session_factory() as session:
                         async with session.begin():
                             await soft_delete_transcript_chunks(session, meeting_id, [old_hash])
+                            from sqlalchemy import update
+                            from app.db.models import MeetingTranscript
+                            stmt = (
+                                update(MeetingTranscript)
+                                .where(
+                                    MeetingTranscript.meeting_id == meeting_id,
+                                    MeetingTranscript.sequence == sequence
+                                )
+                                .values(text_content=corrected_text)
+                            )
+                            await session.execute(stmt)
                 except Exception as exc:
-                    logger.warning("Failed to soft-delete old transcript chunk on correction: %s", exc)
+                    logger.warning("Failed to update database and soft-delete old transcript chunk on correction: %s", exc)
 
                 if ENABLE_RAG:
                     try:
@@ -143,6 +188,7 @@ async def run_correction_worker(shutdown_event: asyncio.Event | None = None) -> 
                             "created_at": datetime.now(timezone.utc).isoformat(),
                             "text_content": corrected_text,
                             "speaker_name": speaker_name,
+                            "sequence": sequence,
                         }
                         await redis_lpush(redis, "rag:ingestion_queue", json.dumps(rag_payload))
                     except Exception as exc:

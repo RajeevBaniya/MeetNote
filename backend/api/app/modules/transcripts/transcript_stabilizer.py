@@ -17,6 +17,8 @@ from app.core.config import (
     TRANSCRIPT_COMMIT_WINDOW_SECONDS,
 )
 from app.core.metrics import incr
+from app.db.models import MeetingTranscript
+from app.db.session import async_session_factory
 from app.modules.transcripts.broadcaster import publish_segment
 from app.modules.transcripts.redis_keys import (
     buffer_key,
@@ -165,6 +167,33 @@ async def _commit_segment(
     await publish_segment(redis, meeting_id, stream_payload)
     incr("transcript_segments_committed_total")
 
+    try:
+        async with async_session_factory() as session:
+            async with session.begin():
+                db_segment = MeetingTranscript(
+                    id=uuid.uuid4(),
+                    meeting_id=meeting_id,
+                    sequence=sequence,
+                    speaker_id=speaker_id_str,
+                    speaker_name=final_speaker_name,
+                    text_content=text,
+                    timestamp=ts_dt,
+                )
+                session.add(db_segment)
+    except Exception as exc:
+        from sqlalchemy.exc import IntegrityError
+        if isinstance(exc, IntegrityError):
+            logger.info(
+                "duplicate_transcript_segment_ignored",
+                extra={"meeting_id": str(meeting_id), "sequence": sequence},
+            )
+        else:
+            logger.exception(
+                "failed_to_persist_transcript_segment_to_db",
+                extra={"meeting_id": str(meeting_id), "sequence": sequence},
+                exc_info=exc,
+            )
+
     latency_ms = int((datetime.now(timezone.utc) - ts_dt).total_seconds() * 1000)
     logger.info(
         "transcript_segment_committed",
@@ -200,6 +229,7 @@ async def _commit_segment(
             "created_at": datetime.now(timezone.utc).isoformat(),
             "text_content": text,
             "speaker_name": final_speaker_name,
+            "sequence": sequence,
         }
         await redis_lpush(redis, "rag:ingestion_queue", json.dumps(rag_payload))
 

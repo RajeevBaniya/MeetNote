@@ -1,9 +1,13 @@
 import asyncio
+import logging
 from uuid import UUID
 
 from redis.asyncio import Redis
+from sqlalchemy import select
 
 from app.core.config import TRANSCRIPT_SEGMENT_THRESHOLD
+from app.db.models import MeetingTranscript
+from app.db.session import async_session_factory
 from app.modules.transcripts.segment_storage import (
     append_transcript_segment as _append_segment,
 )
@@ -21,6 +25,9 @@ from app.modules.transcripts.summarization import (
     process_transcript_chunk,
 )
 from app.state.client import get_redis
+
+
+logger = logging.getLogger(__name__)
 
 
 async def append_transcript_segment(
@@ -65,28 +72,60 @@ async def get_transcript_history_segments(
     )
     segments: list[dict[str, object]] = []
 
-    for item in raw_items:
-        speaker_id = item.get("speaker_id")
-        speaker_name = item.get("speaker_name") or speaker_id or ""
-        sequence_value = item.get("sequence")
+    if not raw_items:
         try:
-            sequence = int(sequence_value)  # type: ignore[arg-type]
-        except (TypeError, ValueError):
-            sequence = 0
+            async with async_session_factory() as session:
+                async with session.begin():
+                    stmt = (
+                        select(MeetingTranscript)
+                        .where(MeetingTranscript.meeting_id == meeting_id)
+                        .order_by(MeetingTranscript.sequence.desc())
+                        .limit(normalized_limit)
+                    )
+                    res = await session.execute(stmt)
+                    db_segments = res.scalars().all()
+                    for seg in reversed(db_segments):
+                        segments.append(
+                            {
+                                "sequence": seg.sequence,
+                                "segment_id": str(seg.id),
+                                "speaker_id": seg.speaker_id or "",
+                                "speaker_name": seg.speaker_name or "",
+                                "text": seg.text_content,
+                                "original_text": seg.text_content,
+                                "timestamp": seg.timestamp.isoformat() if seg.timestamp else "",
+                            }
+                        )
+        except Exception as exc:
+            logger.exception(
+                "failed_to_fallback_read_transcript_from_db",
+                extra={"meeting_id": str(meeting_id)},
+                exc_info=exc,
+            )
+    else:
+        for item in raw_items:
+            speaker_id = item.get("speaker_id")
+            speaker_name = item.get("speaker_name") or speaker_id or ""
+            sequence_value = item.get("sequence")
+            try:
+                sequence = int(sequence_value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                sequence = 0
 
-        segments.append(
-            {
-                "sequence": sequence,
-                "segment_id": str(item.get("segment_id") or ""),
-                "speaker_id": str(speaker_id) if speaker_id is not None else "",
-                "speaker_name": str(speaker_name),
-                "text": str(item.get("corrected_text") or item.get("text") or ""),
-                "original_text": str(item.get("text") or ""),
-                "timestamp": str(item.get("start_time") or ""),
-            }
-        )
+            segments.append(
+                {
+                    "sequence": sequence,
+                    "segment_id": str(item.get("segment_id") or ""),
+                    "speaker_id": str(speaker_id) if speaker_id is not None else "",
+                    "speaker_name": str(speaker_name),
+                    "text": str(item.get("corrected_text") or item.get("text") or ""),
+                    "original_text": str(item.get("text") or ""),
+                    "timestamp": str(item.get("start_time") or ""),
+                }
+            )
 
     return segments
+
 
 
 __all__ = [

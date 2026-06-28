@@ -22,6 +22,8 @@ async def ensure_database_schema(engine: AsyncEngine) -> None:
             await _create_recordings_indexes(conn)
             await _ensure_lifecycle_constraints(conn)
             await _create_outbox_table(conn)
+            await _create_meeting_transcripts_table(conn)
+            await _create_meeting_chat_messages_table(conn)
             if ENABLE_RAG:
                 await _create_rag_tables(conn)
     except Exception as exc:
@@ -299,6 +301,7 @@ async def _create_rag_tables(conn: AsyncConnection) -> None:
             "CREATE TABLE IF NOT EXISTS meeting_transcript_chunks ("
             "id UUID PRIMARY KEY,"
             "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "sequence INT NULL,"
             "speaker_name TEXT NULL,"
             "text_content TEXT NOT NULL,"
             "text_hash VARCHAR(64) NOT NULL,"
@@ -308,6 +311,9 @@ async def _create_rag_tables(conn: AsyncConnection) -> None:
             "CONSTRAINT uq_meeting_transcript_chunk_hash UNIQUE(meeting_id, text_hash)"
             ")"
         )
+    )
+    await conn.execute(
+        text("ALTER TABLE meeting_transcript_chunks ADD COLUMN IF NOT EXISTS sequence INT NULL")
     )
 
     await conn.execute(
@@ -370,3 +376,69 @@ async def _create_rag_tables(conn: AsyncConnection) -> None:
     await conn.execute(
         text("CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_hnsw ON meeting_document_chunks USING hnsw (embedding vector_cosine_ops)")
     )
+
+
+async def _create_meeting_transcripts_table(conn: AsyncConnection) -> None:
+    """Create meeting_transcripts table if it doesn't exist."""
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS meeting_transcripts ("
+            "id UUID PRIMARY KEY,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "sequence INT NOT NULL,"
+            "speaker_id VARCHAR(255) NULL,"
+            "speaker_name VARCHAR(255) NULL,"
+            "text_content TEXT NOT NULL,"
+            "timestamp TIMESTAMPTZ NOT NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+            "CONSTRAINT uq_meeting_transcripts_seq UNIQUE (meeting_id, sequence)"
+            ")"
+        )
+    )
+    await conn.execute(
+        text(
+            "ALTER TABLE meeting_transcripts "
+            "DROP CONSTRAINT IF EXISTS uq_meeting_transcripts_seq"
+        )
+    )
+    await conn.execute(
+        text(
+            "ALTER TABLE meeting_transcripts "
+            "ADD CONSTRAINT uq_meeting_transcripts_seq UNIQUE (meeting_id, sequence)"
+        )
+    )
+    await conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_meeting_transcripts_meeting_seq "
+            "ON meeting_transcripts(meeting_id, sequence ASC)"
+        )
+    )
+    await conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_meeting_transcripts_created_at "
+            "ON meeting_transcripts(created_at)"
+        )
+    )
+
+
+async def _create_meeting_chat_messages_table(conn: AsyncConnection) -> None:
+    """Create meeting_chat_messages table if it doesn't exist."""
+    await conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS meeting_chat_messages ("
+            "id UUID PRIMARY KEY,"
+            "meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,"
+            "user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
+            "role VARCHAR(20) NOT NULL,"
+            "content TEXT NOT NULL,"
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+            ")"
+        )
+    )
+    await conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_meeting_chat_messages_meeting_user "
+            "ON meeting_chat_messages(meeting_id, user_id, created_at ASC)"
+        )
+    )
+

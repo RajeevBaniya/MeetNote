@@ -1,0 +1,15 @@
+RESPONSE_MODE_TRANSCRIPT = "transcript"
+RESPONSE_MODE_SUMMARY = "summary"
+RESPONSE_MODE_HYBRID = "hybrid"
+RESPONSE_MODE_UNAVAILABLE = "unavailable"
+
+CHAT_MODE_TRANSCRIPT_ONLY = "transcript"
+CHAT_MODE_SUMMARY_ONLY = "summary"
+CHAT_MODE_TRANSCRIPT_AND_SUMMARY = "transcript_and_summary"
+CHAT_MODE_INACTIVE = "unavailable"
+CHAT_MODE_UNAVAILABLE = "unavailable"
+
+METRIC_CHAT_REQUESTS_TOTAL = "meeting_chat_requests_total"
+METRIC_CHAT_FAILURES_TOTAL = "meeting_chat_failures_total"
+METRIC_CHAT_FALLBACK_TOTAL = "meeting_chat_fallback_total"
+METRIC_CHAT_DURATION_MS_TOTAL = "meeting_chat_request_duration_ms_total"

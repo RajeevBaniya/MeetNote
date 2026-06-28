@@ -1,0 +1,18 @@
+Speech Gateway
+SFU
+RAG
+WebRTC
+FastAPI
+ElevenLabs
+GetStream
+Prometheus
+PostgreSQL
+Redis
+MeetNote
+Gemini
+Whisper
+Vite
+Next.js
+TailwindCSS
+TypeScript
+WebSocket

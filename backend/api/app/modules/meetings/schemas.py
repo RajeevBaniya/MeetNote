@@ -66,6 +66,7 @@ class MeetingListItemOut(BaseModel):
     is_active: bool
     created_at: datetime
     scheduled_start_at: datetime | None = None
+    can_delete: bool = False
 
 
 class MyMeetingsOut(BaseModel):
@@ -85,6 +86,7 @@ class MeetingMyItemOut(BaseModel):
     participant_count: int
     has_summary: bool = False
     scheduled_start_at: datetime | None = None
+    can_delete: bool = False
 
 
 class MeetingAnalyticsMeetingOut(BaseModel):

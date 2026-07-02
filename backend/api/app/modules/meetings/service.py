@@ -8,7 +8,7 @@ from app.modules.meetings.meeting_queries import (
     get_my_meetings_dashboard_data,
     list_meetings_for_user_host_or_participant,
 )
-from app.modules.meetings.meeting_lifecycle import end_meeting
+from app.modules.meetings.meeting_lifecycle import end_meeting, delete_meeting
 from app.modules.meetings.host_management import (
     ensure_host_consistency,
     restore_original_host_if_rejoined,
@@ -26,6 +26,7 @@ __all__ = [
     "get_my_meetings_dashboard_data",
     "list_meetings_for_user_host_or_participant",
     "end_meeting",
+    "delete_meeting",
     "ensure_host_consistency",
     "restore_original_host_if_rejoined",
     "select_next_host_candidate",

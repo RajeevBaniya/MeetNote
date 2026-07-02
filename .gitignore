@@ -36,5 +36,5 @@ Thumbs.db
 infra/
 
 
-backend/api/tests/test_workers/
+backend/api/tests
 

@@ -48,6 +48,7 @@ async def get_my_meetings(
             is_active=m.is_active,
             created_at=m.created_at,
             scheduled_start_at=m.scheduled_start_at,
+            can_delete=True,
         )
         for m in data["upcoming"]
     ]
@@ -58,6 +59,7 @@ async def get_my_meetings(
             is_active=m.is_active,
             created_at=m.created_at,
             scheduled_start_at=m.scheduled_start_at,
+            can_delete=True,
         )
         for m in data["active"]
     ]
@@ -68,6 +70,7 @@ async def get_my_meetings(
             is_active=m.is_active,
             created_at=m.created_at,
             scheduled_start_at=m.scheduled_start_at,
+            can_delete=True,
         )
         for m in data["ended"]
     ]
@@ -91,6 +94,7 @@ async def list_my_meetings_host_or_participant(
             participant_count=count,
             has_summary=False,
             scheduled_start_at=m.scheduled_start_at,
+            can_delete=(m.host_id == user_id),
         )
         for m, count in rows
     ]

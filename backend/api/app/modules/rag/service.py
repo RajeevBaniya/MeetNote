@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import MeetingSummaryChunk, MeetingTranscriptChunk, MeetingTranscript, RagFailedJob
+from app.db.models import MeetingSummaryChunk, MeetingTranscriptChunk, MeetingTranscript, RagFailedJob, Meeting
 from app.core.config import TRANSCRIPT_CHUNK_OVERLAP
 
 logger = logging.getLogger(__name__)
@@ -178,6 +178,14 @@ async def process_rag_ingestion_job(
     sequence: Optional[int] = None,
 ) -> bool:
     """Processes a single RAG ingestion job: handles exists check, overlap generation, embedding, and save."""
+    # 1. Verify meeting still exists before doing any database operations
+    meeting_exists = await session.scalar(
+        select(1).select_from(Meeting).where(Meeting.id == meeting_id).limit(1)
+    )
+    if not meeting_exists:
+        logger.info("Meeting %s does not exist. Skipping RAG ingestion.", meeting_id)
+        return True
+
     text_hash = generate_chunk_hash(meeting_id, text_content)
 
     if chunk_type == "transcript":

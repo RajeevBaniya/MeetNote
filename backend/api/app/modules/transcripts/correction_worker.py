@@ -12,6 +12,8 @@ from redis.asyncio import Redis
 from app.core.config import ENABLE_RAG, GEMINI_API_KEY, GEMINI_CORRECTION_MODEL_NAME
 from app.core.gemini_client import GeminiClient
 from app.core.metrics import incr
+from sqlalchemy import select
+from app.db.models import Meeting
 from app.db.session import async_session_factory
 from app.modules.rag.service import generate_chunk_hash, soft_delete_transcript_chunks
 from app.modules.transcripts.broadcaster import publish_correction
@@ -140,6 +142,19 @@ async def run_correction_worker(shutdown_event: asyncio.Event | None = None) -> 
             try:
                 meeting_id = UUID(str(meeting_id_raw))
             except Exception:
+                continue
+
+            # Verify meeting still exists before processing correction
+            try:
+                async with async_session_factory() as session:
+                    meeting_exists = await session.scalar(
+                        select(1).select_from(Meeting).where(Meeting.id == meeting_id).limit(1)
+                    )
+                if not meeting_exists:
+                    logger.info("Meeting %s does not exist. Discarding correction job.", meeting_id)
+                    continue
+            except Exception as db_exc:
+                logger.warning("Database check failed during correction: %s", db_exc)
                 continue
 
             corrected_text = await correct_segment(text)

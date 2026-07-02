@@ -150,3 +150,71 @@ async def _execute_meeting_cleanup_tasks(
 
     if errors:
         raise RuntimeError("; ".join(str(e) for e in errors))
+
+
+async def delete_meeting(
+    session: AsyncSession,
+    meeting_id: UUID,
+    requester_id: UUID,
+) -> bool:
+    """
+    Delete a meeting and all its related records in a single database transaction,
+    then execute best-effort Redis and key cleanups post-commit.
+    
+    Args:
+        session: Database session
+        meeting_id: UUID of meeting to delete
+        requester_id: UUID of user requesting to delete the meeting
+        
+    Returns:
+        True on success
+        
+    Raises:
+        ValueError: If meeting not found
+        PermissionError: If requester is not the meeting host/owner
+    """
+    from sqlalchemy import text
+
+    # 1. Validate meeting existence and owner permission
+    meeting = await get_meeting_by_id(session, meeting_id)
+    if not meeting:
+        raise ValueError("Meeting not found")
+    if meeting.host_id != requester_id:
+        raise PermissionError("Only the owner can delete this meeting")
+
+    # 2. Database deletion (wrapped in transaction)
+    # Deleting from summaries first as there is no FK cascade on summaries table
+    await session.execute(
+        text("DELETE FROM summaries WHERE meeting_id = :meeting_id"),
+        {"meeting_id": meeting_id}
+    )
+    
+    # Deleting from meetings triggers foreign key ON DELETE CASCADE deletes
+    await session.execute(
+        text("DELETE FROM meetings WHERE id = :meeting_id"),
+        {"meeting_id": meeting_id}
+    )
+    
+    await session.commit()
+
+    # 3. Best-effort Post-commit Redis and Cache cleanup
+    try:
+        from app.state.client import get_redis
+        from app.modules.transcripts.segment_storage import delete_transcript_state
+        redis = await get_redis()
+        if redis:
+            await delete_transcript_state(redis, meeting_id)
+            
+            cache_service = get_service(CacheServiceInterface)  # type: ignore[type-abstract]
+            if cache_service:
+                await cache_service.delete_keys(
+                    f"assistant_enabled:{meeting_id}", 
+                    f"meeting:{meeting_id}:removed_users",
+                    f"meeting:host_id:{meeting_id}",
+                    f"assistant:pending_q:{meeting_id}",
+                    f"assistant:ext_approved:{meeting_id}"
+                )
+    except Exception as exc:
+        logger.exception("redis_cleanup_failed_during_meeting_delete meeting_id=%s", meeting_id, exc_info=exc)
+
+    return True

@@ -84,6 +84,41 @@ GEMINI_CORRECTION_MODEL_NAME = (
     or _require_env("GEMINI_MODEL_SUMMEREASE")
 )
 
+# --- Speech Gateway Config ---
+DEEPGRAM_API_KEY_1 = os.getenv("DEEPGRAM_API_KEY_1", "").strip()
+DEEPGRAM_API_KEY_2 = os.getenv("DEEPGRAM_API_KEY_2", "").strip()
+DEEPGRAM_API_KEY_3 = os.getenv("DEEPGRAM_API_KEY_3", "").strip()
+GLADIA_API_KEY = os.getenv("GLADIA_API_KEY", "").strip()
+ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY", "").strip()
+SPEECHMATICS_API_KEY = os.getenv("SPEECHMATICS_API_KEY", "").strip()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+
+try:
+    DEEPGRAM_COOLDOWN_SECONDS = int(os.getenv("DEEPGRAM_COOLDOWN_SECONDS", "300"))
+except ValueError:
+    DEEPGRAM_COOLDOWN_SECONDS = 300
+
+try:
+    GLADIA_COOLDOWN_SECONDS = int(os.getenv("GLADIA_COOLDOWN_SECONDS", "300"))
+except ValueError:
+    GLADIA_COOLDOWN_SECONDS = 300
+
+try:
+    ASSEMBLYAI_COOLDOWN_SECONDS = int(os.getenv("ASSEMBLYAI_COOLDOWN_SECONDS", "300"))
+except ValueError:
+    ASSEMBLYAI_COOLDOWN_SECONDS = 300
+
+try:
+    SPEECHMATICS_COOLDOWN_SECONDS = int(os.getenv("SPEECHMATICS_COOLDOWN_SECONDS", "300"))
+except ValueError:
+    SPEECHMATICS_COOLDOWN_SECONDS = 300
+
+try:
+    GROQ_COOLDOWN_SECONDS = int(os.getenv("GROQ_COOLDOWN_SECONDS", "300"))
+except ValueError:
+    GROQ_COOLDOWN_SECONDS = 300
+
+
 
 # --- RAG Ingestion Config ---
 ENABLE_RAG = _get_bool("ENABLE_RAG")

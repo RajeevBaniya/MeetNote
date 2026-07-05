@@ -7,6 +7,10 @@ from fastapi import HTTPException, status
 
 from app.core.config import ASSISTANT_DISPLAY_NAME
 from app.core.metrics import incr
+from app.modules.transcripts.transcript_event_payload import (
+    TRANSCRIPT_EVENTS_QUEUE,
+    build_transcript_event_payload,
+)
 from app.modules.transcripts.webhooks.utils import parse_meeting_id
 from app.state.client import get_redis
 from app.state.redis_client import redis_rpush
@@ -88,14 +92,35 @@ async def handle_transcript_event(
             detail="Service temporarily unavailable",
         )
 
-    payload = {
-        "meeting_id": str(meeting_id),
-        "text": text,
-        "speaker_id": speaker_id,
-        "speaker_name": speaker_name,
-        "timestamp": timestamp_str,
-    }
-    await redis_rpush(redis, "transcript_events", json.dumps(payload))
+    # Check if Speech Gateway is active for this meeting
+    gateway_active = False
+    try:
+        gateway_active_key = f"speech:meeting:{meeting_id}:gateway_active"
+        gateway_active_val = await redis.get(gateway_active_key)
+        gateway_active = bool(gateway_active_val == "1")
+    except Exception as exc:
+        logger.warning(
+            "webhook_redis_check_failed_fallback_to_webhook",
+            extra={"meeting_id": meeting_id_for_log},
+            exc_info=exc,
+        )
+
+    if gateway_active:
+        logger.info(
+            "webhook_skipped_gateway_active",
+            extra={"meeting_id": meeting_id_for_log},
+        )
+        incr("webhook_processed_total")
+        return {"accepted": True}
+
+    payload = build_transcript_event_payload(
+        meeting_id=str(meeting_id),
+        text=text,
+        speaker_id=speaker_id,
+        speaker_name=speaker_name,
+        timestamp=timestamp_str,
+    )
+    await redis_rpush(redis, TRANSCRIPT_EVENTS_QUEUE, json.dumps(payload))
 
     processing_ms = int(
         (datetime.now(timezone.utc) - start_time).total_seconds() * 1000

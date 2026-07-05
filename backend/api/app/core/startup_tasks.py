@@ -21,6 +21,7 @@ from app.db.base import engine
 from app.db.models import Meeting
 from app.db.session import async_session_factory
 from app.modules.meetings.events import publish_meeting_snapshot
+from app.modules.transcripts.correction_worker import run_correction_worker
 from app.modules.transcripts.worker import run_transcript_worker
 from app.state.client import get_redis
 from app.workers.convergence_auditor import run_convergence_auditor
@@ -60,6 +61,9 @@ async def initialize_application() -> asyncio.Task | None:
         await _publish_active_meetings_snapshot()
         transcript_task = asyncio.create_task(
             run_worker_with_sentry("transcript_worker", run_transcript_worker)
+        )
+        asyncio.create_task(
+            run_worker_with_sentry("correction_worker", run_correction_worker)
         )
         asyncio.create_task(
             run_worker_with_sentry("convergence_auditor", run_convergence_auditor)

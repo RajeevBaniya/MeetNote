@@ -31,6 +31,7 @@ from app.modules.recordings.router import router as recordings_router
 from app.modules.stream_tokens.router import router as stream_tokens_router
 from app.modules.transcripts.webhook import router as transcript_webhook_router
 from app.modules.transcripts.websocket import transcript_websocket
+from app.modules.speech.websocket import speech_gateway_websocket
 from app.state.client import close_redis
 
 logger = logging.getLogger(__name__)
@@ -124,6 +125,7 @@ app.include_router(recordings_router)
 app.include_router(transcript_webhook_router)
 app.websocket("/ws/meetings/{meeting_id}/chat")(chat_websocket)
 app.websocket("/ws/meetings/{meeting_id}/transcript")(transcript_websocket)
+app.websocket("/ws/meetings/{meeting_id}/speech-gateway")(speech_gateway_websocket)
 
 
 @app.get("/healthz")

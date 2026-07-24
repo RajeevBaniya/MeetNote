@@ -14,7 +14,7 @@ const ToastProvider = ({ children }) => {
             key={t.id}
             type="button"
             onClick={() => dismiss(t.id)}
-            className="pointer-events-auto max-w-[320px] rounded-lg border border-slate-700/60 bg-slate-900/95 px-4 py-3 text-sm text-slate-100 shadow-xl backdrop-blur-sm text-left"
+            className="pointer-events-auto max-w-[320px] rounded-lg border border-slate-700/60 bg-slate-900/95 px-4 py-3 text-sm text-slate-100 shadow-xl backdrop-blur-sm text-left whitespace-pre-line"
           >
             {t.message}
           </button>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { listSummariesForMeeting } from "@/app/lib/summary/summary-api";
+import { getToken } from "@/app/lib/auth/token-store";
 
 import {
   generateLiveMeetingPreview,
@@ -84,10 +85,7 @@ const useLiveSummary = ({
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const jwt =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("meetnote_jwt")
-        : null;
+    const jwt = getToken();
     if (!apiUrl || !jwt) {
       setAutoStatus("error");
       setAutoError("Sign in required to load transcript.");
@@ -170,10 +168,7 @@ const useLiveSummary = ({
       return;
     }
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const jwt =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("meetnote_jwt")
-        : null;
+    const jwt = getToken();
     if (!apiUrl || !jwt) {
       setAutoError("Sign in required to generate summary.");
       return;

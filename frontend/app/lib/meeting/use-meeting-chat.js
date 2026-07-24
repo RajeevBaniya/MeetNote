@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/app/lib/auth/use-auth";
 import { getReconnectDelayMs } from "@/app/lib/websocket/reconnect-backoff";
 
-const buildChatWsUrl = (apiUrl, meetingId, jwt) => {
+import { fetchWsTicket } from "../auth/ws-ticket";
+
+const buildChatWsUrl = (apiUrl, meetingId, ticket) => {
   const base = (apiUrl || "").replace(/\/$/, "");
   const wsBase = base.replace(/^http:\/\//i, "ws://").replace(/^https:\/\//i, "wss://");
-  const token = encodeURIComponent(jwt || "");
-  return `${wsBase}/ws/meetings/${meetingId}/chat?token=${token}`;
+  const t = encodeURIComponent(ticket || "");
+  return `${wsBase}/ws/meetings/${meetingId}/chat?ticket=${t}`;
 };
 
 const closeReasonToMessage = (code, reason) => {
@@ -197,7 +199,7 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
       }, delayMs);
     };
 
-    const connectWs = () => {
+    const connectWs = async () => {
       if (!shouldReconnectRef.current) return;
       if (meetingEndedRef.current) return;
       if (isConnectingRef.current) return;
@@ -210,7 +212,20 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
 
       isConnectingRef.current = true;
 
-      const url = buildChatWsUrl(apiUrl, meetingId, jwt);
+      const ticket = await fetchWsTicket();
+      if (!ticket) {
+        setConnectionError("Failed to obtain connection ticket. Sign in again.");
+        isConnectingRef.current = false;
+        scheduleReconnect({ code: 4401, reason: "ticket failed" });
+        return;
+      }
+
+      if (!shouldReconnectRef.current || meetingEndedRef.current) {
+        isConnectingRef.current = false;
+        return;
+      }
+
+      const url = buildChatWsUrl(apiUrl, meetingId, ticket);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -228,8 +243,7 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
         try {
           const data = JSON.parse(event.data);
           if (data.type === "history" && Array.isArray(data.messages)) {
-            const filtered = data.messages.filter((message) => !isAssistantMessage(message));
-            setMessages(filtered.slice(-200));
+            setMessages(data.messages.slice(-200));
             return;
           }
           if (data.type === "initial_state" && typeof data.current_host_id === "string") {
@@ -245,9 +259,6 @@ export const useMeetingChat = (meetingId, jwt, isChatTabVisible = false, onHostC
             return;
           }
           if (data.type === "chat_message") {
-            if (isAssistantMessage(data)) {
-              return;
-            }
             setMessages((prev) => {
               let replaced = false;
               const withReplacement = prev.map((msg) => {

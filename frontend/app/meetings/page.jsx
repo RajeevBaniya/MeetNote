@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { MoreVertical } from "lucide-react";
 import { useAuth } from "@/app/lib/auth/use-auth";
 import {
   buildShareMessage,
@@ -11,6 +12,50 @@ import {
 import Navbar from "@/app/components/landing/navbar";
 import MeetingsSection from "@/app/components/meetings-section";
 import ShareMeetingModal from "@/app/components/meeting-room/modals/share-meeting-modal";
+import ConfirmModal from "@/app/components/common/confirm-modal";
+import { toast } from "@/app/lib/ui/use-toast";
+
+const CardDropdown = ({ onDelete }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
+  return (
+    <div className="relative shrink-0" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="inline-flex h-[38px] w-9 items-center justify-center rounded-lg border border-slate-700/60 bg-slate-800/40 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition focus:outline-none"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+      {menuOpen && (
+        <div className="absolute right-0 mt-1 z-50 w-32 rounded-lg border border-slate-700 bg-[#161f30] py-1 shadow-xl">
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              onDelete?.();
+            }}
+            className="w-full px-3 py-2 text-left text-xs font-semibold text-red-400 hover:bg-slate-800 hover:text-red-300 transition"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const MeetingCard = ({
   meeting,
@@ -20,6 +65,7 @@ const MeetingCard = ({
   onShare,
   onCopy,
   isCopied,
+  onDelete,
 }) => {
   const timestamp = meeting.scheduled_start_at || meeting.created_at;
   const created = timestamp
@@ -39,6 +85,10 @@ const MeetingCard = ({
   const handleCopy = useCallback(() => {
     onCopy?.(meeting.id);
   }, [meeting.id, onCopy]);
+
+  const handleDelete = useCallback(() => {
+    onDelete?.(meeting.id);
+  }, [meeting.id, onDelete]);
 
   return (
     <div
@@ -85,6 +135,9 @@ const MeetingCard = ({
             {isCopied ? "Copied to clipboard" : "Copy"}
           </button>
         ) : null}
+        {meeting.can_delete && onDelete ? (
+          <CardDropdown onDelete={handleDelete} />
+        ) : null}
       </div>
     </div>
   );
@@ -124,10 +177,75 @@ const MyMeetingsPage = () => {
   const [endedMeetings, setEndedMeetings] = useState([]);
   const [shareModalMeetingId, setShareModalMeetingId] = useState(null);
   const [lastCopiedId, setLastCopiedId] = useState(null);
+  const [meetingToDelete, setMeetingToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletedMeetingIds, setDeletedMeetingIds] = useState([]);
+
+  const excludeFromMineIds = useMemo(() => {
+    const ids = [];
+    for (const m of upcomingMeetings) ids.push(String(m.id));
+    for (const m of activeMeetings) ids.push(String(m.id));
+    for (const m of endedMeetings) ids.push(String(m.id));
+    return ids;
+  }, [upcomingMeetings, activeMeetings, endedMeetings]);
 
   const openAuth = (mode) => {
     router.push(`/?auth=${mode}`);
   };
+
+  const handleShareMeeting = useCallback((meetingId) => {
+    setShareModalMeetingId(meetingId);
+  }, []);
+
+  const handleCopyMeeting = useCallback(
+    async (meetingId) => {
+      if (!apiUrl || !jwt) return;
+      const base = apiUrl.replace(/\/$/, "");
+      try {
+        const res = await fetch(`${base}/meetings/${meetingId}/share`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const text = buildShareMessage(data);
+        await copyMeetingShare(text);
+        setLastCopiedId(meetingId);
+        setTimeout(() => setLastCopiedId(null), 2000);
+      } catch (_) {}
+    },
+    [apiUrl, jwt],
+  );
+
+  const handleDeleteMeetingClick = useCallback((meetingId) => {
+    setMeetingToDelete(meetingId);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!meetingToDelete || !apiUrl || !jwt) return;
+    setIsDeleting(true);
+    const base = apiUrl.replace(/\/$/, "");
+    try {
+      const res = await fetch(`${base}/meetings/${meetingToDelete}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      if (res.ok || res.status === 204) {
+        setUpcomingMeetings((prev) => prev.filter((m) => String(m.id) !== String(meetingToDelete)));
+        setActiveMeetings((prev) => prev.filter((m) => String(m.id) !== String(meetingToDelete)));
+        setEndedMeetings((prev) => prev.filter((m) => String(m.id) !== String(meetingToDelete)));
+        setDeletedMeetingIds((prev) => [...prev, String(meetingToDelete)]);
+        toast("Meeting deleted successfully");
+      } else {
+        const errorText = await res.text();
+        toast(`Failed to delete meeting: ${errorText || res.statusText}`);
+      }
+    } catch (err) {
+      toast(`Failed to delete meeting: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+      setMeetingToDelete(null);
+    }
+  }, [meetingToDelete, apiUrl, jwt]);
 
   useEffect(() => {
     if (authLoading || restoringAuth) return;
@@ -170,37 +288,6 @@ const MyMeetingsPage = () => {
       cancelled = true;
     };
   }, [jwt, isAuthenticated, apiUrl]);
-
-  const excludeFromMineIds = useMemo(() => {
-    const ids = [];
-    for (const m of upcomingMeetings) ids.push(String(m.id));
-    for (const m of activeMeetings) ids.push(String(m.id));
-    for (const m of endedMeetings) ids.push(String(m.id));
-    return ids;
-  }, [upcomingMeetings, activeMeetings, endedMeetings]);
-
-  const handleShareMeeting = useCallback((meetingId) => {
-    setShareModalMeetingId(meetingId);
-  }, []);
-
-  const handleCopyMeeting = useCallback(
-    async (meetingId) => {
-      if (!apiUrl || !jwt) return;
-      const base = apiUrl.replace(/\/$/, "");
-      try {
-        const res = await fetch(`${base}/meetings/${meetingId}/share`, {
-          headers: { Authorization: `Bearer ${jwt}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const text = buildShareMessage(data);
-        await copyMeetingShare(text);
-        setLastCopiedId(meetingId);
-        setTimeout(() => setLastCopiedId(null), 2000);
-      } catch (_) {}
-    },
-    [apiUrl, jwt],
-  );
 
   const pageBackground = (
     <>
@@ -347,6 +434,9 @@ const MyMeetingsPage = () => {
                                 Download ICS
                               </a>
                             ) : null}
+                            {meeting.can_delete ? (
+                              <CardDropdown onDelete={() => handleDeleteMeetingClick(meeting.id)} />
+                            ) : null}
                           </div>
                         </div>
                       </li>
@@ -378,6 +468,10 @@ const MyMeetingsPage = () => {
                         actionLabel="Join"
                         actionHref={`/meeting/${meeting.id}`}
                         isActive={true}
+                        onShare={handleShareMeeting}
+                        onCopy={handleCopyMeeting}
+                        isCopied={lastCopiedId === meeting.id}
+                        onDelete={handleDeleteMeetingClick}
                       />
                     </li>
                   ))}
@@ -401,8 +495,12 @@ const MyMeetingsPage = () => {
                       <MeetingCard
                         meeting={meeting}
                         actionLabel="View summary"
-                        actionHref={`/summarize?meetingId=${encodeURIComponent(meeting.id)}`}
+                        actionHref={`/meeting/${meeting.id}/summary`}
                         isActive={false}
+                        onShare={handleShareMeeting}
+                        onCopy={handleCopyMeeting}
+                        isCopied={lastCopiedId === meeting.id}
+                        onDelete={handleDeleteMeetingClick}
                       />
                     </li>
                   ))}
@@ -414,13 +512,40 @@ const MyMeetingsPage = () => {
               jwt={jwt}
               apiUrl={apiUrl}
               excludeMeetingIds={excludeFromMineIds}
+              deletedMeetingIds={deletedMeetingIds}
               onShareMeeting={handleShareMeeting}
               onCopyMeeting={handleCopyMeeting}
+              onDeleteMeeting={handleDeleteMeetingClick}
               lastCopiedId={lastCopiedId}
             />
           </div>
         )}
       </main>
+
+      <ConfirmModal
+        isOpen={Boolean(meetingToDelete)}
+        title="Delete this meeting?"
+        message={
+          <>
+            This will permanently delete the following data:
+            <span className="block mt-2 ml-4 text-slate-400">
+              • Transcript<br />
+              • Summary<br />
+              • AI Chat history<br />
+              • Insights<br />
+              • Analytics<br />
+              • Recordings
+            </span>
+            <span className="block mt-3 font-semibold text-red-400">
+              This action cannot be undone.
+            </span>
+          </>
+        }
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setMeetingToDelete(null)}
+        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
+      />
     </div>
   );
 };

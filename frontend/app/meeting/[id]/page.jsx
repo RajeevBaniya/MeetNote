@@ -77,11 +77,13 @@ const MeetingPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user: authUser, jwt, loading: authLoading, restoringAuth, isAuthenticated } = useAuth();
+  
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [removedByHost, setRemovedByHost] = useState(false);
   const [meetingFetchStatus, setMeetingFetchStatus] = useState("loading");
   const [scheduledStartAt, setScheduledStartAt] = useState(null);
   const [meetingLoaded, setMeetingLoaded] = useState(false);
+  const [hostId, setHostId] = useState(null);
 
   const callId = params.id;
   const queryName = searchParams.get("name");
@@ -89,26 +91,7 @@ const MeetingPageContent = () => {
     (queryName && queryName.trim()) ||
     (authUser && authUser.name) ||
     "Guest";
-
-  useEffect(() => {
-    if (authLoading || restoringAuth) return;
-    
-    if (!jwt || !isAuthenticated) {
-      const currentPath = `/meeting/${callId}`;
-      const queryString = searchParams.toString();
-      const fullPath = queryString ? `${currentPath}?${queryString}` : currentPath;
-      sessionStorage.setItem("redirectAfterAuth", fullPath);
-      
-      const timer = setTimeout(() => {
-        router.replace("/?auth=login&reason=meeting");
-      }, 800);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [jwt, authLoading, restoringAuth, isAuthenticated, callId, searchParams, router]);
-
   const passcode = (searchParams.get("code") || "").trim() || null;
-
   const earlyJoinAllowed =
     !scheduledStartAt ||
     (new Date(scheduledStartAt).getTime() - Date.now()) / 1000 <= 60;
@@ -126,6 +109,57 @@ const MeetingPageContent = () => {
   if (token != null) tokenRef.current = token;
 
   const getToken = useCallback(() => tokenRef.current, []);
+
+  const handleLeave = useCallback(() => {
+    router.push("/");
+  }, [router]);
+
+  const goBack = useCallback(() => {
+    router.push("/");
+  }, [router]);
+
+  const handleSessionEnded = useCallback(async () => {
+    if (checkLeavingForSummarizeAndRedirect(router, callId)) return;
+
+    let removed = false;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl && callId && jwt) {
+      try {
+        const r = await fetch(`${apiUrl}/meetings/${callId}/check-removed`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+        if (r.ok) {
+          const d = await r.json();
+          removed = d.removed === true;
+        }
+      } catch (err) {
+        console.error("Check removed failed:", err);
+      }
+    }
+    if (removed) {
+      setRemovedByHost(true);
+      setMeetingEnded(true);
+    } else {
+      router.replace(`/meeting/${callId}/summary`);
+    }
+  }, [callId, jwt, router]);
+
+  useEffect(() => {
+    if (authLoading || restoringAuth) return;
+    
+    if (!jwt || !isAuthenticated) {
+      const currentPath = `/meeting/${callId}`;
+      const queryString = searchParams.toString();
+      const fullPath = queryString ? `${currentPath}?${queryString}` : currentPath;
+      sessionStorage.setItem("redirectAfterAuth", fullPath);
+      
+      const timer = setTimeout(() => {
+        router.replace("/?auth=login&reason=meeting");
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [jwt, authLoading, restoringAuth, isAuthenticated, callId, searchParams, router]);
 
   useEffect(() => {
     if (status !== "ready" || !token || typeof expiresInSeconds !== "number") return;
@@ -190,8 +224,6 @@ const MeetingPageContent = () => {
     };
   }, [status, token, expiresInSeconds, callId, jwt, displayName, passcode]);
 
-  const [hostId, setHostId] = useState(null);
-
   useEffect(() => {
     if (!callId || !jwt) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -240,40 +272,6 @@ const MeetingPageContent = () => {
     }, 1500);
     return () => clearTimeout(t);
   }, [meetingFetchStatus, callId, router]);
-
-  const handleLeave = useCallback(() => {
-    router.push("/");
-  }, [router]);
-
-  const goBack = useCallback(() => {
-    router.push("/");
-  }, [router]);
-
-  const handleSessionEnded = useCallback(async () => {
-    if (checkLeavingForSummarizeAndRedirect(router, callId)) return;
-
-    let removed = false;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (apiUrl && callId && jwt) {
-      try {
-        const r = await fetch(`${apiUrl}/meetings/${callId}/check-removed`, {
-          headers: { Authorization: `Bearer ${jwt}` },
-        });
-        if (r.ok) {
-          const d = await r.json();
-          removed = d.removed === true;
-        }
-      } catch (err) {
-        console.error("Check removed failed:", err);
-      }
-    }
-    if (removed) {
-      setRemovedByHost(true);
-      setMeetingEnded(true);
-    } else {
-      router.replace(`/meeting/${callId}/summary`);
-    }
-  }, [callId, jwt, router]);
 
   if (authLoading || restoringAuth) {
     return (

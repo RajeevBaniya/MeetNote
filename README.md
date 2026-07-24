@@ -58,13 +58,5 @@ npm run dev   # Next.js dev server (http://localhost:3000)
 - `GROQ_API_KEY`
 - `JWT_SECRET`
 
-## Current Project Status
-- **Authentication** – ✅ Complete (JWT & Clerk integration)
-- **Meeting Lifecycle** – ✅ Production‑grade
-- **Video Integration** – ✅ Fixed SDK race condition
-- **Assistant Agent** – ✅ Stable
-- **Summarization Service** – ✅ FastAPI implementation, replaces legacy Node.js service
-- **Database Migration** – ✅ Switched to Neon PostgreSQL
-- **Export Design** – ✅ Professional PDF/DOCX layouts
 
   

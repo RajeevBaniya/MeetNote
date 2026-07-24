@@ -43,6 +43,7 @@ const MeetingRoomContent = ({
   onStartLeaving,
   onStartEnding,
   resetExitState,
+  gatewayStatus = "Offline",
 }) => {
   const { useParticipants, useHasOngoingScreenShare } = useCallStateHooks();
   const participants = useParticipants() ?? [];
@@ -172,6 +173,16 @@ const MeetingRoomContent = ({
 
       <div className="flex justify-center items-center shrink-0 pb-1 sm:pb-2">
         <div className="w-full bg-[#020617] px-2 py-1.5 sm:px-4 sm:py-1.5 md:px-6 md:py-2 border-t border-slate-800/80 flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap justify-center">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/40 px-2.5 py-1 rounded-full border border-slate-800/80" title="Speech Gateway Status">
+            <span className={`w-2 h-2 rounded-full ${
+              gatewayStatus === "Connected" ? "bg-emerald-500 animate-pulse" :
+              gatewayStatus === "Connecting" ? "bg-sky-400 animate-pulse" :
+              gatewayStatus === "Reconnecting" ? "bg-amber-500 animate-pulse" :
+              "bg-slate-500"
+            }`} />
+            <span className="font-medium text-[11px] sm:text-xs">STT: {gatewayStatus}</span>
+          </div>
+
           <button
             onClick={handleToggleAssistant}
             className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-colors ${

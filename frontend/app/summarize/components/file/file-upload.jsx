@@ -1,18 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { apiFetch } from "../../lib/api";
 import { Button } from "../ui/button";
 
-const ALLOWED_EXTENSIONS = Object.freeze([".txt", ".pdf", ".docx"]);
-const ALLOWED_MIME_TYPES = Object.freeze([
-  "text/plain",
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]);
-const MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const PREVIEW_COLLAPSED_CHARS = 400;
 
 const FILE_TYPE_LABELS = Object.freeze({
   txt: "Text File",
@@ -20,42 +13,58 @@ const FILE_TYPE_LABELS = Object.freeze({
   docx: "Word Document",
 });
 
+const MIME_MAP = Object.freeze({
+  ".txt": "text/plain",
+  ".pdf": "application/pdf",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+});
+
 const getFileExtension = (filename) => {
   const lastDot = filename.lastIndexOf(".");
   return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : "";
 };
 
-const isValidFileType = (file) => {
-  const ext = getFileExtension(file.name);
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const TranscriptPreview = ({ transcript, label }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const isLong = transcript.length > PREVIEW_COLLAPSED_CHARS;
+  const displayedText =
+    expanded || !isLong
+      ? transcript
+      : transcript.substring(0, PREVIEW_COLLAPSED_CHARS);
+
+  const handleToggle = useCallback(() => {
+    setExpanded((prev) => !prev);
+  }, []);
+
   return (
-    ALLOWED_EXTENSIONS.includes(ext) || ALLOWED_MIME_TYPES.includes(file.type)
+    <div className="transcript-preview">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-sm text-slate-400">{label}</p>
+        <span className="text-xs text-slate-500">
+          {transcript.length.toLocaleString()} characters extracted
+        </span>
+      </div>
+      <p className="text-sm text-slate-300 whitespace-pre-wrap">
+        {displayedText}
+        {!expanded && isLong ? "…" : ""}
+      </p>
+      {isLong && (
+        <button
+          onClick={handleToggle}
+          className="mt-2 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
+    </div>
   );
-};
-
-const isValidFileSize = (file) => {
-  return file.size <= MAX_FILE_SIZE_BYTES;
-};
-
-const validateFile = (file) => {
-  if (!file) {
-    return { valid: false, error: "No file selected" };
-  }
-
-  if (!isValidFileType(file)) {
-    return {
-      valid: false,
-      error: `Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
-    };
-  }
-
-  if (!isValidFileSize(file)) {
-    return {
-      valid: false,
-      error: `File too large. Maximum size: ${MAX_FILE_SIZE_MB}MB`,
-    };
-  }
-
-  return { valid: true, error: null };
 };
 
 const FileUpload = ({ onFileUpload, transcript }) => {
@@ -63,9 +72,70 @@ const FileUpload = ({ onFileUpload, transcript }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
 
+  const [maxFileSize, setMaxFileSize] = useState(10 * 1024 * 1024);
+  const [supportedExtensions, setSupportedExtensions] = useState([
+    ".txt",
+    ".pdf",
+    ".docx",
+  ]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchConfig = async () => {
+      try {
+        const response = await apiFetch("/api/upload/config");
+        if (active && response) {
+          if (typeof response.maxFileSize === "number") {
+            setMaxFileSize(response.maxFileSize);
+          }
+          if (Array.isArray(response.supportedExtensions)) {
+            setSupportedExtensions(response.supportedExtensions);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch upload config:", err);
+      }
+    };
+    fetchConfig();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const maxFileSizeMB = Math.floor(maxFileSize / (1024 * 1024));
+
+  const isValidFileType = (file) => {
+    const ext = getFileExtension(file.name);
+    if (supportedExtensions.includes(ext)) {
+      return true;
+    }
+    const mimeType = MIME_MAP[ext];
+    return mimeType && file.type === mimeType;
+  };
+
+  const isValidFileSize = (file) => file.size <= maxFileSize;
+
+  const validateFile = (file) => {
+    if (!file) {
+      return { valid: false, error: "No file selected" };
+    }
+    if (!isValidFileType(file)) {
+      return {
+        valid: false,
+        error: `Invalid file type. Allowed: ${supportedExtensions.join(", ")}`,
+      };
+    }
+    if (!isValidFileSize(file)) {
+      return {
+        valid: false,
+        error: `File too large. Maximum size: ${maxFileSizeMB}MB`,
+      };
+    }
+    return { valid: true, error: null };
+  };
+
   const handleFileUpload = async (file) => {
     const validation = validateFile(file);
-
     if (!validation.valid) {
       alert(validation.error);
       return;
@@ -124,12 +194,6 @@ const FileUpload = ({ onFileUpload, transcript }) => {
     }
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   const dropzoneClass = isDragging
     ? "border-emerald-400 bg-emerald-500/10"
     : "border-slate-600 bg-slate-800/30";
@@ -185,41 +249,22 @@ const FileUpload = ({ onFileUpload, transcript }) => {
               </Button>
             </div>
             <p className="text-sm text-slate-500 mt-2">
-              Supported: .txt, .pdf, .docx (up to {MAX_FILE_SIZE_MB}MB)
+              Supported: {supportedExtensions.join(", ")} (up to {maxFileSizeMB}
+              MB)
             </p>
           </>
         )}
       </div>
 
       {transcript && uploadedFile && (
-        <div className="transcript-preview">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-medium text-emerald-400">
-              {FILE_TYPE_LABELS[uploadedFile.type] || "File"}
-            </span>
-            <span className="text-sm text-slate-500">•</span>
-            <span className="text-sm text-slate-400">{uploadedFile.name}</span>
-            <span className="text-sm text-slate-500">•</span>
-            <span className="text-sm text-slate-500">
-              {formatFileSize(uploadedFile.size)}
-            </span>
-          </div>
-          <p className="text-sm text-slate-400 mb-1">Extracted text preview:</p>
-          <p className="text-sm text-slate-300">
-            {transcript.substring(0, 300)}
-            {transcript.length > 300 ? "..." : ""}
-          </p>
-        </div>
+        <TranscriptPreview
+          transcript={transcript}
+          label={`${FILE_TYPE_LABELS[uploadedFile.type] || "File"} · ${uploadedFile.name} · ${formatFileSize(uploadedFile.size)}`}
+        />
       )}
 
       {transcript && !uploadedFile && (
-        <div className="transcript-preview">
-          <p className="text-sm text-slate-400 mb-2">Transcript preview:</p>
-          <p className="text-sm text-slate-300">
-            {transcript.substring(0, 300)}
-            {transcript.length > 300 ? "..." : ""}
-          </p>
-        </div>
+        <TranscriptPreview transcript={transcript} label="Transcript preview" />
       )}
     </div>
   );

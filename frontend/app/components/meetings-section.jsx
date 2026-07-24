@@ -25,13 +25,19 @@ const MeetingsSection = ({
   onCopyMeeting,
   lastCopiedId,
   excludeMeetingIds,
+  deletedMeetingIds = [],
+  onDeleteMeeting,
 }) => {
-  const { meetings, loading, summariesLoading, error } = useMeetingList(
+  const { meetings: rawMeetings, loading, summariesLoading, error } = useMeetingList(
     jwt,
     apiUrl,
     excludeMeetingIds,
   );
   const base = apiUrl ? apiUrl.replace(/\/$/, "") : "";
+
+  const meetings = rawMeetings.filter(
+    (m) => !deletedMeetingIds.includes(String(m.id))
+  );
 
   if (loading) {
     return (
@@ -95,7 +101,7 @@ const MeetingsSection = ({
             const isActive = Boolean(meeting.is_active);
             const primaryHref = isActive
               ? `/meeting/${meeting.id}`
-              : `/summarize?meetingId=${encodeURIComponent(meeting.id)}`;
+              : `/meeting/${meeting.id}/summary`;
             const primaryLabel = isActive ? "Join" : "View summary";
             return (
               <li key={meeting.id}>
@@ -109,6 +115,8 @@ const MeetingsSection = ({
                   }
                   primaryHref={primaryHref}
                   primaryLabel={primaryLabel}
+                  canDelete={meeting.can_delete}
+                  onDelete={() => onDeleteMeeting?.(meeting.id)}
                 >
                   {onShareMeeting ? (
                     <button

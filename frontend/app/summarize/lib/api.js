@@ -1,10 +1,12 @@
+import { getToken } from "../../lib/auth/token-store";
+
 const apiFetch = async (path, options = {}) => {
   const baseUrl = process.env.NEXT_PUBLIC_SUMMARY_API_URL || "http://localhost:8002";
   const url = `${baseUrl}${path}`;
 
   const defaultHeaders = {};
   if (typeof window !== "undefined") {
-    const token = window.localStorage.getItem("meetnote_jwt");
+    const token = getToken();
     if (token) {
       defaultHeaders["Authorization"] = `Bearer ${token}`;
     }

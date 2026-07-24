@@ -12,6 +12,18 @@ const JoinMeetingContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { jwt, loading: authLoading, restoringAuth } = useAuth();
+
+  const [username, setUsername] = useState("");
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingDescription, setMeetingDescription] = useState("");
+  const [scheduledAtLocal, setScheduledAtLocal] = useState("");
+  const [meetingId, setMeetingId] = useState("");
+  const [meetingPasscode, setMeetingPasscode] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [createdMeeting, setCreatedMeeting] = useState(null);
+  const [bannerError, setBannerError] = useState(null);
+
   const mode = searchParams.get("mode") || "join";
   const isHostMode = mode === "host";
 
@@ -24,17 +36,6 @@ const JoinMeetingContent = () => {
       router.replace("/?auth=login&reason=meeting");
     }
   }, [jwt, authLoading, restoringAuth, router]);
-
-  const [username, setUsername] = useState("");
-  const [meetingTitle, setMeetingTitle] = useState("");
-  const [meetingDescription, setMeetingDescription] = useState("");
-  const [scheduledAtLocal, setScheduledAtLocal] = useState("");
-  const [meetingId, setMeetingId] = useState("");
-  const [meetingPasscode, setMeetingPasscode] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState(null);
-  const [createdMeeting, setCreatedMeeting] = useState(null);
-  const [bannerError, setBannerError] = useState(null);
 
   const formatJoinCode = (value) => {
     const digits = value.replace(/\D/g, "").slice(0, 12);

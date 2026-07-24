@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "@/app/lib/ui/use-toast";
 
+import { getToken } from "@/app/lib/auth/token-store";
 import { Button } from "../ui/button";
 
 const ExportButton = ({ summaryId, fileName, variant = "outline" }) => {
@@ -20,14 +22,24 @@ const ExportButton = ({ summaryId, fileName, variant = "outline" }) => {
     try {
       const baseUrl =
         process.env.NEXT_PUBLIC_SUMMARY_API_URL || "http://localhost:8002";
+      const token = getToken();
+      const headers = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(
         `${baseUrl}/api/export/${type}/${summaryId}`,
         {
           method: "GET",
+          headers: headers,
         },
       );
 
       if (!response.ok) {
+        if (response.status === 403) {
+          toast("Access denied\n\nYou do not have permission to access this summary.");
+          return;
+        }
         const errorText = await response.text();
         let errorData;
         try {

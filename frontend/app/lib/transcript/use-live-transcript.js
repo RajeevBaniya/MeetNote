@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getReconnectDelayMs } from "@/app/lib/websocket/reconnect-backoff";
+import { fetchWsTicket } from "../auth/ws-ticket";
 
-const buildTranscriptWsUrl = (apiUrl, meetingId, jwt) => {
+const buildTranscriptWsUrl = (apiUrl, meetingId, ticket) => {
   const base = (apiUrl || "").replace(/\/$/, "");
   const wsBase = base
     .replace(/^http:\/\//i, "ws://")
     .replace(/^https:\/\//i, "wss://");
-  const token = encodeURIComponent(jwt || "");
-  return `${wsBase}/ws/meetings/${meetingId}/transcript?token=${token}`;
+  const t = encodeURIComponent(ticket || "");
+  return `${wsBase}/ws/meetings/${meetingId}/transcript?ticket=${t}`;
 };
 
 const parseSegment = (seg, fallbackSequence) => {
@@ -35,6 +36,7 @@ const parseSegment = (seg, fallbackSequence) => {
     timestamp: timestampRaw
       ? new Date(timestampRaw).toLocaleTimeString()
       : new Date().toLocaleTimeString(),
+    segment_id: seg?.segment_id || null,
   };
 };
 
@@ -173,7 +175,7 @@ const useLiveTranscript = (meetingId, jwt) => {
       }, delayMs);
     };
 
-    const connectWs = () => {
+    const connectWs = async () => {
       if (!shouldReconnectRef.current) return;
       if (meetingEndedRef.current) return;
       if (isConnectingRef.current) return;
@@ -185,7 +187,21 @@ const useLiveTranscript = (meetingId, jwt) => {
       }
 
       isConnectingRef.current = true;
-      const url = buildTranscriptWsUrl(apiUrl, meetingId, jwt);
+
+      const ticket = await fetchWsTicket();
+      if (!ticket) {
+        setConnectionError("Failed to obtain connection ticket. Sign in again.");
+        isConnectingRef.current = false;
+        scheduleReconnect({ code: 4401, reason: "ticket failed" });
+        return;
+      }
+
+      if (!shouldReconnectRef.current || meetingEndedRef.current) {
+        isConnectingRef.current = false;
+        return;
+      }
+
+      const url = buildTranscriptWsUrl(apiUrl, meetingId, ticket);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -220,6 +236,29 @@ const useLiveTranscript = (meetingId, jwt) => {
           if (data.type === "transcript" && data.segment) {
             const entry = toSegment(data.segment);
             setTranscripts((prev) => appendIfNewBySequence(prev, entry));
+            return;
+          }
+          if (data.type === "transcript_correction") {
+            setTranscripts((prev) => {
+              const segmentIdStr = data.segment_id ? String(data.segment_id) : null;
+              const sequenceVal = typeof data.sequence === "number" ? data.sequence : (data.sequence != null ? Number(data.sequence) : null);
+              
+              let updated = false;
+              const next = prev.map((s) => {
+                const isMatch = (segmentIdStr && s.segment_id && String(s.segment_id) === segmentIdStr) ||
+                                (sequenceVal !== null && s.sequence === sequenceVal);
+                if (isMatch) {
+                  updated = true;
+                  return {
+                    ...s,
+                    text: data.corrected_text || "",
+                  };
+                }
+                return s;
+              });
+              return updated ? next : prev;
+            });
+            return;
           }
         } catch {}
       };

@@ -9,7 +9,13 @@ const apiBase = () => {
   return url ? url.replace(/\/$/, "") : "";
 };
 
-const JWT_STORAGE_KEY = "meetnote_jwt";
+import { setToken } from "@/app/lib/auth/token-store";
+
+const getCsrfToken = () => {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(/(?:^|;)\s*csrf_token=([^;]+)/);
+  return match ? match[1] : "";
+};
 
 const buildStructuredError = (res, data, fallbackMessage) => {
   if (!res) {
@@ -86,9 +92,11 @@ const AuthProvider = ({ children }) => {
     const base = apiBase();
     if (!base) return null;
     try {
+      const csrfToken = getCsrfToken();
       const res = await fetch(`${base}/auth/refresh`, {
         method: "POST",
         credentials: "include",
+        headers: csrfToken ? { "X-CSRF-Token": csrfToken } : undefined,
       });
       if (!res.ok) {
         return null;
@@ -98,7 +106,7 @@ const AuthProvider = ({ children }) => {
       if (!token) {
         return null;
       }
-      localStorage.setItem(JWT_STORAGE_KEY, token);
+      setToken(token);
       setJwt(token);
       return token;
     } catch {
@@ -155,7 +163,7 @@ const AuthProvider = ({ children }) => {
           setLoading(false);
           return { ok: false, error: structuredError };
         }
-        localStorage.setItem(JWT_STORAGE_KEY, token);
+        setToken(token);
         setJwt(token);
         const me = await fetchMe(token);
         setUser(me);
@@ -240,13 +248,15 @@ const AuthProvider = ({ children }) => {
     const base = apiBase();
     if (base) {
       try {
+        const csrfToken = getCsrfToken();
         await fetch(`${base}/auth/logout`, {
           method: "POST",
           credentials: "include",
+          headers: csrfToken ? { "X-CSRF-Token": csrfToken } : undefined,
         });
       } catch {}
     }
-    localStorage.removeItem(JWT_STORAGE_KEY);
+    setToken(null);
     setUser(null);
     setJwt(null);
     setError(null);
@@ -257,40 +267,28 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const restoreSession = async () => {
-      const storedToken = localStorage.getItem(JWT_STORAGE_KEY);
-
-      if (!storedToken) {
-        setLoading(false);
-        setRestoringAuth(false);
-        return;
-      }
-
-      setJwt(storedToken);
       setLoading(true);
       setRestoringAuth(true);
 
       try {
-        let me = await fetchMe(storedToken);
-
-        if (!me) {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
-            me = await fetchMe(refreshed);
-          }
+        let me = null;
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          me = await fetchMe(refreshed);
         }
 
         if (me) {
           setUser(me);
           setError(null);
         } else {
-          localStorage.removeItem(JWT_STORAGE_KEY);
+          setToken(null);
           setJwt(null);
           setUser(null);
           setError("Session expired");
         }
       } catch (err) {
         console.error("Auth restoration error:", err);
-        localStorage.removeItem(JWT_STORAGE_KEY);
+        setToken(null);
         setJwt(null);
         setUser(null);
         setError("Failed to restore session");

@@ -7,6 +7,7 @@ import useMeetingCall from "@/app/lib/meeting/use-meeting-call";
 import { useMeetingExit } from "@/app/lib/meeting/use-meeting-exit";
 import { useLiveTranscript } from "@/app/lib/transcript/use-live-transcript";
 import { useTranscriptPanel } from "@/app/lib/transcript/use-transcript-panel";
+import useSpeechGateway from "@/app/lib/speech/use-speech-gateway";
 
 import ConnectionStateBanner from "./shell/connection-state-banner";
 import MeetingExitLoading from "./shell/meeting-exit-loading";
@@ -44,10 +45,35 @@ const MeetingRoom = ({
     reconnecting,
     connectionError,
   } = useLiveTranscript(callId, jwt);
+  const { gatewayStatus } = useSpeechGateway(callId, jwt, !!call);
   const { isTranscriptOpen, toggleTranscript, closeTranscript } =
     useTranscriptPanel();
   const isHost = Boolean(
     currentHostId && userId && String(currentHostId) === String(userId),
+  );
+
+  const handleLeave = useCallback(() => {
+    setParticipantsOpen(false);
+    onLeave?.();
+  }, [onLeave]);
+
+  const handleOpenParticipants = useCallback(() => {
+    setParticipantsOpen(true);
+  }, []);
+
+  const handleCloseParticipants = useCallback(() => {
+    setParticipantsOpen(false);
+  }, []);
+
+  const handleHostChanged = useCallback(
+    (incomingHostId) => {
+      if (!incomingHostId) return;
+      const next = String(incomingHostId);
+      const current = currentHostId != null ? String(currentHostId) : null;
+      if (current === next) return;
+      setCurrentHostId(incomingHostId);
+    },
+    [currentHostId],
   );
 
   useEffect(() => {
@@ -71,33 +97,9 @@ const MeetingRoom = ({
       });
   }, [callId, jwt]);
 
-  const handleLeave = useCallback(() => {
-    setParticipantsOpen(false);
-    onLeave?.();
-  }, [onLeave]);
-
   useEffect(() => {
     if (!callId) resetExitState();
   }, [callId, resetExitState]);
-
-  const handleOpenParticipants = useCallback(() => {
-    setParticipantsOpen(true);
-  }, []);
-
-  const handleCloseParticipants = useCallback(() => {
-    setParticipantsOpen(false);
-  }, []);
-
-  const handleHostChanged = useCallback(
-    (incomingHostId) => {
-      if (!incomingHostId) return;
-      const next = String(incomingHostId);
-      const current = currentHostId != null ? String(currentHostId) : null;
-      if (current === next) return;
-      setCurrentHostId(incomingHostId);
-    },
-    [currentHostId],
-  );
 
   if (error) {
     return <MeetingRoomError error={error} />;
@@ -146,6 +148,7 @@ const MeetingRoom = ({
                   onStartLeaving={startLeaving}
                   onStartEnding={startEnding}
                   resetExitState={resetExitState}
+                  gatewayStatus={gatewayStatus}
                 />
               </div>
             </div>
